@@ -14,7 +14,14 @@ from typing import get_args
 
 from swfactory import __version__
 from swfactory.adapters import plan_invocation, run_invocation
-from swfactory.config import ConfigError, check_config, factory_home, load_role_table
+from swfactory.config import (
+    ConfigError,
+    RoleTable,
+    check_config,
+    factory_home,
+    load_project_config,
+    load_role_table,
+)
 from swfactory.roles import Vendor, resolve_role
 
 COMMANDS: set[str] = {"config", "role"}
@@ -43,6 +50,15 @@ def _print_problems(problems: list[str]) -> int:
     return EXIT_USAGE
 
 
+def _load_role_table(project: Path | None) -> RoleTable:
+    """The default role table, with the role overrides of a project's factory.yaml when one is given."""
+    overrides = None
+    if project is not None:
+        factory_yaml = project / "factory.yaml" if project.is_dir() else project
+        overrides = load_project_config(factory_yaml).role_overrides
+    return load_role_table(factory_home() / "config" / "roles.yaml", overrides)
+
+
 def _cmd_role_help(args: argparse.Namespace) -> int:
     args.role_parser.print_help()
     return EXIT_USAGE
@@ -50,7 +66,7 @@ def _cmd_role_help(args: argparse.Namespace) -> int:
 
 def _cmd_role_resolve(args: argparse.Namespace) -> int:
     try:
-        table = load_role_table(factory_home() / "config" / "roles.yaml")
+        table = _load_role_table(args.project)
         r = resolve_role(table, args.role, args.host, args.author, args.fallback)
         inv = plan_invocation(r, args.host, _PLACEHOLDER_OUT)
     except ConfigError as err:
@@ -61,7 +77,7 @@ def _cmd_role_resolve(args: argparse.Namespace) -> int:
 
 def _cmd_role_run(args: argparse.Namespace) -> int:
     try:
-        table = load_role_table(factory_home() / "config" / "roles.yaml")
+        table = _load_role_table(args.project)
         r = resolve_role(table, args.role, args.host, args.author, args.fallback)
         inv = plan_invocation(r, args.host, args.out, args.schema)
         if inv.kind == "main":
@@ -129,6 +145,12 @@ def build_parser() -> argparse.ArgumentParser:
             help="the vendor that wrote the work under review (default: the host's)",
         )
         sub.add_argument("--fallback", action="store_true", help="use the role's fallback binding")
+        sub.add_argument(
+            "--project",
+            type=Path,
+            metavar="PATH",
+            help="a project folder or factory.yaml whose role overrides are applied",
+        )
     run.add_argument("--prompt", required=True, type=Path, metavar="FILE", help="the prompt, sent on stdin")
     run.add_argument("--out", required=True, type=Path, metavar="FILE", help="where the reviewer's text is written")
     run.add_argument("--schema", type=Path, metavar="FILE", help="a JSON schema for the reply (Codex only)")

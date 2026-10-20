@@ -8,6 +8,7 @@ import re
 import time
 
 import pytest
+import yaml
 
 from swfactory import cli
 from swfactory.adapters import (
@@ -150,10 +151,19 @@ def test_claude_argv_on_openai_host(table, tmp_path):
     assert r.vendor == "claude"
     assert inv.kind == "command" and inv.argv[0:2] == ["claude", "-p"]
     assert inv.argv == [
-        "claude", "-p", "--model", "claude-opus-5-5", "--output-format", "json",
+        "claude", "-p", "--model", "claude-opus-5-5", "--effort", "xhigh", "--output-format", "json",
         "--permission-mode", "plan", "--allowedTools", "Read,Grep,Glob",
     ]
     assert (inv.agent, inv.model_alias, inv.effort, inv.sandbox) == (None, None, "xhigh", "read-only")
+
+
+def test_claude_argv_runs_at_the_bindings_effort(table, tmp_path):
+    # lens-spec (same vendor as the Claude author) is high, lens-correctness (other than the OpenAI author)
+    # is xhigh: the flag follows the binding.
+    _, high, _ = lens(table, tmp_path, role="lens-spec", host="openai", author="claude")
+    _, xhigh, _ = lens(table, tmp_path, role="lens-correctness", host="openai", author="openai")
+    assert high.argv[high.argv.index("--effort") + 1] == "high" == high.effort
+    assert xhigh.argv[xhigh.argv.index("--effort") + 1] == "xhigh" == xhigh.effort
 
 
 def test_claude_argv_ignores_the_schema_and_keeps_the_variadic_tool_list_last(table, tmp_path):
@@ -165,10 +175,11 @@ def test_claude_argv_ignores_the_schema_and_keeps_the_variadic_tool_list_last(ta
 def test_flag_spellings_live_in_the_constants(table, tmp_path, monkeypatch):
     monkeypatch.setitem(CODEX_EXEC_FLAGS, "model", "--model")
     monkeypatch.setitem(CLAUDE_PRINT_FLAGS, "model", "--use-model")
+    monkeypatch.setitem(CLAUDE_PRINT_FLAGS, "effort", "--thinking")
     _, codex, _ = lens(table, tmp_path)
     assert codex.argv[2] == "--model"
     _, claude, _ = lens(table, tmp_path, role="lens-correctness", host="openai", author="openai")
-    assert claude.argv[2] == "--use-model"
+    assert claude.argv[2] == "--use-model" and claude.argv[4] == "--thinking"
 
 
 def test_invocation_is_frozen(table, tmp_path):
@@ -406,6 +417,56 @@ def test_cli_role_resolve_subagent_and_fallback(capsys):
 def test_cli_role_resolve_author_is_optional(capsys):
     code, out, _ = run_cli(capsys, "role", "resolve", "lens-security", "--host", "openai")
     assert code == 0 and json.loads(out)["resolved"]["vendor"] == "claude"
+
+
+def write_factory_yaml(folder, **settings):
+    """A valid minimal factory.yaml in ``folder`` plus extra settings; returns its path."""
+    data = {"project": "demo", "approvers": ["owner"], "verify": {"quick": "pytest -q", "full": "pytest"}, **settings}
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "factory.yaml"
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    return path
+
+
+OVERRIDE = {"lens-security": {"bindings": {"openai": {"model": "override-model", "effort": "low"}}}}
+
+
+@pytest.mark.parametrize("as_file", [False, True], ids=["project-folder", "factory-yaml-file"])
+def test_cli_role_resolve_project_override_changes_the_resolved_model(tmp_path, capsys, as_file):
+    yaml_path = write_factory_yaml(tmp_path / "my project", roles=OVERRIDE)
+    project = yaml_path if as_file else yaml_path.parent
+    code, out, _ = run_cli(capsys, "role", "resolve", "lens-security", "--host", "claude", "--author", "claude",
+                           "--project", project)
+    data = json.loads(out)
+    assert code == 0
+    assert (data["resolved"]["model"], data["resolved"]["effort"]) == ("override-model", "low")
+    assert data["invocation"]["argv"][2:4] == ["-m", "override-model"]
+    # Without --project the factory default applies.
+    _, out, _ = run_cli(capsys, "role", "resolve", "lens-security", "--host", "claude", "--author", "claude")
+    assert json.loads(out)["resolved"]["model"] == "gpt-6.1-sol"
+
+
+def test_cli_role_run_project_override_reaches_the_command(tmp_path, capsys, fake_cli):
+    project = write_factory_yaml(tmp_path / "proj", roles=OVERRIDE).parent
+    prompt, out = tmp_path / "p.md", tmp_path / "o.md"
+    prompt.write_text("x", encoding="utf-8")
+    code, _, _ = run_cli(capsys, "role", "run", "lens-security", "--host", "claude", "--author", "claude",
+                         "--prompt", prompt, "--out", out, "--project", project)
+    assert code == 0
+    (call,) = fake_cli.calls()
+    assert call["argv"][1:3] == ["-m", "override-model"]
+    assert "model=override-model" in out.read_text(encoding="utf-8").splitlines()[-1]
+
+
+@pytest.mark.parametrize("command", ["resolve", "run"])
+def test_cli_role_with_a_bad_project_exits_2_listing_the_problems(tmp_path, capsys, command):
+    project = write_factory_yaml(tmp_path / "proj", roles={"ghost": {"vendor": "claude"}}).parent
+    extra = ["--prompt", tmp_path / "p.md", "--out", tmp_path / "o.md"] if command == "run" else []
+    code, out, err = run_cli(capsys, "role", command, "lens-security", "--host", "claude", "--project", project, *extra)
+    assert code == 2 and out == "" and "ghost" in err
+    code, _, err = run_cli(capsys, "role", command, "lens-security", "--host", "claude",
+                           "--project", tmp_path / "missing", *extra)
+    assert code == 2 and "missing" in err and "file not found" in err
 
 
 def test_cli_role_resolve_unknown_role_exits_2_on_stderr(capsys):

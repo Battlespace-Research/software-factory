@@ -44,6 +44,7 @@ CODEX_EFFORT_KEY = "model_reasoning_effort"
 CLAUDE_PRINT_FLAGS = {
     "print": "-p",
     "model": "--model",
+    "effort": "--effort",
     "output_format": "--output-format",
     "permission_mode": "--permission-mode",
     "allowed_tools": "--allowedTools",  # variadic: keep it the last option on the command line
@@ -130,6 +131,7 @@ def _claude_argv(r: ResolvedRole) -> list[str]:
     return [
         CLAUDE_EXE, flags["print"],
         flags["model"], r.model,
+        flags["effort"], r.effort,
         flags["output_format"], CLAUDE_OUTPUT_FORMAT,
         flags["permission_mode"], CLAUDE_PERMISSION_MODE,
         flags["allowed_tools"], CLAUDE_READ_ONLY_TOOLS,
