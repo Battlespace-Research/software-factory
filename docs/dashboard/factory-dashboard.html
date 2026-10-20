@@ -1,0 +1,797 @@
+<title>Software Factory Dashboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Layout: summary first (needs-you queue + key numbers), then the work board full width,
+     then a two-column area: the selected work item on the left, project-wide panels on the right. */
+  :root {
+    --paper: #f5f5f5;
+    --panel: #ffffff;
+    --ink: #2d3142;
+    --muted: #4f5d75;
+    --soft: #5f6a84;
+    --rule: rgba(45, 49, 66, 0.12);
+    --rule-strong: rgba(45, 49, 66, 0.26);
+    --accent: #bf4520;
+    --accent-tint: rgba(191, 69, 32, 0.08);
+    --ok: #2e7a4c;
+    --ok-tint: rgba(46, 122, 76, 0.10);
+    --run: #2e5aa8;
+    --run-tint: rgba(46, 90, 168, 0.09);
+    --crit: #a3203a;
+    --crit-tint: rgba(163, 32, 58, 0.08);
+    --idle: #8a92a6;
+    --font-serif: 'Instrument Serif', 'Noto Serif', Georgia, serif;
+    --font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #262a39;
+      --panel: #2f3446;
+      --ink: #f2f2f2;
+      --muted: #c3c6cf;
+      --soft: #a3acbf;
+      --rule: rgba(242, 242, 242, 0.11);
+      --rule-strong: rgba(242, 242, 242, 0.24);
+      --accent: #f08a59;
+      --accent-tint: rgba(240, 138, 89, 0.13);
+      --ok: #6fc493;
+      --ok-tint: rgba(111, 196, 147, 0.13);
+      --run: #8fb3e8;
+      --run-tint: rgba(143, 179, 232, 0.13);
+      --crit: #f07a8a;
+      --crit-tint: rgba(240, 122, 138, 0.13);
+      --idle: #7d8499;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #262a39;
+    --panel: #2f3446;
+    --ink: #f2f2f2;
+    --muted: #c3c6cf;
+    --soft: #a3acbf;
+    --rule: rgba(242, 242, 242, 0.11);
+    --rule-strong: rgba(242, 242, 242, 0.24);
+    --accent: #f08a59;
+    --accent-tint: rgba(240, 138, 89, 0.13);
+    --ok: #6fc493;
+    --ok-tint: rgba(111, 196, 147, 0.13);
+    --run: #8fb3e8;
+    --run-tint: rgba(143, 179, 232, 0.13);
+    --crit: #f07a8a;
+    --crit-tint: rgba(240, 122, 138, 0.13);
+    --idle: #7d8499;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: var(--font-sans); font-size: 14px; line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 28px 56px;
+    font-variant-numeric: tabular-nums;
+  }
+  .page { max-width: 1280px; margin: 0 auto; display: grid; gap: 28px; }
+  .mono { font-family: var(--font-mono); }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-family: var(--font-serif); font-weight: 400; font-size: clamp(2rem, 3vw + 1rem, 2.8rem); line-height: 1.05; letter-spacing: -0.02em; margin: 4px 0 10px; }
+  h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; margin: 0; display: flex; align-items: baseline; gap: 10px; }
+  h2 .count { font-family: var(--font-mono); font-weight: 400; color: var(--muted); font-size: 12px; }
+  h3 { font-size: 12px; font-weight: 600; margin: 0; color: var(--muted); font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  /* Header */
+  .top { display: grid; gap: 8px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); align-items: center; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--rule-strong); color: var(--muted); white-space: nowrap; }
+  .chip.sample { border-style: dashed; color: var(--accent); border-color: var(--accent); }
+  .chip.mode { color: var(--ink); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+
+  /* State language: stripe + chip + word, never color alone */
+  .s-wait { --s: var(--accent); --s-tint: var(--accent-tint); }
+  .s-run { --s: var(--run); --s-tint: var(--run-tint); }
+  .s-block { --s: var(--crit); --s-tint: var(--crit-tint); }
+  .s-done { --s: var(--ok); --s-tint: var(--ok-tint); }
+  .s-queue { --s: var(--idle); --s-tint: transparent; }
+  .state { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--s); white-space: nowrap; }
+  .state .dot { background: var(--s); }
+
+  /* Needs you */
+  .needs { display: grid; gap: 10px; }
+  .needs-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .need {
+    background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--s);
+    border-radius: 6px; padding: 10px 12px; display: grid; gap: 4px; min-width: 0;
+  }
+  .need .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .need .kind { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--s); }
+  .need .since { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .need .what { font-weight: 600; }
+  .need .file { font-family: var(--font-mono); font-size: 11px; color: var(--soft); overflow-wrap: anywhere; }
+  .need button { justify-self: start; }
+
+  /* KPI strip */
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+  .kpi { padding: 12px 14px 12px 0; display: grid; gap: 2px; min-width: 0; }
+  .kpi + .kpi { padding-left: 14px; border-left: 1px solid var(--rule); }
+  .kpi .label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .kpi .value { font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.15; }
+  .kpi .value small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 4px; }
+  .kpi .note { font-size: 12px; color: var(--soft); }
+  .kpi.attn .value { color: var(--accent); }
+  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .kpi:nth-child(4) { padding-left: 0; border-left: 0; } .kpi:nth-child(n+4) { border-top: 1px solid var(--rule); } }
+  @media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi:nth-child(odd) { padding-left: 0; border-left: 0; } .kpi:nth-child(even) { padding-left: 14px; border-left: 1px solid var(--rule); } .kpi:nth-child(n+3) { border-top: 1px solid var(--rule); } }
+
+  /* Board */
+  .board-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: inherit; font-family: var(--font-mono); font-size: 12px; color: var(--ink); background: transparent;
+    border: 1px solid var(--rule-strong); border-radius: 4px; padding: 3px 10px; cursor: pointer;
+  }
+  button:hover { border-color: var(--ink); }
+  button:focus-visible, .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .board-wrap { overflow-x: auto; padding-bottom: 6px; }
+  .board { display: grid; grid-template-columns: repeat(6, minmax(176px, 1fr)); gap: 12px; min-width: 1100px; }
+  .col { display: grid; align-content: start; gap: 8px; min-width: 0; }
+  .col-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule-strong); padding-bottom: 6px; }
+  .col-head .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .col-head .name { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .card {
+    text-align: left; font-family: var(--font-sans); font-size: 13px; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--s);
+    border-radius: 6px; padding: 9px 10px; display: grid; gap: 5px; cursor: pointer; width: 100%;
+  }
+  .card:hover { border-color: var(--rule-strong); border-left-color: var(--s); }
+  .card[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--accent); }
+  .card .ids { display: flex; gap: 6px; align-items: center; }
+  .card .id { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .card .title { font-weight: 600; line-height: 1.3; }
+  .card .status { font-size: 12px; color: var(--soft); }
+  .track { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; padding: 0 4px; border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--muted); }
+  .empty-col { font-size: 12px; color: var(--soft); font-style: italic; padding: 4px 0; }
+
+  /* Two-column area */
+  .lower { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: start; }
+  @media (max-width: 1080px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+  .side { display: grid; gap: 16px; min-width: 0; }
+
+  /* Focus */
+  .focus-head { display: grid; gap: 4px; }
+  .focus-head .title { font-family: var(--font-serif); font-size: 26px; line-height: 1.1; }
+  .focus-head .line { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-size: 12px; color: var(--muted); }
+  .rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; }
+  .stage { padding: 10px 8px 8px 0; border-top: 3px solid var(--rule); display: grid; gap: 2px; min-width: 0; }
+  .stage.g-approved { border-top-color: var(--ok); }
+  .stage.g-current { border-top-color: var(--run); }
+  .stage.g-waiting { border-top-color: var(--accent); }
+  .stage.g-skipped { border-top-style: dashed; }
+  .stage .sname { font-weight: 600; font-size: 13px; }
+  .stage .gate { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+  .stage.g-approved .gate { color: var(--ok); }
+  .stage.g-current .gate { color: var(--run); }
+  .stage.g-waiting .gate { color: var(--accent); }
+  .stage .snote { font-size: 11.5px; color: var(--soft); overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .rail { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 10px; } }
+
+  .ms { display: grid; gap: 8px; }
+  .ms-row { display: grid; grid-template-columns: 4ch minmax(0, 1fr) 6ch 8ch; gap: 10px; align-items: center; font-size: 13px; }
+  .ms-row .mid { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .ms-row .mname { overflow-wrap: anywhere; }
+  .bar { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--run); }
+  .bar.done > span { background: var(--ok); }
+  .ms-row .frac { font-family: var(--font-mono); font-size: 12px; text-align: right; }
+  .ms-row .demo { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  .loop { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .step { font-family: var(--font-mono); font-size: 11.5px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--rule-strong); color: var(--muted); }
+  .step.done { color: var(--ok); border-color: var(--ok); }
+  .step.now { color: var(--paper); background: var(--run); border-color: var(--run); }
+  .arrow { color: var(--soft); font-family: var(--font-mono); font-size: 11px; }
+  .loop-note { font-size: 12.5px; color: var(--soft); }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; white-space: nowrap; }
+  th { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  td.wrap { white-space: normal; }
+  .sev { font-family: var(--font-mono); font-size: 11px; }
+  .sev b { font-weight: 600; }
+  .lenses { display: flex; flex-wrap: wrap; gap: 4px; white-space: normal; }
+  .lens { font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--rule-strong); color: var(--muted); white-space: nowrap; }
+  .lens.v-pass { color: var(--ok); }
+  .lens.v-changes { color: var(--accent); border-color: var(--accent); }
+  .lens.v-running { color: var(--run); border-style: dashed; }
+
+  .files { display: flex; flex-wrap: wrap; gap: 6px; }
+  .file { font-family: var(--font-mono); font-size: 11.5px; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 3px; color: var(--ink); }
+  .file small { color: var(--muted); }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); }
+  .facts b { color: var(--ink); font-weight: 600; }
+
+  /* Side panels */
+  .stack { display: flex; height: 10px; border-radius: 3px; overflow: hidden; background: var(--rule); }
+  .stack span { display: block; height: 100%; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+  .legend-row .sw { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+  .ci { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .ci .run { width: 14px; height: 14px; border-radius: 3px; display: inline-grid; place-items: center; font-size: 9px; color: var(--paper); font-family: var(--font-mono); }
+  .mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto 72px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+  .mrow:last-child { border-bottom: 0; }
+  .mrow .mname { font-size: 12.5px; }
+  .mrow .mname small { display: block; color: var(--soft); font-size: 11px; }
+  .mrow .mval { font-family: var(--font-mono); font-size: 13px; text-align: right; white-space: nowrap; }
+  .spark { width: 72px; height: 22px; display: block; }
+  .spark .ln { fill: none; stroke: var(--run); stroke-width: 1.4; }
+  .spark .ar { fill: var(--run-tint); stroke: none; }
+  .spark .pt { fill: var(--run); }
+  .dora { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+  .dora div { display: grid; gap: 0; }
+  .dora .v { font-size: 18px; font-weight: 500; }
+  .dora .l { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .roles { display: grid; gap: 0; }
+  .role { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--rule); font-size: 12.5px; align-items: baseline; }
+  .role:last-child { border-bottom: 0; }
+  .role .bind { font-family: var(--font-mono); font-size: 11.5px; text-align: right; }
+  .role .changed { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); text-align: right; }
+  .activity { display: grid; gap: 0; }
+  .act { display: grid; grid-template-columns: 7ch 7ch minmax(0, 1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 12.5px; }
+  .act:last-child { border-bottom: 0; }
+  .act .when, .act .wid { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+  .hint { font-size: 12px; color: var(--soft); margin: 0; }
+
+  footer { border-top: 1px solid var(--rule-strong); padding-top: 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); display: grid; gap: 4px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <p class="eyebrow">BSRI · Software Factory · Dashboard template</p>
+    <h1 id="project-name">Software Factory Dashboard</h1>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <section class="needs" aria-labelledby="needs-h">
+    <h2 id="needs-h">Needs you <span class="count" id="needs-count"></span></h2>
+    <div class="needs-list" id="needs"></div>
+  </section>
+
+  <section aria-label="Key numbers">
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <section aria-labelledby="board-h" style="display:grid; gap:10px;">
+    <div class="board-head">
+      <h2 id="board-h">Work by stage <span class="count" id="board-count"></span></h2>
+      <div class="filters" id="filters" role="group" aria-label="Filter work"></div>
+    </div>
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <p class="hint">Select a card to see its detail below.</p>
+  </section>
+
+  <div class="lower">
+    <section class="panel" id="focus" aria-live="polite"></section>
+    <aside class="side">
+      <section class="panel" id="quality"></section>
+      <section class="panel" id="delivery"></section>
+      <section class="panel" id="health"></section>
+      <section class="panel" id="roles"></section>
+      <section class="panel" id="activity"></section>
+    </aside>
+  </div>
+
+  <footer>
+    <span>Template for review. Every figure on this page is made-up sample data; the shape, not the numbers, is what's proposed.</span>
+    <span>A generator will rebuild the data block from the project's <code>factory/</code> files, git, CI and release records at each checkpoint and task close.</span>
+  </footer>
+</div>
+
+<script type="application/json" id="factory-data">
+{
+  "schema": "factory-dashboard/0.1",
+  "sample": true,
+  "project": { "name": "Sample project", "repo": "example/sample-app", "branch": "main", "commit": "4f2c9a1", "generated": "2026-10-20 15:42", "mode": "review", "host": "Claude Code" },
+  "stages": ["Plan", "Design", "Build", "Test", "Deploy", "Maintain"],
+  "needs": [
+    { "kind": "hard-stop", "state": "block", "work": "FIX-13", "what": "Third review round failed", "detail": "Decide: split the task, accept as-is, or drop it.", "file": "factory/work/FIX-13/reviews/T1-r3.md", "since": "40 min" },
+    { "kind": "merge", "state": "wait", "work": "FIX-12", "what": "Merge PR #412", "detail": "Review passed, tests green.", "file": "PR #412", "since": "2 h" },
+    { "kind": "checkpoint", "state": "wait", "work": "PRG-02", "what": "Approve spec rev 2", "detail": "Two reviews dispositioned, no open blockers.", "file": "factory/work/PRG-02/spec.md", "since": "5 h" },
+    { "kind": "checkpoint", "state": "wait", "work": "FEA-08", "what": "Accept intent", "detail": "Short grill finished; three open questions carried.", "file": "factory/work/FEA-08/intent.md", "since": "1 d" }
+  ],
+  "work": [
+    {
+      "id": "PRG-01", "track": "Program", "title": "Equipment sensors run headless", "stage": 3, "state": "run",
+      "status": "M2-T4 in review, round 2 of 3", "updated": "12 min",
+      "gates": [
+        { "gate": "approved", "note": "intent accepted 10-02" },
+        { "gate": "approved", "note": "spec rev 3 approved 10-05" },
+        { "gate": "current", "note": "plan rev 2 accepted 10-06" },
+        { "gate": "current", "note": "M1 demo passed" },
+        { "gate": "todo", "note": "" },
+        { "gate": "todo", "note": "" }
+      ],
+      "milestones": [
+        { "id": "M1", "name": "Sensor model in the kernel", "done": 7, "total": 7, "demo": "passed" },
+        { "id": "M2", "name": "Visual detection", "done": 4, "total": 8, "demo": "—" },
+        { "id": "M3", "name": "Radar and EW", "done": 0, "total": 4, "demo": "—" }
+      ],
+      "loop": { "task": "M2-T4", "title": "Async line-of-sight query", "steps": ["Implement", "Verify", "Review", "Fix", "Tester", "Close"], "current": 2, "round": 2, "maxRounds": 3, "who": "Review panel, 4 lenses, 2 of them through Codex" },
+      "reviews": [
+        { "task": "M2-T4", "round": "r2", "lenses": [["Correctness", "running", ""], ["Security", "pass", ""], ["Maintainability", "pass", "1m"], ["Spec", "running", ""]], "disp": "—" },
+        { "task": "M2-T4", "round": "r1", "lenses": [["Correctness", "changes", "1M 2m"], ["Security", "pass", ""], ["Maintainability", "pass", "2m"], ["Spec", "pass", "1n"]], "disp": "3 accepted · 1 declined · 2 tickets" },
+        { "task": "M2-T3", "round": "r1", "lenses": [["Correctness", "pass", "1m"], ["Security", "pass", ""], ["Maintainability", "pass", "1m"], ["Spec", "pass", ""]], "disp": "1 accepted · 1 ticket" },
+        { "task": "M2-T2", "round": "r2", "lenses": [["Correctness", "pass", ""], ["Security", "pass", ""], ["Maintainability", "pass", ""], ["Spec", "pass", "1n"]], "disp": "1 accepted" }
+      ],
+      "files": [["intent.md", ""], ["decisions.md", "D01–D14"], ["spec.md", "rev 3"], ["plan.md", "rev 2"], ["progress.md", ""], ["reviews/", "23 files"]],
+      "facts": [["Sessions", "14"], ["Budget handoffs", "3"], ["Started", "10-01"], ["Branch", "prg-01-equipment"]]
+    },
+    {
+      "id": "PRG-02", "track": "Program", "title": "Kubernetes onboarding with Helm", "stage": 2, "state": "wait",
+      "status": "Waiting: approve spec rev 2", "updated": "5 h",
+      "gates": [
+        { "gate": "approved", "note": "intent accepted 10-14" },
+        { "gate": "waiting", "note": "spec rev 2 ready" },
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }
+      ],
+      "reviews": [
+        { "task": "spec", "round": "r2", "lenses": [["Reviewer A · Opus 5.5", "pass", "2m 2n"], ["Reviewer B · GPT-6-Astra", "pass", "4m 3n"]], "disp": "10 accepted · 1 declined" },
+        { "task": "spec", "round": "r1", "lenses": [["Reviewer A · Opus 5.5", "changes", "3M 5m"], ["Reviewer B · GPT-6-Astra", "changes", "1B 5M 9m"]], "disp": "21 accepted · 2 declined" }
+      ],
+      "files": [["intent.md", ""], ["decisions.md", "K01–K17"], ["spec.md", "rev 2"], ["reviews/", "6 files"]],
+      "facts": [["Sessions", "4"], ["Started", "10-14"]]
+    },
+    {
+      "id": "FEA-07", "track": "Feature", "title": "Export track history to CSV", "stage": 4, "state": "run",
+      "status": "Tester running the verify script", "updated": "30 min",
+      "gates": [
+        { "gate": "approved", "note": "intent in ticket" },
+        { "gate": "approved", "note": "mini-spec, 1 review" },
+        { "gate": "approved", "note": "3 of 3 tasks" },
+        { "gate": "current", "note": "tester running" },
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }
+      ],
+      "loop": { "task": "T3", "title": "Large-file streaming", "steps": ["Implement", "Verify", "Review", "Fix", "Tester", "Close"], "current": 4, "round": 1, "maxRounds": 3, "who": "Tester · Sonnet 5.5" },
+      "files": [["intent.md", ""], ["spec.md", "mini"], ["plan.md", "3 tasks"], ["progress.md", ""]],
+      "facts": [["Sessions", "2"], ["Started", "10-17"]]
+    },
+    {
+      "id": "FEA-08", "track": "Feature", "title": "Offline map tile cache", "stage": 1, "state": "wait",
+      "status": "Waiting: accept intent", "updated": "1 d",
+      "gates": [
+        { "gate": "waiting", "note": "intent drafted" },
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }
+      ],
+      "files": [["intent.md", "draft"]],
+      "facts": [["Sessions", "1"], ["Open questions", "3"]]
+    },
+    {
+      "id": "FEA-05", "track": "Feature", "title": "Settings search", "stage": 6, "state": "done",
+      "status": "Shipped in 3.8.2; watching", "updated": "2 d",
+      "gates": [
+        { "gate": "approved", "note": "" }, { "gate": "approved", "note": "" }, { "gate": "approved", "note": "" },
+        { "gate": "approved", "note": "" }, { "gate": "approved", "note": "released 10-14" }, { "gate": "current", "note": "no incidents" }
+      ],
+      "files": [["intent.md", ""], ["spec.md", "mini"], ["plan.md", "2 tasks"], ["retro.md", ""]],
+      "facts": [["Lead time", "4.5 d"]]
+    },
+    {
+      "id": "FIX-12", "track": "Fix", "title": "Crash when the licence file is missing", "stage": 5, "state": "wait",
+      "status": "Waiting: merge PR #412", "updated": "2 h",
+      "gates": [
+        { "gate": "approved", "note": "repro in ticket" }, { "gate": "skipped", "note": "criteria in ticket" },
+        { "gate": "approved", "note": "red → green" }, { "gate": "approved", "note": "verify passed" },
+        { "gate": "waiting", "note": "PR #412" }, { "gate": "todo", "note": "" }
+      ],
+      "reviews": [{ "task": "T1", "round": "r1", "lenses": [["Correctness", "pass", "1m"], ["Security", "pass", ""]], "disp": "1 accepted" }],
+      "files": [["ticket.md", ""], ["reviews/", "1 file"]],
+      "facts": [["Sessions", "1"]]
+    },
+    {
+      "id": "FIX-13", "track": "Fix", "title": "Flaky time-bound test in the suite", "stage": 3, "state": "block",
+      "status": "Hard stop: third round failed", "updated": "40 min",
+      "gates": [
+        { "gate": "approved", "note": "repro in ticket" }, { "gate": "skipped", "note": "" },
+        { "gate": "waiting", "note": "hard stop" },
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }
+      ],
+      "loop": { "task": "T1", "title": "Stabilise timer test", "steps": ["Implement", "Verify", "Review", "Fix", "Tester", "Close"], "current": 3, "round": 3, "maxRounds": 3, "who": "Stopped for your decision" },
+      "reviews": [
+        { "task": "T1", "round": "r3", "lenses": [["Correctness", "changes", "1B"], ["Security", "pass", ""]], "disp": "escalated to you" },
+        { "task": "T1", "round": "r2", "lenses": [["Correctness", "changes", "1M 1m"], ["Security", "pass", ""]], "disp": "2 accepted" },
+        { "task": "T1", "round": "r1", "lenses": [["Correctness", "changes", "2M 1n"], ["Security", "pass", ""]], "disp": "3 accepted" }
+      ],
+      "files": [["ticket.md", ""], ["reviews/", "3 files"]],
+      "facts": [["Sessions", "2"]]
+    },
+    {
+      "id": "FIX-14", "track": "Fix", "title": "Wrong units in the range ring label", "stage": 1, "state": "queue",
+      "status": "Queued after FIX-13", "updated": "3 h",
+      "gates": [
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" },
+        { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }, { "gate": "todo", "note": "" }
+      ],
+      "files": [["ticket.md", "triaged"]],
+      "facts": []
+    }
+  ],
+  "kpis": [
+    { "label": "Tasks closed, 7 days", "value": "9", "note": "up from 6" },
+    { "label": "First-pass reviews", "value": "58", "unit": "%", "note": "tasks passing round 1" },
+    { "label": "New test failures", "value": "0", "note": "vs. the expected-failure baseline" },
+    { "label": "Last release", "value": "3.8.2", "note": "desktop · 6 days ago" }
+  ],
+  "quality": {
+    "tests": { "passed": 2431, "expected": 18, "new": 0, "skipped": 6, "history": [2302, 2318, 2318, 2351, 2377, 2377, 2390, 2412, 2425, 2431] },
+    "ci": [
+      { "s": "ok", "label": "#1188 main" }, { "s": "ok", "label": "#1187" }, { "s": "fail", "label": "#1186 flaky timer" },
+      { "s": "ok", "label": "#1185" }, { "s": "ok", "label": "#1184" }, { "s": "ok", "label": "#1183" },
+      { "s": "fail", "label": "#1182" }, { "s": "ok", "label": "#1181" }, { "s": "ok", "label": "#1180" }, { "s": "ok", "label": "#1179" }
+    ]
+  },
+  "delivery": {
+    "desktop": [
+      { "channel": "stable", "version": "3.8.2", "date": "10-14", "checks": "signed · smoke passed", "state": "done" },
+      { "channel": "beta", "version": "3.9.0-beta.2", "date": "10-18", "checks": "signed · smoke passed", "state": "done" }
+    ],
+    "helm": [
+      { "env": "dev", "chart": "0.4.1", "app": "0.9.0", "health": "2/2 ready", "date": "10-19", "state": "done" },
+      { "env": "staging", "chart": "0.4.0", "app": "0.8.3", "health": "2/2 ready", "date": "10-15", "state": "done" },
+      { "env": "prod", "chart": "—", "app": "—", "health": "not onboarded", "date": "—", "state": "queue" }
+    ],
+    "dora": [
+      { "l": "Deploys / week", "v": "1.5" }, { "l": "Lead time", "v": "3.2 d" },
+      { "l": "Change failure", "v": "8%" }, { "l": "Time to restore", "v": "5 h" }
+    ]
+  },
+  "health": [
+    { "name": "First-pass review rate", "sub": "Build · leading", "value": "58%", "history": [41, 44, 50, 47, 52, 55, 58] },
+    { "name": "Review rounds per task", "sub": "Build · lagging", "value": "1.6", "history": [2.1, 2.0, 1.9, 1.8, 1.8, 1.7, 1.6] },
+    { "name": "Hours waiting on you", "sub": "median per checkpoint", "value": "3.1 h", "history": [6.0, 5.2, 4.8, 4.1, 3.9, 3.4, 3.1] },
+    { "name": "Spec edits after the plan", "sub": "Design · lagging", "value": "2", "history": [5, 4, 4, 3, 3, 2, 2] },
+    { "name": "Factory evals passing", "sub": "after last model change", "value": "47/50", "history": [44, 45, 45, 46, 47, 47, 47] },
+    { "name": "Mistakes added to CLAUDE.md", "sub": "repeat mistakes, 30 days", "value": "2", "history": [4, 3, 3, 2, 2, 2, 2] }
+  ],
+  "roles": [
+    { "role": "Interviewer, author", "bind": "Fable 5.1 · xhigh" },
+    { "role": "Implementer", "bind": "Opus 5.5 · xhigh" },
+    { "role": "Reviewers: correctness, security", "bind": "GPT-6.1-Sol · xhigh", "changed": "changed 10-16 from GPT-6-Astra" },
+    { "role": "Reviewer: maintainability", "bind": "Sonnet 5.5 · high" },
+    { "role": "Reviewer: spec compliance", "bind": "Opus 5.5 · high" },
+    { "role": "Tester", "bind": "Sonnet 5.5 · high" },
+    { "role": "PR reviewer", "bind": "GPT-6.1-Sol · high" }
+  ],
+  "skills": [
+    { "host": "Claude Code", "present": 21, "required": 21, "note": "all present" },
+    { "host": "Codex", "present": 19, "required": 21, "note": "2 missing, fallbacks in use" }
+  ],
+  "activity": [
+    { "when": "15:30", "work": "PRG-01", "text": "M2-T4 fixes committed; round 2 review started" },
+    { "when": "15:02", "work": "FIX-13", "text": "Round 3 review failed; stopped for your decision" },
+    { "when": "13:41", "work": "FIX-12", "text": "PR #412 opened; review passed" },
+    { "when": "12:15", "work": "FEA-07", "text": "Task T3 closed; tester started" },
+    { "when": "10:48", "work": "PRG-02", "text": "Spec rev 2 ready for your approval" },
+    { "when": "09:20", "work": "PRG-01", "text": "Session handed off at 95% budget; resumed from progress.md" }
+  ]
+}
+</script>
+
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('factory-data').textContent);
+  var STATE = {
+    run: { cls: 's-run', word: 'Running' },
+    wait: { cls: 's-wait', word: 'Waiting on you' },
+    block: { cls: 's-block', word: 'Blocked' },
+    done: { cls: 's-done', word: 'Done' },
+    queue: { cls: 's-queue', word: 'Queued' }
+  };
+  var TRACK = { Program: 'PRG', Feature: 'FEA', Fix: 'FIX' };
+  var GATE_WORD = { approved: 'signed off', current: 'in progress', waiting: 'waiting on you', todo: 'not started', skipped: 'skipped' };
+  var filter = 'All';
+  var selected = (data.work.find(function (w) { return w.track === 'Program' && w.state === 'run'; }) || data.work[0]).id;
+
+  function el(tag, attrs) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === 'class') e.className = v;
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : v);
+    });
+    for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+    return e;
+  }
+  function add(parent, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(parent, x); }); return; }
+    parent.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  function stateChip(s) {
+    var st = STATE[s] || STATE.queue;
+    return el('span', { class: 'state ' + st.cls }, el('span', { class: 'dot', 'aria-hidden': 'true' }), st.word);
+  }
+  function spark(values) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var w = 72, h = 22, pad = 2;
+    var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+    var span = max - min || 1;
+    var pts = values.map(function (v, i) {
+      return [pad + i * (w - 2 * pad) / (values.length - 1), h - pad - (v - min) * (h - 2 * pad) / span];
+    });
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    svg.setAttribute('class', 'spark');
+    svg.setAttribute('aria-hidden', 'true');
+    var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    var area = document.createElementNS(NS, 'path');
+    area.setAttribute('d', line + ' L' + pts[pts.length - 1][0].toFixed(1) + ',' + (h - pad) + ' L' + pad + ',' + (h - pad) + ' Z');
+    area.setAttribute('class', 'ar');
+    var ln = document.createElementNS(NS, 'path');
+    ln.setAttribute('d', line);
+    ln.setAttribute('class', 'ln');
+    var last = pts[pts.length - 1];
+    var dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', last[0]); dot.setAttribute('cy', last[1]); dot.setAttribute('r', 2.2);
+    dot.setAttribute('class', 'pt');
+    svg.append(area, ln, dot);
+    return svg;
+  }
+
+  function renderHeader() {
+    var p = data.project;
+    document.getElementById('project-name').textContent = p.name;
+    var meta = document.getElementById('meta');
+    meta.replaceChildren(
+      data.sample ? el('span', { class: 'chip sample' }, 'Sample data') : null,
+      el('span', { class: 'chip mode' }, p.mode === 'auto' ? 'Auto mode · stops only for hard stops' : 'Review mode · pauses at checkpoints'),
+      el('span', null, p.repo + ' · ' + p.branch + ' @ ' + p.commit),
+      el('span', null, 'Updated ' + p.generated),
+      el('span', null, 'Host: ' + p.host)
+    );
+  }
+
+  function renderNeeds() {
+    var box = document.getElementById('needs');
+    document.getElementById('needs-count').textContent = data.needs.length ? data.needs.length + ' waiting' : 'nothing waiting';
+    var KIND = { 'hard-stop': 'Hard stop', merge: 'Merge', checkpoint: 'Checkpoint' };
+    box.replaceChildren.apply(box, data.needs.map(function (n) {
+      var st = STATE[n.state] || STATE.wait;
+      return el('article', { class: 'need ' + st.cls },
+        el('div', { class: 'row1' }, el('span', { class: 'kind' }, KIND[n.kind] || n.kind), el('span', { class: 'since' }, n.since)),
+        el('div', { class: 'what' }, n.work + ' · ' + n.what),
+        el('div', null, n.detail),
+        el('div', { class: 'file' }, n.file),
+        el('button', { type: 'button', onclick: function () { select(n.work); } }, 'Open ' + n.work)
+      );
+    }));
+  }
+
+  function renderKpis() {
+    var active = data.work.filter(function (w) { return w.state !== 'done'; });
+    var byTrack = ['Program', 'Feature', 'Fix'].map(function (t) {
+      return active.filter(function (w) { return w.track === t; }).length + ' ' + TRACK[t];
+    }).join(' · ');
+    var items = [
+      { label: 'Active work', value: String(active.length), note: byTrack },
+      { label: 'Waiting on you', value: String(data.needs.length), note: data.needs.filter(function (n) { return n.kind === 'hard-stop'; }).length + ' hard stop', attn: data.needs.length > 0 }
+    ].concat(data.kpis);
+    var box = document.getElementById('kpis');
+    box.replaceChildren.apply(box, items.map(function (k) {
+      return el('div', { class: 'kpi' + (k.attn ? ' attn' : '') },
+        el('span', { class: 'label' }, k.label),
+        el('span', { class: 'value' }, k.value, k.unit ? el('small', null, k.unit) : null),
+        el('span', { class: 'note' }, k.note));
+    }));
+  }
+
+  function renderFilters() {
+    var box = document.getElementById('filters');
+    box.replaceChildren.apply(box, ['All', 'Program', 'Feature', 'Fix', 'Needs you'].map(function (f) {
+      return el('button', { type: 'button', 'aria-pressed': String(filter === f), onclick: function () { filter = f; renderFilters(); renderBoard(); } }, f);
+    }));
+  }
+
+  function visible(w) {
+    if (filter === 'All') return true;
+    if (filter === 'Needs you') return w.state === 'wait' || w.state === 'block';
+    return w.track === filter;
+  }
+
+  function renderBoard() {
+    var shown = data.work.filter(visible);
+    document.getElementById('board-count').textContent = shown.length + ' of ' + data.work.length;
+    var board = document.getElementById('board');
+    board.replaceChildren.apply(board, data.stages.map(function (name, i) {
+      var cards = shown.filter(function (w) { return w.stage === i + 1; });
+      return el('div', { class: 'col' },
+        el('div', { class: 'col-head' }, el('span', { class: 'name' }, String(i + 1).padStart(2, '0') + ' · ' + name), el('span', { class: 'n' }, String(cards.length))),
+        cards.length ? cards.map(function (w) {
+          var st = STATE[w.state] || STATE.queue;
+          return el('button', { type: 'button', class: 'card ' + st.cls, 'aria-current': String(w.id === selected), onclick: function () { select(w.id); } },
+            el('span', { class: 'ids' }, el('span', { class: 'track' }, TRACK[w.track]), el('span', { class: 'id' }, w.id)),
+            el('span', { class: 'title' }, w.title),
+            stateChip(w.state),
+            el('span', { class: 'status' }, w.status));
+        }) : el('div', { class: 'empty-col' }, 'Nothing here')
+      );
+    }));
+  }
+
+  function renderFocus() {
+    var w = data.work.find(function (x) { return x.id === selected; }) || data.work[0];
+    var box = document.getElementById('focus');
+    var parts = [];
+    parts.push(el('div', { class: 'focus-head' },
+      el('p', { class: 'eyebrow' }, w.track + ' · ' + w.id),
+      el('div', { class: 'title' }, w.title),
+      el('div', { class: 'line' }, stateChip(w.state), el('span', null, w.status), el('span', null, 'updated ' + w.updated + ' ago'))));
+
+    parts.push(el('div', { class: 'rail', role: 'list', 'aria-label': 'Stages' }, data.stages.map(function (s, i) {
+      var g = w.gates[i] || { gate: 'todo', note: '' };
+      return el('div', { class: 'stage g-' + g.gate, role: 'listitem' },
+        el('span', { class: 'sname' }, s),
+        el('span', { class: 'gate' }, GATE_WORD[g.gate] || g.gate),
+        g.note ? el('span', { class: 'snote' }, g.note) : null);
+    })));
+
+    if (w.milestones) {
+      parts.push(el('div', { class: 'ms' }, el('h3', null, 'Milestones'), w.milestones.map(function (m) {
+        var pct = m.total ? Math.round(100 * m.done / m.total) : 0;
+        return el('div', { class: 'ms-row' },
+          el('span', { class: 'mid' }, m.id),
+          el('div', { style: 'display:grid; gap:4px; min-width:0' }, el('span', { class: 'mname' }, m.name),
+            el('div', { class: 'bar' + (pct === 100 ? ' done' : ''), role: 'img', 'aria-label': m.done + ' of ' + m.total + ' tasks' }, el('span', { style: 'width:' + pct + '%' }))),
+          el('span', { class: 'frac' }, m.done + '/' + m.total),
+          el('span', { class: 'demo' }, m.demo === 'passed' ? 'demo ✓' : m.demo));
+      })));
+    }
+
+    if (w.loop) {
+      var L = w.loop;
+      var steps = [];
+      L.steps.forEach(function (s, i) {
+        if (i) steps.push(el('span', { class: 'arrow', 'aria-hidden': 'true' }, '→'));
+        var label = s === 'Review' ? 'Review r' + L.round + '/' + L.maxRounds : s;
+        steps.push(el('span', { class: 'step' + (i < L.current ? ' done' : i === L.current ? ' now' : '') }, label));
+      });
+      parts.push(el('div', { style: 'display:grid; gap:8px' },
+        el('h3', null, 'Current task · ' + L.task),
+        el('div', { class: 'loop' }, steps),
+        el('p', { class: 'loop-note' }, L.title + ' — ' + L.who)));
+    }
+
+    if (w.reviews) {
+      parts.push(el('div', { style: 'display:grid; gap:8px' }, el('h3', null, 'Reviews'),
+        el('div', { class: 'table-wrap' }, el('table', null,
+          el('thead', null, el('tr', null, ['Task', 'Round', 'Lens results', 'Disposition'].map(function (h) { return el('th', null, h); }))),
+          el('tbody', null, w.reviews.map(function (r) {
+            var GLYPH = { pass: '✓', changes: '✕', running: '…' };
+            return el('tr', null,
+              el('td', { class: 'mono' }, r.task), el('td', { class: 'mono' }, r.round),
+              el('td', null, el('div', { class: 'lenses' }, r.lenses.map(function (l) {
+                return el('span', { class: 'lens v-' + l[1], title: l[0] + ': ' + l[1] }, l[0] + ' ' + (GLYPH[l[1]] || '') + (l[2] ? ' ' + l[2] : ''));
+              }))),
+              el('td', { class: 'wrap' }, r.disp));
+          }))),
+        el('p', { class: 'hint' }, '✓ pass · ✕ changes · … running. Findings: B blocker, M major, m minor, n nit.'))));
+    }
+
+    parts.push(el('div', { style: 'display:grid; gap:8px' }, el('h3', null, 'Files'),
+      el('div', { class: 'files' }, w.files.map(function (f) { return el('span', { class: 'file' }, f[0], f[1] ? el('small', null, ' · ' + f[1]) : null); }))));
+    if (w.facts && w.facts.length) {
+      parts.push(el('div', { class: 'facts' }, w.facts.map(function (f) { return el('span', null, f[0] + ' ', el('b', null, f[1])); })));
+    }
+    box.replaceChildren.apply(box, parts);
+  }
+
+  function renderQuality() {
+    var t = data.quality.tests;
+    var total = t.passed + t.expected + t.new + t.skipped;
+    function seg(n, color) { return el('span', { style: 'width:' + (100 * n / total) + '%; background:' + color }); }
+    var box = document.getElementById('quality');
+    box.replaceChildren(
+      el('h2', null, 'Quality'),
+      el('div', { style: 'display:grid; gap:6px' },
+        el('div', { style: 'display:flex; justify-content:space-between; align-items:end; gap:10px' },
+          el('div', null, el('div', { style: 'font-size:22px; font-weight:500' }, total.toLocaleString('en-US') + ' tests'),
+            el('div', { class: 'hint' }, 'compared with the expected-failure baseline')),
+          spark(t.history)),
+        el('div', { class: 'stack', role: 'img', 'aria-label': t.passed + ' passed, ' + t.expected + ' expected failures, ' + t.new + ' new failures, ' + t.skipped + ' skipped' },
+          seg(t.passed, 'var(--ok)'), seg(t.expected, 'var(--idle)'), seg(t.new, 'var(--crit)'), seg(t.skipped, 'var(--rule-strong)')),
+        el('div', { class: 'legend-row' },
+          el('span', null, el('span', { class: 'sw', style: 'background:var(--ok)' }), t.passed.toLocaleString('en-US') + ' passed'),
+          el('span', null, el('span', { class: 'sw', style: 'background:var(--idle)' }), t.expected + ' expected'),
+          el('span', null, el('span', { class: 'sw', style: 'background:var(--crit)' }), t.new + ' new'),
+          el('span', null, el('span', { class: 'sw', style: 'background:var(--rule-strong)' }), t.skipped + ' skipped'))),
+      el('div', { style: 'display:grid; gap:6px' }, el('h3', null, 'CI, last 10 runs'),
+        el('div', { class: 'ci' }, data.quality.ci.map(function (r) {
+          return el('span', { class: 'run', title: r.label, role: 'img', 'aria-label': r.label + (r.s === 'ok' ? ' passed' : ' failed'), style: 'background:' + (r.s === 'ok' ? 'var(--ok)' : 'var(--crit)') }, r.s === 'ok' ? '✓' : '✕');
+        })),
+        el('p', { class: 'hint' }, data.quality.ci.filter(function (r) { return r.s !== 'ok'; }).length + ' failed of ' + data.quality.ci.length + '; newest on the left'))
+    );
+  }
+
+  function renderDelivery() {
+    var d = data.delivery;
+    function tbl(head, rows) {
+      return el('div', { class: 'table-wrap' }, el('table', null,
+        el('thead', null, el('tr', null, head.map(function (h) { return el('th', null, h); }))),
+        el('tbody', null, rows)));
+    }
+    var box = document.getElementById('delivery');
+    box.replaceChildren(
+      el('h2', null, 'Delivery'),
+      el('div', { style: 'display:grid; gap:6px' }, el('h3', null, 'Desktop installer'),
+        tbl(['Channel', 'Version', 'Date', 'Checks'], d.desktop.map(function (r) {
+          return el('tr', null, el('td', null, r.channel), el('td', { class: 'mono' }, r.version), el('td', { class: 'mono' }, r.date), el('td', { class: 'wrap' }, r.checks));
+        }))),
+      el('div', { style: 'display:grid; gap:6px' }, el('h3', null, 'Kubernetes · Helm'),
+        tbl(['Env', 'Chart', 'App', 'Health'], d.helm.map(function (r) {
+          return el('tr', null, el('td', null, r.env), el('td', { class: 'mono' }, r.chart), el('td', { class: 'mono' }, r.app), el('td', { class: 'wrap' }, stateChip(r.state === 'done' ? 'done' : 'queue'), ' ', r.health));
+        }))),
+      el('div', { style: 'display:grid; gap:8px' }, el('h3', null, 'DORA, 30 days'),
+        el('div', { class: 'dora' }, d.dora.map(function (m) { return el('div', null, el('span', { class: 'v' }, m.v), el('span', { class: 'l' }, m.l)); })))
+    );
+  }
+
+  function renderHealth() {
+    var box = document.getElementById('health');
+    box.replaceChildren(
+      el('h2', null, 'Factory health'),
+      el('p', { class: 'hint' }, 'Playbook indicators for how well the factory itself is working.'),
+      el('div', null, data.health.map(function (m) {
+        return el('div', { class: 'mrow' },
+          el('span', { class: 'mname' }, m.name, el('small', null, m.sub)),
+          el('span', { class: 'mval' }, m.value),
+          spark(m.history));
+      }))
+    );
+  }
+
+  function renderRoles() {
+    var box = document.getElementById('roles');
+    box.replaceChildren(
+      el('h2', null, 'Roles, models and skills'),
+      el('div', { class: 'roles' }, data.roles.map(function (r) {
+        return el('div', { class: 'role' }, el('span', null, r.role),
+          el('span', null, el('span', { class: 'bind' }, r.bind), r.changed ? el('span', { class: 'changed' }, r.changed) : null));
+      })),
+      el('div', { style: 'display:grid; gap:4px' }, el('h3', null, 'Skills ready'),
+        data.skills.map(function (s) {
+          var ok = s.present === s.required;
+          return el('div', { class: 'role' }, el('span', null, s.host),
+            el('span', null, el('span', { class: 'state ' + (ok ? 's-done' : 's-wait') }, el('span', { class: 'dot', 'aria-hidden': 'true' }), s.present + '/' + s.required + ' · ' + s.note)));
+        }))
+    );
+  }
+
+  function renderActivity() {
+    var box = document.getElementById('activity');
+    box.replaceChildren(
+      el('h2', null, 'Activity'),
+      el('div', { class: 'activity' }, data.activity.map(function (a) {
+        return el('div', { class: 'act' }, el('span', { class: 'when' }, a.when), el('span', { class: 'wid' }, a.work), el('span', null, a.text));
+      }))
+    );
+  }
+
+  function select(id) {
+    selected = id;
+    renderBoard();
+    renderFocus();
+    var f = document.getElementById('focus');
+    if (f.getBoundingClientRect().top > window.innerHeight || f.getBoundingClientRect().top < 0) f.scrollIntoView({ block: 'start' });
+  }
+
+  renderHeader(); renderNeeds(); renderKpis(); renderFilters(); renderBoard(); renderFocus();
+  renderQuality(); renderDelivery(); renderHealth(); renderRoles(); renderActivity();
+})();
+</script>

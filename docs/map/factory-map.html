@@ -67,7 +67,7 @@
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 40px 56px;
   }
-  .page { max-width: 1200px; margin: 0 auto; display: grid; gap: 56px; }
+  .page { max-width: 1280px; margin: 0 auto; display: grid; gap: 56px; }
   .prose { max-width: 68ch; }
   .eyebrow {
     font-family: var(--font-mono); font-size: 11px; font-weight: 500;
@@ -173,6 +173,7 @@
       <a href="#lifecycle">1 · Lifecycle</a>
       <a href="#tracks">2 · Tracks</a>
       <a href="#loop">3 · Task loop</a>
+      <a href="#panel">4 · Review panel</a>
       <a href="#roles">Roles &amp; models</a>
       <a href="#skills">Skills</a>
       <a href="#open">Open questions</a>
@@ -464,12 +465,12 @@
     <div class="figure-head">
       <span class="fig-num">Figure 3</span>
       <h2>The task loop inside Build and Test</h2>
-      <p class="caption">Every plan task runs this loop. The reviewer always comes from the other vendor than the author, and writes a verdict on the first line of its review file. Tags name the role; the model comes from the role table.</p>
+      <p class="caption">Every plan task runs this loop. The review is a panel of reviewers, each looking for one kind of problem (Figure 4), and each writes its verdict on the first line of its review file. Tags name the role; the model comes from the role table.</p>
     </div>
     <div class="diagram-container">
       <svg viewBox="0 0 1280 404" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-loop-title sf-loop-desc">
         <title id="sf-loop-title">Per-task build and review loop</title>
-        <desc id="sf-loop-desc">A task is implemented test-first, verified, reviewed by a model from the other vendor, fixed and re-reviewed up to three rounds, checked by an independent tester, and closed, with a hard stop to the owner after a third failed round.</desc>
+        <desc id="sf-loop-desc">A task is implemented test-first, verified, reviewed by a panel of reviewers, fixed and re-reviewed up to three rounds, checked by an independent tester, and closed, with a hard stop to the owner after a third failed round.</desc>
         <defs>
           <marker id="lp-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
         </defs>
@@ -523,8 +524,8 @@
         <rect class="mask" x="560" y="88" width="160" height="64" rx="6"/>
         <rect class="focal" x="560" y="88" width="160" height="64" rx="6"/>
         <rect class="tag-accent" x="568" y="94" width="28" height="12" rx="2"/><text class="t-tag-accent" x="582" y="103" text-anchor="middle">REV</text>
-        <text class="t-name" x="640" y="122" text-anchor="middle">Cross-vendor review</text>
-        <text class="t-sub" x="640" y="138" text-anchor="middle">Codex · GPT-6.1-Sol</text>
+        <text class="t-name" x="640" y="122" text-anchor="middle">Review panel</text>
+        <text class="t-sub" x="640" y="138" text-anchor="middle">4 lenses · see Figure 4</text>
 
         <polygon class="node" points="796,84 832,120 796,156 760,120"/>
         <text class="t-name" x="796" y="124" text-anchor="middle">Verdict</text>
@@ -554,7 +555,7 @@
         <text class="t-eyebrow" x="24" y="380">LEGEND</text>
         <rect class="mask" x="96" y="370" width="20" height="14" rx="3"/>
         <rect class="focal" x="96" y="370" width="20" height="14" rx="3"/>
-        <text class="t-legend" x="124" y="380">Review by the other vendor</text>
+        <text class="t-legend" x="124" y="380">Review panel, Figure 4</text>
         <rect class="mask" x="300" y="370" width="20" height="14" rx="3"/>
         <rect class="sec" x="300" y="370" width="20" height="14" rx="3"/>
         <text class="t-legend" x="328" y="380">Hard stop: a person decides</text>
@@ -562,6 +563,108 @@
         <text class="t-legend" x="548" y="380">Loop-back</text>
         <rect class="tag" x="636" y="371" width="28" height="12" rx="2"/><text class="t-tag" x="650" y="380" text-anchor="middle">ROLE</text>
         <text class="t-legend" x="672" y="380">Role tag; the model comes from the role table</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ FIG 4: REVIEW PANEL ============ -->
+  <section id="panel">
+    <div class="figure-head">
+      <span class="fig-num">Figure 4</span>
+      <h2>The review panel</h2>
+      <p class="caption">Each lens reviews the same change at the same time, using its own checklist from the project's <code>REVIEW.md</code>. The round ends only when every lens has reported. A blocker or major finding from any lens sends the task back for fixes. Maintainability findings on their own never block: they become follow-up tickets. A Fix runs correctness and security, a Feature adds maintainability, and a Program runs all four, plus any lenses a project adds, such as UX or performance.</p>
+    </div>
+    <div class="diagram-container">
+      <svg viewBox="0 0 1280 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-panel-title sf-panel-desc">
+        <title id="sf-panel-title">Review panel with four lenses</title>
+        <desc id="sf-panel-desc">A change is reviewed in parallel for correctness, security, maintainability and spec compliance, the findings are combined into one verdict, and the result goes to the tester, back for fixes, or into follow-up tickets.</desc>
+        <defs>
+          <marker id="pn-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+        </defs>
+        <rect class="bg" width="1280" height="420"/>
+
+        <!-- Column eyebrows -->
+        <text class="t-eyebrow" x="120" y="28" text-anchor="middle">INPUT</text>
+        <text class="t-eyebrow" x="404" y="28" text-anchor="middle">LENSES, IN PARALLEL</text>
+        <text class="t-eyebrow" x="680" y="28" text-anchor="middle">COMBINE</text>
+        <text class="t-eyebrow" x="970" y="28" text-anchor="middle">OUTCOME</text>
+
+        <!-- Fan-out -->
+        <path class="edge" d="M200,176 H224 Q232,176 232,168 V84 Q232,76 240,76 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,188 H240 Q248,188 248,180 V164 Q248,156 256,156 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,204 H240 Q248,204 248,212 V228 Q248,236 256,236 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,216 H224 Q232,216 232,224 V308 Q232,316 240,316 H304" marker-end="url(#pn-arrow)"/>
+        <!-- Fan-in -->
+        <path class="edge" d="M504,76 H560 Q568,76 568,84 V168 Q568,176 576,176 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,156 H544 Q552,156 552,164 V180 Q552,188 560,188 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,236 H544 Q552,236 552,228 V212 Q552,204 560,204 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,316 H560 Q568,316 568,308 V224 Q568,216 576,216 H600" marker-end="url(#pn-arrow)"/>
+        <!-- Outcomes -->
+        <path class="edge" d="M760,180 H800 Q808,180 808,172 V124 Q808,116 816,116 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="834" y="98" width="28" height="12" rx="2"/>
+        <text class="t-label" x="848" y="107" text-anchor="middle">PASS</text>
+        <path class="edge" d="M760,196 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="818" y="178" width="44" height="12" rx="2"/>
+        <text class="t-label" x="840" y="187" text-anchor="middle">CHANGES</text>
+        <path class="edge-dash" d="M760,212 H800 Q808,212 808,220 V268 Q808,276 816,276 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="820" y="258" width="56" height="12" rx="2"/>
+        <text class="t-label" x="848" y="267" text-anchor="middle">FOLLOW-UP</text>
+
+        <!-- Input -->
+        <rect class="node" x="40" y="164" width="160" height="64" rx="6"/>
+        <text class="t-name" x="120" y="198" text-anchor="middle">Task under review</text>
+        <text class="t-sub" x="120" y="214" text-anchor="middle">diff · spec · plan task</text>
+
+        <!-- Lenses -->
+        <rect class="node" x="304" y="48" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="54" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="63" text-anchor="middle">OTHER</text>
+        <text class="t-name" x="404" y="80" text-anchor="middle">Correctness</text>
+        <text class="t-sub" x="404" y="95" text-anchor="middle">GPT-6.1-Sol · logic, edge cases</text>
+
+        <rect class="node" x="304" y="128" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="134" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="143" text-anchor="middle">OTHER</text>
+        <text class="t-name" x="404" y="160" text-anchor="middle">Security</text>
+        <text class="t-sub" x="404" y="175" text-anchor="middle">GPT-6.1-Sol · auth · secrets</text>
+
+        <rect class="node" x="304" y="208" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="214" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="223" text-anchor="middle">SAME</text>
+        <text class="t-name" x="404" y="240" text-anchor="middle">Maintainability</text>
+        <text class="t-sub" x="404" y="255" text-anchor="middle">Sonnet 5.5 · design, duplication</text>
+
+        <rect class="node" x="304" y="288" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="294" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="303" text-anchor="middle">SAME</text>
+        <text class="t-name" x="404" y="320" text-anchor="middle">Spec compliance</text>
+        <text class="t-sub" x="404" y="335" text-anchor="middle">Opus 5.5 · does what spec says</text>
+
+        <!-- Combine (focal) -->
+        <rect class="mask" x="600" y="164" width="160" height="64" rx="6"/>
+        <rect class="focal" x="600" y="164" width="160" height="64" rx="6"/>
+        <text class="t-name" x="680" y="198" text-anchor="middle">Combine findings</text>
+        <text class="t-sub" x="680" y="214" text-anchor="middle">wait for all · dedupe</text>
+
+        <!-- Outcomes -->
+        <rect class="node" x="880" y="88" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="114" text-anchor="middle">Independent tester</text>
+        <text class="t-sub" x="970" y="130" text-anchor="middle">next step in Figure 3</text>
+        <rect class="node" x="880" y="168" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="194" text-anchor="middle">Disposition + fix</text>
+        <text class="t-sub" x="970" y="210" text-anchor="middle">same lenses re-review</text>
+        <rect class="node" x="880" y="248" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="274" text-anchor="middle">Follow-up tickets</text>
+        <text class="t-sub" x="970" y="290" text-anchor="middle">maintainability minors</text>
+
+        <!-- Legend -->
+        <line class="hair" x1="24" y1="376" x2="1256" y2="376"/>
+        <text class="t-eyebrow" x="24" y="400">LEGEND</text>
+        <rect class="tag" x="96" y="391" width="32" height="12" rx="2"/><text class="t-tag" x="112" y="400" text-anchor="middle">OTHER</text>
+        <text class="t-legend" x="136" y="400">Other vendor than the author</text>
+        <rect class="tag" x="300" y="391" width="32" height="12" rx="2"/><text class="t-tag" x="316" y="400" text-anchor="middle">SAME</text>
+        <text class="t-legend" x="340" y="400">Same vendor</text>
+        <rect class="mask" x="428" y="390" width="20" height="14" rx="3"/>
+        <rect class="focal" x="428" y="390" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="456" y="400">One verdict per round</text>
+        <path class="edge-dash" d="M584,397 H616" marker-end="url(#pn-arrow)"/>
+        <text class="t-legend" x="624" y="400">Does not block the merge</text>
       </svg>
     </div>
   </section>
@@ -585,14 +688,17 @@
           <tr><td class="role">Reviewer, same vendor</td><td>Design, Build</td><td><span class="mono">Opus 5.5 · xhigh</span></td><td>Subagent, no edits</td><td><span class="mono">Sonnet 5.5</span></td></tr>
           <tr><td class="role">Reviewer, other vendor</td><td>Design, Build</td><td><span class="mono">GPT-6-Astra · xhigh</span> <span class="pill other">other vendor</span></td><td><code>codex exec</code>, read-only</td><td><span class="mono">GPT-6.1-Sol</span></td></tr>
           <tr><td class="role">Implementer</td><td>Build</td><td><span class="mono">Opus 5.5 · xhigh</span></td><td>Main session</td><td><span class="mono">GPT-6.1-Sol</span> via Codex</td></tr>
-          <tr><td class="role">Task reviewer</td><td>Build</td><td><span class="mono">GPT-6.1-Sol · xhigh</span> <span class="pill other">other vendor</span></td><td><code>codex exec</code>, read-only</td><td><span class="mono">Opus 5.5</span> subagent</td></tr>
+          <tr><td class="role">Reviewer: correctness</td><td>Build</td><td><span class="mono">GPT-6.1-Sol · xhigh</span> <span class="pill other">other vendor</span></td><td><code>codex exec</code>, read-only</td><td><span class="mono">Opus 5.5</span> subagent</td></tr>
+          <tr><td class="role">Reviewer: security</td><td>Build</td><td><span class="mono">GPT-6.1-Sol · xhigh</span> <span class="pill other">other vendor</span></td><td><code>codex exec</code>, read-only</td><td><span class="mono">Opus 5.5</span> subagent</td></tr>
+          <tr><td class="role">Reviewer: maintainability</td><td>Build</td><td><span class="mono">Sonnet 5.5 · high</span></td><td>Subagent, no edits</td><td><span class="mono">GPT-6.1-Sol</span></td></tr>
+          <tr><td class="role">Reviewer: spec compliance</td><td>Build</td><td><span class="mono">Opus 5.5 · high</span></td><td>Subagent, no edits</td><td><span class="mono">GPT-6.1-Sol</span></td></tr>
           <tr><td class="role">Tester</td><td>Test</td><td><span class="mono">Sonnet 5.5 · high</span></td><td>Subagent, no product edits</td><td><span class="mono">GPT-6.1-Sol</span></td></tr>
           <tr><td class="role">PR reviewer</td><td>Deploy</td><td><span class="mono">GPT-6.1-Sol · high</span> <span class="pill other">other vendor</span></td><td>Headless in CI</td><td><span class="mono">Opus 5.5</span></td></tr>
           <tr><td class="role">Triage and on-call</td><td>Maintain</td><td><span class="mono">Sonnet 5.5 · high</span></td><td>Headless, read-only first</td><td><span class="mono">Opus 5.5</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="caption">The first eight rows are what NGC2 runs today. The Deploy and Maintain rows are new and are proposals.</p>
+    <p class="caption">NGC2 today runs one task reviewer through Codex. The four lens reviewers and the Deploy and Maintain rows are proposals.</p>
   </section>
 
   <!-- ============ SKILLS ============ -->
@@ -656,6 +762,8 @@
           <tr><td class="mono">F06</td><td>The diagrams stay current and are published as a private web page.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F07</td><td>Each piece of work keeps its state as files in the project's own repo. GitHub issues are an optional mirror.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F08</td><td>Review mode is the default: the factory pauses for your review at its checkpoints. Auto mode is optional and stops only for hard stops.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F09</td><td>Reviews run as a panel of parallel reviewers, each with one lens: correctness, security, maintainability, spec compliance. At least one lens is from the other vendor.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F10</td><td>The factory keeps a dashboard that is updated throughout the work (template under review).</td><td class="mono">2026-10-20</td></tr>
         </tbody>
       </table>
     </div>
