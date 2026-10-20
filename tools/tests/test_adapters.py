@@ -558,6 +558,18 @@ REFUSED_EXTRA_ARGS = [
     "-C ..", "--cd ..", "--cd=..",
     '-c windows.sandbox="unelevated" --sandbox workspace-write',   # a refused option after an allowed one
     '"--sandbox" danger-full-access',                               # quoted, as Windows keeps the quotes
+    # -c / --config overrides of the sandbox or approval settings, in every spelling codex accepts
+    "-c sandbox_mode=danger-full-access", '-c sandbox_mode="danger-full-access"',
+    "-c approval_policy=never", "-c=approval_policy=never", "-csandbox_mode=danger-full-access",
+    "--config sandbox_mode=danger-full-access", "--config=sandbox_mode=danger-full-access",
+    "--config approval_policy=never", "--config=approval_policy=never",
+    "-c sandbox_workspace_write.writable_roots=['/']", "-c sandbox_workspace_write.network_access=true",
+    "-c sandbox_workspace_write={network_access=true}",
+    "-c sandbox_permissions=['disk-full-read-access']", "-c shell_environment_policy.inherit=all",
+    "-c SANDBOX_MODE=danger-full-access", "-c Approval_Policy=never",      # case does not matter
+    '-c "sandbox_mode"=danger-full-access', '-c "sandbox_mode = danger-full-access"',   # quoted key, spaces
+    '"-c" "sandbox_mode=danger-full-access"', '"--config=approval_policy=never"',       # quoted, as on Windows
+    '-c windows.sandbox="unelevated" -c sandbox_mode=danger-full-access',   # a refused key after an allowed one
 ]
 
 
@@ -597,6 +609,19 @@ def test_config_overrides_and_other_options_stay_allowed_in_extra_codex_args(
     assert run_invocation(inv, r, "prompt", out).ok
     (call,) = fake_cli.calls()
     assert call["argv"][-1] == "-" and len(call["argv"]) == len(run_argv(inv, out)) + 2
+
+
+@pytest.mark.parametrize("extra, tokens", [
+    ("-c=windows.sandbox=unelevated", 1), ("-cwindows.sandbox=unelevated", 1),
+    ("--config=windows.sandbox=unelevated", 1), ("-c model_reasoning_effort=high", 2),
+    ("-c windows.sandbox=unelevated -c model_reasoning_effort=high", 4),
+])
+def test_other_config_keys_stay_allowed_in_every_spelling(tmp_path, table, fake_cli, monkeypatch, extra, tokens):
+    monkeypatch.setenv("FACTORY_CODEX_ARGS", extra)
+    r, inv, out = lens(table, tmp_path)
+    assert run_invocation(inv, r, "prompt", out).ok
+    (call,) = fake_cli.calls()
+    assert len(call["argv"]) == len(run_argv(inv, out)) + tokens
 
 
 def test_run_invocation_refuses_a_non_command_invocation(tmp_path, table):

@@ -65,7 +65,7 @@ CODEX_ARGS_ENV = "FACTORY_CODEX_ARGS"
 # schema, or the working folder the factory chose for the run. ``--yolo`` is a hidden alias of
 # ``--dangerously-bypass-approvals-and-sandbox`` (codex-cli 0.163.0: ``codex exec --yolo --yolo`` reports that
 # argument as given twice), and ``--add-dir`` adds writable folders to the sandbox. ``-c key=value`` overrides
-# stay allowed.
+# are checked by key (below).
 REFUSED_CODEX_ARGS = (
     "-s", "--sandbox",
     "-a", "--ask-for-approval", "--full-auto", "--approve-for-me", "--dangerously-bypass", "--yolo",
@@ -73,6 +73,14 @@ REFUSED_CODEX_ARGS = (
     "-o", "--output-last-message", "--output-schema",
     "-C", "--cd",
 )
+
+# The same guard for ``-c`` / ``--config`` overrides, which could set what the options above set. A key (compared
+# case-insensitively, with spaces and quotes removed) is refused when it is one of the first two names or a sub-key of
+# one, or when it starts with one of the prefixes: ``sandbox_mode``, ``approval_policy``,
+# ``sandbox_workspace_write.writable_roots`` / ``.network_access``, ``sandbox_permissions``,
+# ``shell_environment_policy.inherit``. Every other key, such as ``windows.sandbox``, stays allowed.
+REFUSED_CODEX_CONFIG_KEYS = ("sandbox_mode", "approval_policy")
+REFUSED_CODEX_CONFIG_KEY_PREFIXES = ("sandbox_workspace_write", "sandbox_permissions", "shell_environment_policy")
 
 # Role-name globs (first match wins) to the subagent definition that runs them on a Claude host.
 AGENT_FOR_ROLE: dict[str, str] = {
@@ -207,7 +215,8 @@ def _tail(text: str) -> str:
 
 
 def _extra_codex_args() -> list[str]:
-    """The arguments in ``FACTORY_CODEX_ARGS``; ``ConfigError`` for unbalanced quotes or a refused option."""
+    """The arguments in ``FACTORY_CODEX_ARGS``; ``ConfigError`` for unbalanced quotes, a refused option or a ``-c``
+    override of a sandbox or approval key."""
     raw = os.environ.get(CODEX_ARGS_ENV, "")
     if not raw.strip():
         return []
@@ -217,13 +226,48 @@ def _extra_codex_args() -> list[str]:
     except ValueError as err:
         raise ConfigError([f"{CODEX_ARGS_ENV}: cannot split {raw!r} into arguments: {err}"]) from None
     refused = [arg for arg in extra if arg.strip("\"'").startswith(REFUSED_CODEX_ARGS)]
-    if refused:
-        raise ConfigError([
-            f"{CODEX_ARGS_ENV}: {arg!r} is not allowed: it would override the sandbox, approval, output-file or "
-            "working-folder settings the factory gives every codex exec run (use -c key=value for other settings)"
-            for arg in refused
-        ])
+    problems = [
+        f"{CODEX_ARGS_ENV}: {arg!r} is not allowed: it would override the sandbox, approval, output-file or "
+        "working-folder settings the factory gives every codex exec run (use -c key=value for other settings)"
+        for arg in refused
+    ]
+    problems += [
+        f"{CODEX_ARGS_ENV}: the -c override of {key.strip()!r} is not allowed: it would override the sandbox or "
+        "approval settings the factory gives every codex exec run (other -c key=value settings are fine)"
+        for key in _config_override_keys(extra) if _is_refused_config_key(key)
+    ]
+    if problems:
+        raise ConfigError(problems)
     return extra
+
+
+def _config_override_keys(extra: list[str]) -> list[str]:
+    """The key of every ``-c`` / ``--config`` override in ``extra``: the part of its value before the first ``=``.
+
+    Handles ``-c k=v``, ``-c=k=v``, ``-ck=v``, ``--config k=v`` and ``--config=k=v`` (all accepted by codex-cli
+    0.163.0), with the quotes Windows keeps around an argument.
+    """
+    keys: list[str] = []
+    args = iter(extra)
+    for arg in args:
+        bare = arg.strip("\"'")
+        if bare in ("-c", "--config"):
+            value = next(args, "")
+        elif bare.startswith("--config="):
+            value = bare[len("--config="):]
+        elif bare.startswith("-c"):  # -c=key=value or -ckey=value
+            value = bare[2:].removeprefix("=")
+        else:
+            continue
+        keys.append(value.strip("\"'").partition("=")[0])
+    return keys
+
+
+def _is_refused_config_key(key: str) -> bool:
+    """True for a ``-c`` key that would set the sandbox or the approvals (``REFUSED_CODEX_CONFIG_*``)."""
+    key = re.sub(r"[\s\"']", "", key).lower()
+    return (any(key == name or key.startswith(name + ".") for name in REFUSED_CODEX_CONFIG_KEYS)
+            or key.startswith(REFUSED_CODEX_CONFIG_KEY_PREFIXES))
 
 
 def _with_extra(argv: list[str], extra: list[str]) -> list[str]:
@@ -400,8 +444,9 @@ def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path:
     ``suggest_fallback=False`` and nothing is created when an argument holds a character cmd.exe
     would re-interpret (``& | < > ^ % !`` or a line break). Extra Codex arguments come from the
     ``FACTORY_CODEX_ARGS`` environment variable; unbalanced quotes there, or an option in
-    ``REFUSED_CODEX_ARGS`` (sandbox, approvals, output file or schema, working folder), raise
-    ``ConfigError`` before anything is started, created or deleted.
+    ``REFUSED_CODEX_ARGS`` (sandbox, approvals, output file or schema, working folder) or a ``-c`` override of a
+    sandbox or approval key (``REFUSED_CODEX_CONFIG_KEYS``), raise ``ConfigError`` before anything is started,
+    created or deleted.
     """
     if inv.kind != "command" or not inv.argv:
         raise ValueError(f"run_invocation runs command invocations only, not {inv.kind!r}")
