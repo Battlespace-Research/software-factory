@@ -501,3 +501,117 @@ def test_cli_approve_needs_every_option(missing):
     with pytest.raises(SystemExit) as caught:
         cli.main(["approve", "FIX-3", "spec", *args])
     assert caught.value.code == 2
+
+
+# --------------------------------------------------------------------------- factory approve --quote-file
+
+def quote_file_args(path: Path, **overrides: str) -> list[str]:
+    """The options of an approval whose words come from ``path`` instead of ``--quote``."""
+    args = approve_args(**overrides)
+    index = args.index("--quote")
+    del args[index:index + 2]
+    return [*args, "--quote-file", str(path)]
+
+
+# Everything a shell would change on the way in: both kinds of quote, $, %, !, a backtick, a backslash, a dash.
+AWKWARD_WORDS = (
+    'Approved: "ship it" and \'go\'\n'
+    "$HOME stays, %PATH% stays, wow! `date` \\n is two characters\n"
+    "- a dash-led last line, café ☺"
+)
+
+
+def record_for(project: Path, artifact: str = "spec") -> Approval | None:
+    return latest_approval(project / "factory" / "work" / "FIX-3-crash", artifact)
+
+
+def test_cli_quote_file_records_the_words_verbatim(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_text(AWKWARD_WORDS, encoding="utf-8", newline="\n")
+    code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words))
+    assert code == 0 and err == ""
+    found = record_for(project)
+    assert found.quote == AWKWARD_WORDS and Path(json.loads(out)["path"]) == found.path
+    text = found.path.read_text(encoding="utf-8")
+    assert '> Approved: "ship it" and \'go\'\n' in text and "> $HOME stays, %PATH% stays, wow! `date` \\n is two characters\n" in text
+    assert text.endswith("> - a dash-led last line, café ☺\n")
+
+
+def test_cli_quote_file_is_processed_exactly_like_quote(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_bytes(("\n\n" + AWKWARD_WORDS + "\n\n").encode("utf-8"))  # an editor's blank lines around the words
+    assert run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words))[0] == 0
+    assert run_cli(capsys, "approve", "FIX-3", "plan", *approve_args(**{"--quote": "\n\n" + AWKWARD_WORDS + "\n\n"}))[0] == 0
+    from_file, from_option = record_for(project, "spec"), record_for(project, "plan")
+    assert from_file.quote == from_option.quote == AWKWARD_WORDS
+    # the two records differ only in the artifact name and the time
+    assert from_file.path.read_text(encoding="utf-8").split("Quote:")[1] == from_option.path.read_text(encoding="utf-8").split("Quote:")[1]
+
+
+def test_cli_quote_file_drops_a_leading_bom_and_reads_crlf(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_bytes(b"\xef\xbb\xbf" + "Yes — ship it.\r\nThanks.\r\n".encode("utf-8"))
+    code, _, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words))
+    assert code == 0, err
+    assert record_for(project).quote == "Yes — ship it.\nThanks."
+    assert b"\xef\xbb\xbf" not in record_for(project).path.read_bytes()
+
+
+def test_cli_quote_file_may_be_given_as_a_relative_path(project, tmp_path, capsys):
+    (project / "words.txt").write_text("Approved.\n", encoding="utf-8", newline="\n")
+    code, _, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(Path("words.txt")))
+    assert code == 0, err
+    assert record_for(project).quote == "Approved."
+
+
+def test_cli_quote_and_quote_file_together_is_a_usage_error(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_text("Approved.\n", encoding="utf-8", newline="\n")
+    with pytest.raises(SystemExit) as caught:
+        cli.main(["approve", "FIX-3", "spec", *approve_args(), "--quote-file", str(words)])
+    assert caught.value.code == 2
+    assert "not allowed with" in capsys.readouterr().err
+    assert record_for(project) is None
+
+
+def test_cli_neither_quote_nor_quote_file_is_a_usage_error(project, capsys):
+    args = approve_args()
+    index = args.index("--quote")
+    del args[index:index + 2]
+    with pytest.raises(SystemExit) as caught:
+        cli.main(["approve", "FIX-3", "spec", *args])
+    assert caught.value.code == 2
+    err = capsys.readouterr().err
+    assert "--quote" in err and "--quote-file" in err and "required" in err
+    assert record_for(project) is None
+
+
+def test_cli_quote_file_that_is_missing_is_a_usage_problem(project, tmp_path, capsys):
+    code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(tmp_path / "nope.txt"))
+    assert code == 2 and out == "" and "nope.txt" in err
+    assert record_for(project) is None
+
+
+def test_cli_quote_file_that_is_not_utf8_is_a_usage_problem(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_bytes(b"Approved \xff\xfe.\n")
+    code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words))
+    assert code == 2 and out == "" and "words.txt" in err and "UTF-8" in err
+    assert record_for(project) is None
+
+
+@pytest.mark.parametrize("content", [b"", b"\n", b"  \r\n \t\r\n", b"\xef\xbb\xbf\n"])
+def test_cli_quote_file_without_words_is_refused(project, tmp_path, capsys, content):
+    words = tmp_path / "words.txt"
+    words.write_bytes(content)
+    code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words))
+    assert code == 1 and out == "" and "quote" in err
+    assert record_for(project) is None
+
+
+def test_cli_quote_file_still_needs_an_approver_from_the_list(project, tmp_path, capsys):
+    words = tmp_path / "words.txt"
+    words.write_text("Approved.\n", encoding="utf-8", newline="\n")
+    code, _, err = run_cli(capsys, "approve", "FIX-3", "spec", *quote_file_args(words, **{"--approver": "Mallory"}))
+    assert code == 1 and "Mallory" in err
+    assert record_for(project) is None

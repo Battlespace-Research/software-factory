@@ -242,12 +242,20 @@ def _cmd_work_set_status(args: argparse.Namespace) -> int:
 
 
 def _cmd_approve(args: argparse.Namespace) -> int:
+    quote = args.quote
+    if args.quote_file is not None:  # the words come from a file, so no shell has quoted them on the way in
+        try:
+            quote = args.quote_file.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            return _print_problems([f"cannot read the quote file {args.quote_file}: it is not UTF-8 text"])
+        except OSError as err:
+            return _print_problems([f"cannot read the quote file {args.quote_file}: {err}"])
     try:
         root = find_project_root(Path.cwd())
         cfg = load_project_config(root / "factory.yaml")
         item = find_work_item(root, args.id)
         record = record_approval(
-            item.path, cfg, args.artifact, args.rev, args.quote, args.approver, args.commit, args.host, args.session
+            item.path, cfg, args.artifact, args.rev, quote, args.approver, args.commit, args.host, args.session
         )
     except ApprovalError as err:  # refused: exit 1, so a caller can tell this from a command that could not run
         print(err, file=sys.stderr)
@@ -374,11 +382,19 @@ def build_parser() -> argparse.ArgumentParser:
     approve.add_argument("id", metavar="ID", help="the work id, such as FEA-12; its folder must be in the checked-out tree")
     approve.add_argument("artifact", metavar="ARTIFACT", help="what was approved, such as spec or plan: a-z, 0-9 and -")
     approve.add_argument("--rev", required=True, metavar="R", help="the revision approved, digits and dots, such as 2 or 1.1")
-    approve.add_argument(
+    quote_source = approve.add_mutually_exclusive_group(required=True)
+    quote_source.add_argument(
         "--quote",
-        required=True,
         metavar="Q",
-        help="the owner's message, word for word (write --quote=TEXT if it could start with a dash)",
+        help="the owner's message, word for word (write --quote=TEXT if it could start with a dash; "
+        "for words with quotes, $, %% or line breaks prefer --quote-file)",
+    )
+    quote_source.add_argument(
+        "--quote-file",
+        type=Path,
+        metavar="PATH",
+        help="a UTF-8 file holding the owner's message, word for word; read exactly as --quote would be, "
+        "and safe from shell quoting",
     )
     approve.add_argument("--approver", required=True, metavar="A", help="who approved; must be listed under approvers in factory.yaml")
     approve.add_argument("--commit", required=True, metavar="C", help="the commit that holds the approved revision")
