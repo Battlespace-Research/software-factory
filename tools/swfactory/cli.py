@@ -26,12 +26,14 @@ from swfactory.config import (
     load_project_config,
     load_role_table,
 )
+from swfactory.gitutil import GitError
 from swfactory.panel import combine, render_panel_summary, write_panel_summary
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
-from swfactory.tracks import find_project_root, track_for_id
+from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
+from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel"}
+COMMANDS: set[str] = {"config", "role", "panel", "work"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -185,6 +187,59 @@ def _cmd_panel_combine(args: argparse.Namespace) -> int:
     return _PANEL_EXIT[result.verdict]
 
 
+def _cmd_work_help(args: argparse.Namespace) -> int:
+    args.work_parser.print_help()
+    return EXIT_USAGE
+
+
+def _work_project_root(project: Path | None) -> Path:
+    """The project the ``work`` commands act on: ``--project`` (a folder or its factory.yaml), else the one
+    around the current folder."""
+    if project is None:
+        return find_project_root(Path.cwd())
+    return find_project_root(project.parent if project.is_file() else project)
+
+
+def _cmd_work_new(args: argparse.Namespace) -> int:
+    try:
+        root = _work_project_root(args.project)
+        item = create_work_item(root, load_project_config(root / "factory.yaml"), args.track, args.slug, args.title)
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    except (ValueError, OSError, GitError) as err:
+        return _print_problems([str(err)])
+    folder = item.path.relative_to(root).as_posix()
+    print(json.dumps({"id": item.id, "track": item.track, "slug": item.slug, "title": item.title,
+                      "branch": item.branch, "folder": folder}, indent=2))
+    return 0
+
+
+def _print_status(item: WorkItem, status: Status) -> None:
+    """The work item's Status as JSON. Like ``role resolve`` this is ASCII-only, so it reads the same whatever
+    encoding the console or pipe uses (a Status line printed raw would carry a middle dot)."""
+    print(json.dumps({"id": item.id, **asdict(status)}, indent=2))
+
+
+def _cmd_work_status(args: argparse.Namespace) -> int:
+    try:
+        item = find_work_item(_work_project_root(args.project), args.id)
+        status = read_status(item.path)
+    except (ValueError, OSError) as err:
+        return _print_problems([str(err)])
+    _print_status(item, status)
+    return 0
+
+
+def _cmd_work_set_status(args: argparse.Namespace) -> int:
+    try:
+        item = find_work_item(_work_project_root(args.project), args.id)
+        status = write_status(item.path, args.stage, args.state, args.next, args.note)
+    except (ValueError, OSError) as err:
+        return _print_problems([str(err)])
+    _print_status(item, status)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -258,6 +313,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="the commit that was reviewed (default: HEAD of the project, as a full SHA)",
     )
     combine_cmd.set_defaults(handler=_cmd_panel_combine)
+
+    work = commands.add_parser("work", help="open work items and read or update their Status line")
+    work.set_defaults(handler=_cmd_work_help, work_parser=work)
+    work_commands = work.add_subparsers(dest="work_command", metavar="<subcommand>")
+    new = work_commands.add_parser(
+        "new",
+        help="open a work item: allocate its id, branch, folder of template files and first commit; prints JSON",
+    )
+    new.add_argument("--track", required=True, choices=sorted(TRACK_PREFIX), help="the track the work belongs to")
+    new.add_argument("--slug", required=True, metavar="S", help="short name for the branch and folder: a-z, 0-9 and -, up to 40")
+    new.add_argument("--title", required=True, metavar="T", help="one line saying what the work is")
+    new.set_defaults(handler=_cmd_work_new)
+    status = work_commands.add_parser("status", help="print the Status line of a work item's progress.md, as JSON")
+    set_status = work_commands.add_parser(
+        "set-status",
+        help="rewrite the Status line and log a note at the top of ## Log, then print the new Status as JSON "
+        "(does not commit)",
+    )
+    for sub in (status, set_status):
+        sub.add_argument("id", metavar="ID", help="the work id, such as FIX-3; its folder must be in the checked-out tree")
+    set_status.add_argument("--stage", required=True, metavar="S", help="the stage, such as build")
+    set_status.add_argument("--state", required=True, metavar="S", help="the state within the stage, such as 'in progress'")
+    set_status.add_argument("--next", required=True, metavar="TEXT", help="what the next session should do")
+    set_status.add_argument("--note", required=True, metavar="TEXT", help="the log entry")
+    status.set_defaults(handler=_cmd_work_status)
+    set_status.set_defaults(handler=_cmd_work_set_status)
+    for sub in (new, status, set_status):
+        sub.add_argument(
+            "--project",
+            type=Path,
+            metavar="PATH",
+            help="a project folder or factory.yaml (default: the project around the current folder)",
+        )
     return parser
 
 

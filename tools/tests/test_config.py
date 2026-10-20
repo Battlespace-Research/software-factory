@@ -531,7 +531,7 @@ def test_cli_commands_set_matches_parser():
         if action.__class__.__name__ == "_SubParsersAction"
         for name in action.choices
     }
-    assert registered == cli.COMMANDS == {"config", "role", "panel"}
+    assert registered == cli.COMMANDS == {"config", "role", "panel", "work"}
 
 
 def test_cli_config_check_ok(capsys):
