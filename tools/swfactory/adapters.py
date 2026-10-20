@@ -3,7 +3,10 @@
 A role runs one of three ways: the session itself does it (``main``), the host spawns a subagent
 (``subagent``), or a vendor CLI runs it headless (``command``): ``codex exec`` for OpenAI models,
 ``claude -p`` for Claude models on a Codex host. The prompt goes in on stdin and the reviewer's
-text comes back as a file the adapter stamps with where it came from.
+text comes back as a file the adapter stamps with where it came from. The vendor CLI never
+writes the result file itself: it writes a sibling ``<file>.partial``, and the adapter stamps that
+and renames it onto the result file only when the run succeeded, so a failed, timed-out or
+interrupted run can never leave something that looks like a verdict.
 
 Every flag spelling the adapters pass to a vendor CLI is in ``CODEX_EXEC_FLAGS`` or
 ``CLAUDE_PRINT_FLAGS``, so a CLI rename is a one-line fix. No model name is written here; the
@@ -67,6 +70,13 @@ AGENT_FOR_ROLE: dict[str, str] = {
 
 _MODEL_ALIAS = re.compile(r"^claude-([a-z]+)-")
 
+# Batch files (the npm shims of the vendor CLIs are ``.cmd``) are run by cmd.exe, which re-reads the
+# arguments: these characters would be treated as syntax, so such a run is refused instead.
+_BATCH_SUFFIXES = (".cmd", ".bat")
+_CMD_METACHARACTERS = "&|<>^%!\r\n"
+
+PARTIAL_SUFFIX = ".partial"
+
 _STDERR_TAIL_LINES = 20
 _STDERR_TAIL_CHARS = 2000
 _KILL_DRAIN_S = 10
@@ -80,7 +90,10 @@ class Invocation:
 
     ``main``: the session does it. ``subagent``: spawn ``agent`` with ``model_alias``.
     ``command``: run ``argv`` with the prompt on stdin. ``sandbox`` is the access the run gets
-    (``read-only`` or ``workspace-write``); it is stamped into the result header.
+    (``read-only`` or ``workspace-write``); it is stamped into the result header. Only a
+    ``read-only`` role is held to ``read-only``: a ``write`` role and a ``no-product-edits`` role
+    (the tester, who must build and run verify, and is kept from product edits by its prompt and
+    agent) both get ``workspace-write``.
     """
 
     kind: Literal["main", "subagent", "command"]
@@ -92,7 +105,7 @@ class Invocation:
 
 
 def _sandbox_for(access: str) -> str:
-    return "workspace-write" if access == "write" else "read-only"
+    return "read-only" if access == "read-only" else "workspace-write"
 
 
 def _agent_for(role: str) -> str | None:
@@ -206,32 +219,86 @@ def _kill_tree(proc: subprocess.Popen) -> None:
     proc.kill()
 
 
+def _stop(proc: subprocess.Popen) -> None:
+    """Kill the process tree and wait (briefly) for it to be gone, so it cannot write any more."""
+    _kill_tree(proc)
+    try:
+        proc.wait(timeout=_KILL_DRAIN_S)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def _run_process(argv: list[str], stdin_text: str, timeout_s: int) -> tuple[int | None, str, str]:
-    """Run ``argv`` with ``stdin_text`` as UTF-8 stdin. Returns (exit code or None on timeout, stdout, stderr)."""
+    """Run ``argv`` with ``stdin_text`` as UTF-8 stdin. Returns (exit code or None on timeout, stdout, stderr).
+
+    Whatever ends the wait early (a timeout, ``KeyboardInterrupt``, ``SystemExit`` from a SIGTERM
+    handler) kills the whole process tree first; the interrupts are then re-raised.
+    """
     popen_args: dict = {} if os.name == "nt" else {"start_new_session": True}
     proc = subprocess.Popen(
         argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **popen_args
     )
     timed_out = False
     try:
-        out, err = proc.communicate(stdin_text.encode("utf-8"), timeout=timeout_s)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        _kill_tree(proc)
         try:
-            out, err = proc.communicate(timeout=_KILL_DRAIN_S)
+            out, err = proc.communicate(stdin_text.encode("utf-8"), timeout=timeout_s)
         except subprocess.TimeoutExpired:
-            out, err = b"", b""
+            timed_out = True
+            _kill_tree(proc)
+            try:
+                out, err = proc.communicate(timeout=_KILL_DRAIN_S)
+            except subprocess.TimeoutExpired:
+                out, err = b"", b""
+    except BaseException:
+        _stop(proc)
+        raise
     text_out = out.decode("utf-8", errors="replace").replace("\r\n", "\n")
     text_err = err.decode("utf-8", errors="replace").replace("\r\n", "\n")
     return (None if timed_out else proc.returncode), text_out, text_err
 
 
-def _reviewer_text(r: ResolvedRole, out_path: Path, stdout: str) -> tuple[str, str]:
+def _batch_file_problem(executable: str, argv: list[str]) -> str:
+    """Why a batch-file run must be refused (empty when it may go ahead).
+
+    cmd.exe re-reads the command line of a ``.cmd`` or ``.bat`` file, so an argument holding one of
+    its metacharacters (an output path such as ``R&D\\o.md``) would be cut up and run as other
+    commands. Anything started directly (an ``.exe``, a POSIX program) is not affected.
+    """
+    if Path(executable).suffix.lower() not in _BATCH_SUFFIXES:
+        return ""
+    for arg in [executable, *argv[1:]]:
+        for char in _CMD_METACHARACTERS:
+            if char in arg:
+                return (
+                    f"not run: {executable} is a batch file, so cmd.exe re-reads its arguments, and the argument "
+                    f"{arg!r} contains {char!r}. Use paths and values without & | < > ^ % ! or a line break."
+                )
+    return ""
+
+
+def _redirect_output(argv: list[str], out_path: Path, partial: Path) -> list[str]:
+    """Point the CLI's own output-file option (``-o``) at ``partial`` instead of ``out_path``."""
+    flag = CODEX_EXEC_FLAGS["output_file"]
+    redirected = list(argv)
+    for index in range(len(redirected) - 1):
+        if redirected[index] == flag and redirected[index + 1] == str(out_path):
+            redirected[index + 1] = str(partial)
+    return redirected
+
+
+def _discard(*paths: Path) -> None:
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:  # nothing more can be done; never hide the error that led here
+            pass
+
+
+def _reviewer_text(r: ResolvedRole, partial: Path, stdout: str) -> tuple[str, str]:
     """The reviewer's text and, when there is none, the reason. Codex writes ``-o``; Claude prints JSON."""
     if r.vendor == "openai":
-        if out_path.is_file():
-            written = out_path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        if partial.is_file():
+            written = partial.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
             if written.strip():
                 return written.strip(), ""
         return stdout.strip(), "" if stdout.strip() else "the run produced no output"
@@ -255,31 +322,24 @@ def _stamp(r: ResolvedRole, inv: Invocation, extra: list[str]) -> str:
     return line + " -->"
 
 
-def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path: Path, timeout_s: int = 3600) -> RunResult:
-    """Run a ``command`` invocation: prompt on stdin, the reviewer's text to ``out_path``.
-
-    The file ends with a ``<!-- factory: ... -->`` stamp naming the role, vendor, model, effort,
-    sandbox and time (and any extra Codex arguments). A missing executable, a non-zero exit, a
-    timeout or an empty result deletes any partial file and returns ``ok=False`` with
-    ``suggest_fallback=True``. Extra Codex arguments come from the ``FACTORY_CODEX_ARGS``
-    environment variable; unbalanced quotes there raise ``ConfigError``.
-    """
-    if inv.kind != "command" or not inv.argv:
-        raise ValueError(f"run_invocation runs command invocations only, not {inv.kind!r}")
-    out_path = Path(out_path)
-    extra = _extra_codex_args() if r.vendor == "openai" else []
-    argv = _with_extra(inv.argv, extra)
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.unlink(missing_ok=True)  # nothing of an earlier run may pass for this run's output
-
-    def failed(exit_code: int | None, why: str) -> RunResult:
-        out_path.unlink(missing_ok=True)
-        return RunResult(ok=False, exit_code=exit_code, out_path=out_path, stderr_tail=why, suggest_fallback=True)
+def _execute(
+    inv: Invocation, r: ResolvedRole, prompt_text: str, out_path: Path, partial: Path,
+    argv: list[str], extra: list[str], timeout_s: int,
+) -> RunResult:
+    def failed(exit_code: int | None, why: str, suggest_fallback: bool = True) -> RunResult:
+        _discard(out_path, partial)
+        return RunResult(ok=False, exit_code=exit_code, out_path=out_path, stderr_tail=why,
+                         suggest_fallback=suggest_fallback)
 
     executable = shutil.which(argv[0])
     if executable is None:
         return failed(None, f"executable not found on PATH: {argv[0]}")
+    refusal = _batch_file_problem(executable, argv)
+    if refusal:
+        return failed(None, refusal, suggest_fallback=False)  # the same arguments would fail with any binding
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    _discard(out_path, partial)  # nothing of an earlier run may pass for this run's output
     try:
         exit_code, stdout, stderr = _run_process([executable, *argv[1:]], prompt_text, timeout_s)
     except OSError as err:
@@ -289,8 +349,37 @@ def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path:
     if exit_code != 0:
         return failed(exit_code, _tail(stderr) or f"{argv[0]} exited with code {exit_code}")
 
-    text, problem = _reviewer_text(r, out_path, stdout)
+    text, problem = _reviewer_text(r, partial, stdout)
     if problem:
         return failed(exit_code, problem)
-    out_path.write_text(f"{text}\n\n{_stamp(r, inv, extra)}\n", encoding="utf-8", newline="\n")
+    partial.write_text(f"{text}\n\n{_stamp(r, inv, extra)}\n", encoding="utf-8", newline="\n")
+    os.replace(partial, out_path)
     return RunResult(ok=True, exit_code=exit_code, out_path=out_path, stderr_tail=_tail(stderr), suggest_fallback=False)
+
+
+def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path: Path, timeout_s: int = 3600) -> RunResult:
+    """Run a ``command`` invocation: prompt on stdin, the reviewer's text to ``out_path``.
+
+    The vendor CLI is pointed at ``<out_path>.partial``, never at ``out_path``. On success the text
+    gets a trailing ``<!-- factory: ... -->`` stamp (role, vendor, model, effort, sandbox, time and
+    any extra Codex arguments) and the partial file is renamed onto ``out_path``. A missing
+    executable, a non-zero exit, a timeout or an empty result deletes both files and returns
+    ``ok=False`` with ``suggest_fallback=True``; so does an interrupt (``KeyboardInterrupt``,
+    ``SystemExit``), after the process tree is killed, and the interrupt is re-raised.
+
+    A batch file (``.cmd``, ``.bat``; the npm shim of a vendor CLI is one) is refused with
+    ``suggest_fallback=False`` and nothing is created when an argument holds a character cmd.exe
+    would re-interpret (``& | < > ^ % !`` or a line break). Extra Codex arguments come from the
+    ``FACTORY_CODEX_ARGS`` environment variable; unbalanced quotes there raise ``ConfigError``.
+    """
+    if inv.kind != "command" or not inv.argv:
+        raise ValueError(f"run_invocation runs command invocations only, not {inv.kind!r}")
+    out_path = Path(out_path)
+    partial = out_path.with_name(out_path.name + PARTIAL_SUFFIX)
+    extra = _extra_codex_args() if r.vendor == "openai" else []
+    argv = _redirect_output(_with_extra(inv.argv, extra), out_path, partial)
+    try:
+        return _execute(inv, r, prompt_text, out_path, partial, argv, extra, timeout_s)
+    except BaseException:
+        _discard(out_path, partial)
+        raise

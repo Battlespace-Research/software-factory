@@ -6,8 +6,11 @@ factory skills mention against it, so a task that adds a subcommand adds its nam
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import signal
 import sys
+from collections.abc import Iterator
 from dataclasses import asdict
 from pathlib import Path
 from typing import get_args
@@ -32,6 +35,26 @@ EXIT_NOT_A_COMMAND = 3  # a main or subagent role: the caller has to act on what
 
 # ``factory role resolve`` prints the invocation without a real output file; this stands in.
 _PLACEHOLDER_OUT = Path("<out-file>")
+
+
+@contextlib.contextmanager
+def sigterm_as_system_exit() -> Iterator[None]:
+    """While active, SIGTERM raises ``SystemExit`` so cleanup code runs (``role run`` kills its child and
+    deletes its partial output). The previous handler is restored afterwards. Where a handler cannot be
+    installed (a thread other than the main one, a platform without SIGTERM) this does nothing."""
+
+    def handler(signum: int, frame: object) -> None:
+        raise SystemExit(128 + signum)
+
+    try:
+        previous = signal.signal(signal.SIGTERM, handler)
+    except (ValueError, OSError, AttributeError):
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
 
 
 def _cmd_config_check(args: argparse.Namespace) -> int:
@@ -169,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     if handler is None:
         parser.print_help()
         return 2
-    return handler(args)
+    with sigterm_as_system_exit():
+        return handler(args)
 
 
 if __name__ == "__main__":

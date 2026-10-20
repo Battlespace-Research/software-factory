@@ -5,6 +5,9 @@ import dataclasses
 import json
 import os
 import re
+import signal
+import subprocess
+import sys
 import time
 
 import pytest
@@ -37,6 +40,20 @@ def lens(table, tmp_path, role="lens-security", host="claude", author="claude", 
     return r, plan_invocation(r, host, out_path, schema), out_path
 
 
+def partial_of(out):
+    """The sibling file the vendor CLI writes before the adapter stamps it and renames it onto ``out``."""
+    return out.with_name(out.name + ".partial")
+
+
+def run_argv(inv, out):
+    """The arguments the vendor CLI really receives: planned argv with ``-o`` pointing at the partial file."""
+    argv = list(inv.argv[1:])
+    if "-o" in argv:
+        assert argv[argv.index("-o") + 1] == str(out)
+        argv[argv.index("-o") + 1] = str(partial_of(out))
+    return argv
+
+
 # --------------------------------------------------------------------------- plan_invocation
 
 def test_codex_argv_for_claude_host_lens(table, tmp_path):
@@ -62,19 +79,31 @@ def test_codex_argv_without_a_schema_has_no_schema_flag(table, tmp_path):
     ]
 
 
-def test_codex_sandbox_is_workspace_write_only_for_write_access(table, tmp_path):
+@pytest.mark.parametrize("access, sandbox", [
+    ("write", "workspace-write"),
+    ("no-product-edits", "workspace-write"),   # the tester must be able to build and run verify
+    ("read-only", "read-only"),
+])
+def test_codex_sandbox_follows_the_roles_access(table, tmp_path, access, sandbox):
     r, _, out = lens(table, tmp_path)
-    inv = plan_invocation(dataclasses.replace(r, access="write"), "claude", out)
-    assert inv.sandbox == "workspace-write"
+    inv = plan_invocation(dataclasses.replace(r, access=access), "claude", out)
+    assert inv.sandbox == sandbox
+    assert inv.argv[inv.argv.index("-s") + 1] == sandbox
+
+
+def test_no_product_edits_roles_run_codex_workspace_write(table, tmp_path):
+    # The tester on a Codex host runs through codex exec; a read-only sandbox would block the
+    # writes a build needs, and its no-product-edits rule is carried by its prompt and agent.
+    r, inv, _ = lens(table, tmp_path, role="tester", host="openai", author=None)
+    assert (r.vendor, r.access) == ("openai", "no-product-edits")
+    assert inv.kind == "command" and inv.sandbox == "workspace-write"
     assert inv.argv[inv.argv.index("-s") + 1] == "workspace-write"
 
 
-def test_no_product_edits_roles_run_codex_read_only(table, tmp_path):
-    # The tester on a Codex host runs through codex exec; no-product-edits is not write access.
-    r, inv, _ = lens(table, tmp_path, role="tester", host="openai", author=None)
-    assert (r.vendor, r.access) == ("openai", "no-product-edits")
-    assert inv.kind == "command" and inv.sandbox == "read-only"
-    assert inv.argv[inv.argv.index("-s") + 1] == "read-only"
+def test_claude_command_stays_read_only_whatever_the_access(table, tmp_path):
+    r, _, out = lens(table, tmp_path, role="lens-correctness", host="openai", author="openai")
+    inv = plan_invocation(dataclasses.replace(r, access="write"), "openai", out)
+    assert inv.sandbox == "read-only" and "--permission-mode" in inv.argv
 
 
 def test_codex_roles_on_a_codex_host_also_run_through_codex_exec(table, tmp_path):
@@ -224,7 +253,7 @@ def test_run_invocation_sends_the_prompt_on_stdin_and_the_planned_argv(tmp_path,
     assert run_invocation(inv, r, prompt, out).ok
     (call,) = fake_cli.calls()
     assert call["tool"] == "codex"
-    assert call["argv"] == inv.argv[1:]          # exactly what was planned, quotes and all
+    assert call["argv"] == run_argv(inv, out)    # what was planned, quotes and all, but for the -o file
     assert call["prompt"] == prompt              # UTF-8, and no CRLF translation
 
 
@@ -298,7 +327,8 @@ def test_paths_with_spaces(tmp_path, table, fake_cli):
     res = run_invocation(inv, r, "prompt", out)
     assert res.ok and out.read_text(encoding="utf-8").splitlines()[0] == "VERDICT: PASS"
     (call,) = fake_cli.calls()
-    assert str(out) in call["argv"] and str(schema) in call["argv"]
+    assert str(partial_of(out)) in call["argv"] and str(schema) in call["argv"]
+    assert not partial_of(out).exists()
 
 
 def test_claude_command_writes_the_json_result_field(tmp_path, table, fake_cli):
@@ -312,6 +342,7 @@ def test_claude_command_writes_the_json_result_field(tmp_path, table, fake_cli):
         "lens-correctness", "claude", "claude-opus-5-5", "read-only")
     (call,) = fake_cli.calls()
     assert call["tool"] == "claude" and call["argv"][0] == "-p" and call["prompt"] == "prompt"
+    assert not partial_of(out).exists()
 
 
 @pytest.mark.parametrize("mode", ["json-error", "badjson"])
@@ -329,6 +360,133 @@ def test_claude_command_failure_exit_code_is_reported(tmp_path, table, fake_cli)
     assert not res.ok and res.exit_code == 7 and not out.exists()
 
 
+# --------------------------------------------------------------------------- the vendor CLI never writes out_path
+
+def test_codex_writes_a_sibling_partial_file_that_is_renamed_onto_the_output(tmp_path, table, fake_cli):
+    r, inv, out = lens(table, tmp_path)
+    assert str(out) in inv.argv                       # the plan still names the real output file
+    assert run_invocation(inv, r, "prompt", out).ok
+    (call,) = fake_cli.calls()
+    assert call["argv"][call["argv"].index("-o") + 1] == str(out) + ".partial"
+    assert out.exists() and not partial_of(out).exists()
+    assert [p.name for p in tmp_path.iterdir()] == ["o.md"]
+
+
+def test_failed_run_after_partial_output_leaves_neither_the_output_nor_the_partial_file(tmp_path, table, fake_cli):
+    fake_cli.mode("fail7")                            # the fake writes partial text to its -o file, then exits 7
+    r, inv, out = lens(table, tmp_path)
+    res = run_invocation(inv, r, "prompt", out)
+    (call,) = fake_cli.calls()
+    assert call["argv"][call["argv"].index("-o") + 1] == str(partial_of(out))    # it did write somewhere
+    assert not res.ok and res.exit_code == 7
+    assert not out.exists() and not partial_of(out).exists()
+
+
+def test_stale_partial_file_from_an_earlier_run_is_not_taken_for_this_runs_output(tmp_path, table, fake_cli):
+    fake_cli.mode("nofile")
+    r, inv, out = lens(table, tmp_path)
+    partial_of(out).write_text("STALE PARTIAL", encoding="utf-8")
+    assert run_invocation(inv, r, "prompt", out).ok
+    assert "STALE" not in out.read_text(encoding="utf-8") and not partial_of(out).exists()
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt, SystemExit])
+def test_interrupt_kills_the_cli_and_leaves_no_file_even_when_it_would_write_later(
+        tmp_path, table, fake_cli, monkeypatch, interruption):
+    fake_cli.mode("partial-late")                     # partial text now, a "late verdict" 2 s later
+    monkeypatch.setenv("FAKE_CLI_SLEEP", "2")
+    r, inv, out = lens(table, tmp_path)
+    real_communicate = subprocess.Popen.communicate
+
+    def interrupted(self, input=None, timeout=None):
+        if input is None:
+            return real_communicate(self, input, timeout)
+        deadline = time.monotonic() + 15
+        while not partial_of(out).exists() and time.monotonic() < deadline:   # let the fake start writing
+            try:
+                real_communicate(self, input, timeout=0.1)
+            except subprocess.TimeoutExpired:
+                pass
+        assert partial_of(out).exists()
+        raise interruption
+
+    monkeypatch.setattr(subprocess.Popen, "communicate", interrupted)
+    with pytest.raises(interruption):
+        run_invocation(inv, r, "prompt", out)
+    assert not out.exists() and not partial_of(out).exists()
+    time.sleep(3.5)                                   # a CLI left running would write its late verdict by now
+    assert not out.exists() and not partial_of(out).exists()
+
+
+def test_sigterm_is_turned_into_system_exit_while_a_command_runs_and_restored_after():
+    before = signal.getsignal(signal.SIGTERM)
+    with cli.sigterm_as_system_exit():
+        assert signal.getsignal(signal.SIGTERM) is not before
+        with pytest.raises(SystemExit) as e:
+            signal.raise_signal(signal.SIGTERM)
+        assert e.value.code == 128 + signal.SIGTERM
+    assert signal.getsignal(signal.SIGTERM) == before
+
+
+# --------------------------------------------------------------------------- batch shims and cmd.exe
+
+CMD_METACHARACTERS = ["&", "|", "<", ">", "^", "%", "!", "\n"]
+ON_WINDOWS_ONLY = pytest.mark.skipif(os.name != "nt", reason="the fake tools are .cmd batch shims only on Windows")
+
+
+@ON_WINDOWS_ONLY
+def test_batch_shim_with_a_metacharacter_in_the_output_path_is_refused_and_nothing_is_created(
+        tmp_path, table, fake_cli):
+    out = tmp_path / "R&D" / "o.md"
+    r = resolve_role(table, "lens-security", "claude", "claude")
+    res = run_invocation(plan_invocation(r, "claude", out), r, "prompt", out)
+    assert not res.ok and res.suggest_fallback is False and res.exit_code is None
+    assert "R&D" in res.stderr_tail and "&" in res.stderr_tail
+    assert fake_cli.calls() == []                     # cmd.exe was never started
+    assert list(tmp_path.iterdir()) == []             # no R&D folder, and no stray file at the path cmd.exe would cut
+
+
+@ON_WINDOWS_ONLY
+@pytest.mark.parametrize("char", CMD_METACHARACTERS)
+def test_batch_shim_refuses_every_cmd_metacharacter_in_any_argument(tmp_path, table, fake_cli, char):
+    r = resolve_role(table, "lens-security", "claude", "claude")
+    odd = dataclasses.replace(r, model=f"m{char}x")
+    out = tmp_path / "o.md"
+    res = run_invocation(plan_invocation(odd, "claude", out), odd, "prompt", out)
+    assert not res.ok and res.suggest_fallback is False and not out.exists()
+    assert repr(f"m{char}x") in res.stderr_tail and fake_cli.calls() == []
+
+
+@ON_WINDOWS_ONLY
+def test_batch_shim_check_also_covers_extra_codex_args(tmp_path, table, fake_cli, monkeypatch):
+    monkeypatch.setenv("FACTORY_CODEX_ARGS", "--profile a&b")
+    r, inv, out = lens(table, tmp_path)
+    res = run_invocation(inv, r, "prompt", out)
+    assert not res.ok and res.suggest_fallback is False and "a&b" in res.stderr_tail and fake_cli.calls() == []
+
+
+@ON_WINDOWS_ONLY
+def test_a_refused_run_also_removes_an_earlier_output(tmp_path, table, fake_cli):
+    r = resolve_role(table, "lens-security", "claude", "claude")
+    out = tmp_path / "o.md"
+    out.write_text("VERDICT: PASS\nfrom an earlier run\n", encoding="utf-8")
+    odd = dataclasses.replace(r, model="m&x")
+    assert not run_invocation(plan_invocation(odd, "claude", out), odd, "prompt", out).ok
+    assert not out.exists()
+
+
+def test_a_real_executable_is_not_restricted_by_the_batch_file_rule(tmp_path, table):
+    # python.exe is started directly (no cmd.exe), so & in the path and in an argument is fine.
+    r = resolve_role(table, "lens-security", "claude", "claude")
+    out = tmp_path / "R&D" / "o.md"
+    code = "import sys; open(sys.argv[sys.argv.index('-o') + 1], 'w').write('VERDICT: PASS')"
+    inv = dataclasses.replace(
+        plan_invocation(r, "claude", out), argv=[sys.executable, "-c", code, "-o", str(out), "--note", "a&b"])
+    res = run_invocation(inv, r, "prompt", out)
+    assert res.ok and out.read_text(encoding="utf-8").splitlines()[0] == "VERDICT: PASS"
+    assert not partial_of(out).exists()
+
+
 # --------------------------------------------------------------------------- FACTORY_CODEX_ARGS
 
 def test_extra_codex_args_go_before_the_trailing_dash_and_into_the_stamp(tmp_path, table, fake_cli, monkeypatch):
@@ -339,7 +497,7 @@ def test_extra_codex_args_go_before_the_trailing_dash_and_into_the_stamp(tmp_pat
     sandbox_value = 'windows.sandbox="unelevated"' if os.name == "nt" else "windows.sandbox=unelevated"
     (call,) = fake_cli.calls()
     assert call["argv"][-3:] == ["-c", sandbox_value, "-"]
-    assert call["argv"][:-3] == inv.argv[1:-1]       # nothing else changed
+    assert call["argv"][:-3] == run_argv(inv, out)[:-1]       # nothing else changed
     stamp = PROVENANCE.match(out.read_text(encoding="utf-8").splitlines()[-1])
     assert stamp and "windows.sandbox" in stamp["extra"]
 
@@ -365,7 +523,7 @@ def test_empty_extra_codex_args_change_nothing(tmp_path, table, fake_cli, monkey
     r, inv, out = lens(table, tmp_path)
     assert run_invocation(inv, r, "prompt", out).ok
     (call,) = fake_cli.calls()
-    assert call["argv"] == inv.argv[1:]
+    assert call["argv"] == run_argv(inv, out)
 
 
 def test_unbalanced_quotes_in_extra_codex_args_are_a_config_error(tmp_path, table, fake_cli, monkeypatch):
@@ -510,6 +668,17 @@ def test_cli_role_run_failure_exits_1_with_no_output_and_suggests_the_fallback(t
                                 "--prompt", prompt, "--out", out)
     assert code == 1 and not out.exists()
     assert "--fallback" in err and "simulated failure" in err
+
+
+@pytest.mark.skipif(os.name != "nt", reason="the fake tools are .cmd batch shims only on Windows")
+def test_cli_role_run_refused_batch_file_run_exits_1_without_suggesting_the_fallback(tmp_path, capsys, fake_cli):
+    prompt, out = tmp_path / "p.md", tmp_path / "R&D" / "o.md"
+    prompt.write_text("x", encoding="utf-8")
+    code, stdout, err = run_cli(capsys, "role", "run", "lens-security", "--host", "claude", "--author", "claude",
+                                "--prompt", prompt, "--out", out)
+    assert code == 1 and "batch file" in err and "R&D" in err
+    assert "--fallback" not in err and fake_cli.calls() == []
+    assert not out.parent.exists()
 
 
 def test_cli_role_run_subagent_role_prints_the_spawn_line_and_exits_3(tmp_path, capsys, fake_cli):
