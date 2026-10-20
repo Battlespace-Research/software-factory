@@ -698,7 +698,7 @@
         </tbody>
       </table>
     </div>
-    <p class="caption">NGC2 today runs one task reviewer through Codex. The four lens reviewers and the Deploy and Maintain rows are proposals.</p>
+    <p class="caption">Version 1 of the factory runs the Plan to Test roles from its role table, <code>config/roles.yaml</code>, including the four lens reviewers. The Deploy and Maintain rows are bound there too but remain proposals, for plan 3.</p>
   </section>
 
   <!-- ============ SKILLS ============ -->
@@ -706,7 +706,7 @@
     <div class="figure-head">
       <span class="fig-num">Skills</span>
       <h2>Third-party skills by stage</h2>
-      <p class="caption">Most of these are already installed and shared by Claude Code and Codex through <code>~/.agents/skills</code>. The factory will check that each role's required skills are present before a run, and name a fallback for each.</p>
+      <p class="caption">Most of these are already installed and shared by Claude Code and Codex through <code>~/.agents/skills</code>. The factory checks that each role's required skills are present, and names the fallback for any that is missing: <code>factory skills check</code>, which setup runs for both hosts and each work session runs once for its own.</p>
     </div>
     <div class="table-wrap">
       <table>
