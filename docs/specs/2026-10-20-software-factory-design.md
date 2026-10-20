@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: draft 2 · 2026-10-20 · builder check done · awaiting owner approval
-Decisions: `docs/decisions.md` (F01–F14) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: rev 2 · 2026-10-20 · builder check done · **approved by the owner 2026-10-20** ("Approved, create the repo and push it") [F15]
+Decisions: `docs/decisions.md` (F01–F15) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
