@@ -29,17 +29,19 @@ from swfactory.config import (
     factory_home,
     load_project_config,
     load_role_table,
+    load_skills_registry,
 )
 from swfactory.gitutil import GitError
 from swfactory.mergegate import run_gate, write_gate_report
 from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
+from swfactory.readiness import SkillHost, check_readiness
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
 from swfactory.setup import SetupAnswers, SetupError, setup_project
 from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup"}
+COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup", "skills"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -326,6 +328,36 @@ def _cmd_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_skills_help(args: argparse.Namespace) -> int:
+    args.skills_parser.print_help()
+    return EXIT_USAGE
+
+
+def _cmd_skills_check(args: argparse.Namespace) -> int:
+    project: Path | None = args.project
+    try:
+        table = _load_role_table(project)  # a project's role overrides can change who runs unattended
+        registry = load_skills_registry(factory_home() / "config" / "skills.yaml")
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    if project is not None and project.is_file():
+        project = project.parent  # --project was the factory.yaml; the skill folders sit next to it
+    home = args.home if args.home is not None else Path.home()
+    report = check_readiness(registry, table, args.host, home, project)
+    for skill in report.present:
+        print(f"present {skill}")
+    for skill, fallback in report.missing:
+        if fallback is None:
+            note = "no fallback"
+        else:
+            note = f"fallback {fallback}: {'installed' if fallback in report.installed_fallbacks else 'not installed'}"
+        print(f"missing {skill} ({note})")
+    for skill in report.interactive_in_unattended:
+        print(f"interactive {skill} (registered for a subagent or headless role)")
+    print("skills ok" if report.ok else "skills not ready")
+    return 0 if report.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -541,6 +573,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="stop at each checkpoint for approval, or carry on (default: %(default)s)",
     )
     setup.set_defaults(handler=_cmd_setup)
+
+    skills = commands.add_parser("skills", help="check that the third-party skills the roles need are installed")
+    skills.set_defaults(handler=_cmd_skills_help, skills_parser=skills)
+    skills_commands = skills.add_subparsers(dest="skills_command", metavar="<subcommand>")
+    skills_check = skills_commands.add_parser(
+        "check",
+        help="list the required skills that are present or missing on a host, with the fallback for each missing "
+        "one, and the interactive skills bound to unattended roles (exit 0 ready, 1 not ready, 2 could not run)",
+    )
+    skills_check.add_argument("--host", required=True, choices=get_args(SkillHost), help="the host whose skills to check")
+    skills_check.add_argument(
+        "--project",
+        type=Path,
+        metavar="PATH",
+        help="a project folder or factory.yaml: its own skill folders are searched and its role overrides applied",
+    )
+    skills_check.add_argument(
+        "--home",
+        type=Path,
+        metavar="PATH",
+        help="the home folder that holds the host's skill folders (default: the user's home)",
+    )
+    skills_check.set_defaults(handler=_cmd_skills_check)
     return parser
 
 
