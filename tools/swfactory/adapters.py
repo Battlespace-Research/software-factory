@@ -62,10 +62,14 @@ CODEX_ARGS_ENV = "FACTORY_CODEX_ARGS"
 
 # Options the extra arguments may not carry, as a whole argument or its start (``--sandbox=...``, ``-sread-only``,
 # every ``--dangerously-bypass...``): they would replace the sandbox, the approval policy, the output file or
-# schema, or the working folder the factory chose for the run. ``-c key=value`` overrides stay allowed.
+# schema, or the working folder the factory chose for the run. ``--yolo`` is a hidden alias of
+# ``--dangerously-bypass-approvals-and-sandbox`` (codex-cli 0.163.0: ``codex exec --yolo --yolo`` reports that
+# argument as given twice), and ``--add-dir`` adds writable folders to the sandbox. ``-c key=value`` overrides
+# stay allowed.
 REFUSED_CODEX_ARGS = (
     "-s", "--sandbox",
-    "-a", "--ask-for-approval", "--full-auto", "--approve-for-me", "--dangerously-bypass",
+    "-a", "--ask-for-approval", "--full-auto", "--approve-for-me", "--dangerously-bypass", "--yolo",
+    "--add-dir",
     "-o", "--output-last-message", "--output-schema",
     "-C", "--cd",
 )

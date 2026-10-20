@@ -551,6 +551,8 @@ REFUSED_EXTRA_ARGS = [
     "-a never", "--ask-for-approval never", "--ask-for-approval=on-request",
     "--full-auto", "--approve-for-me",
     "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "--dangerously-bypass",
+    "--yolo", "--yolo=x",                                           # a hidden alias of --dangerously-bypass-approvals-and-sandbox
+    "--add-dir /elsewhere", "--add-dir=/elsewhere",                 # adds writable folders to the sandbox
     "-o elsewhere.md", "--output-last-message elsewhere.md", "--output-last-message=elsewhere.md",
     "--output-schema other.json", "--output-schema=other.json",
     "-C ..", "--cd ..", "--cd=..",
