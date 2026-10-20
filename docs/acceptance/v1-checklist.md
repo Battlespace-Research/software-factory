@@ -12,7 +12,7 @@ Write what happened in `docs/acceptance/<date>-v1-results.md`, using the record 
 
 These change your machine's host configuration, so they are yours to do.
 
-1. **The `factory` command.** `factory --version` prints `0.1.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). Put `<factory clone>\.venv\Scripts` on your user PATH and restart both hosts if it does not. Then check that `where python` lists your own Python **before** the factory's `.venv`: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
+1. **The `factory` command.** `factory --version` prints `0.1.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory clone>/tools` or by putting only `factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
 2. **The plugin, from this checkout.** Until `feature/core-v1` is merged into `main`, the GitHub marketplace serves no plugin, so add this checkout (with `feature/core-v1` checked out) as a local marketplace:
 
    ```text
@@ -24,8 +24,9 @@ These change your machine's host configuration, so they are yours to do.
 
    Check: `claude plugin list` shows `software-factory@bsri-factory`; `codex plugin list --marketplace bsri-factory` shows it installed. Restart both hosts. Record any command that did not work as written.
 3. **Third-party skills.** `factory skills check --host claude` and `factory skills check --host codex` (install guide, steps 4 and 5). Record what each reports; missing skills do not stop the run, but note which steps had to go on without them.
-4. **The Codex sandbox on Windows.** If `codex exec` fails with a sandbox error (this machine's elevated sandbox has failed before), set the user environment variable `FACTORY_CODEX_ARGS` to `-c windows.sandbox="unelevated"` before starting Claude Code; every lens run then records it in its provenance line. For pass B, Codex itself is the host and uses its own sandbox setting: if Codex cannot run commands, fix that first (it is outside the factory).
-5. **A stopwatch.** Note the wall-clock time at each numbered step below; the record asks for it.
+4. **Codex's writable roots, for pass B.** Create the folder `~/.factory` (your home folder's `.factory`) and add it to `writable_roots` under `[sandbox_workspace_write]` in `~/.codex/config.toml`, as the install guide's step 3 shows, then restart Codex. Without it, a Codex session's writes to `~/.factory/staging` (rendered prompts, quote files, the setup commit message) fail with `Access to the path … is denied.` (rehearsal finding D1). The key is the one Codex CLI 0.163.0 recognises but was not yet tried in a session: record whether Codex accepted it.
+5. **The Codex sandbox on Windows.** If `codex exec` fails with a sandbox error (this machine's elevated sandbox has failed before), set the user environment variable `FACTORY_CODEX_ARGS` to `-c windows.sandbox="unelevated"` before starting Claude Code; every lens run then records it in its provenance line. For pass B, Codex itself is the host and uses its own sandbox setting: if Codex cannot run commands, fix that first (it is outside the factory).
+6. **A stopwatch.** Note the wall-clock time at each numbered step below; the record asks for it.
 
 ## Making a copy of the sample (each pass)
 
@@ -66,7 +67,7 @@ Then it cuts `factory/setup`, runs `factory setup`, reports `conflicts: []`, dra
 - Approve in your own words. It commits on `factory/setup` with your words in the message and the trailers `Factory-Role: interviewer` and `Factory-Model: …`.
 - **You merge setup:** `git switch main && git merge --no-ff factory/setup`. (The factory never merges into the base branch.)
 
-Check: `git log --oneline main` shows the setup merge; `factory.yaml`, `REVIEW.md`, `CLAUDE.md`, `factory/` exist on `main`; `.gitignore` gained `factory/dashboard/`.
+Check: `git log --oneline main` shows the setup merge; `factory.yaml`, `REVIEW.md`, `CLAUDE.md`, `AGENTS.md` (both with the same factory section, because the sample had neither), `factory/` exist on `main`; `.gitignore` gained `factory/dashboard/`.
 
 ### A2. Triage
 
@@ -86,7 +87,7 @@ Expected, in order, each step ending in a commit with `Factory-Work: FIX-1/T1`, 
 1. A log entry `T1 started at <sha>`.
 2. A failing test for the km label, run, with the failure output shown (`AssertionError: '2.5 m' != '2.5 km'` or similar).
 3. The smallest fix in `rangering/__init__.py`, the test passing, and `python verify.py --quick` with its totals pasted (`Ran 4 tests` or more, `OK`).
-4. **Review round 1.** Two lenses, correctness and security, each resolved with `factory role resolve lens-<lens> --host claude --author claude` to a **command** invocation (`codex exec`), rendered with `factory prompt render`, and started **at the same time** in the background. Each writes `reviews/T1-r1-<lens>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES`, last line a provenance stamp `<!-- factory: role=lens-<lens> vendor=openai model=… -->` (plus `extra="-c windows.sandbox=…"` if you set step 0.4). Then `factory panel combine` writes `reviews/T1-r1-panel.md`.
+4. **Review round 1.** Two lenses, correctness and security, each resolved with `factory role resolve lens-<lens> --host claude --author claude` to a **command** invocation (`codex exec`), rendered with `factory prompt render`, and started **at the same time** in the background. Each writes `reviews/T1-r1-<lens>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES`, last line a provenance stamp `<!-- factory: role=lens-<lens> vendor=openai model=… -->` (plus `extra="-c windows.sandbox=…"` if you set step 0.5). Then `factory panel combine` writes `reviews/T1-r1-panel.md`.
 5. On CHANGES: `reviews/disposition-T1-r1.md` answers every finding (accepted, modified or declined, each with a reason), the fixes come test-first, and round 2 runs the same way. At most three rounds; a third CHANGES is the `third-failed-round` hard stop.
 6. On PASS: minor findings go to `follow-ups.md`; the acceptance criteria in `ticket.md` are ticked; the state is `T1 done`. **No tester runs for a Fix** (design section 8.3): the merge gate's full verify takes its place.
 
@@ -150,8 +151,8 @@ Run A1 to A5 again with the same messages and answers. The differences to check:
 | Step | Expected on a Codex host |
 |---|---|
 | A1 | the skills checks run for both hosts; the Codex check may report `writing-plans` and `verification-before-completion` missing (superpowers not installed in Codex). Record it. |
-| A1 | setup creates `CLAUDE.md` only (the sample has neither `CLAUDE.md` nor `AGENTS.md`), and Codex reads `AGENTS.md`, so later Codex sessions do not see the factory section (rehearsal finding D2). Record whether that mattered. |
-| A1, A2, A3 | the setup commit message, rendered prompts and quote files go to `~/.factory/staging/rangering/…`, outside the project. The rehearsal showed Codex's `workspace-write` sandbox denies writes there (finding D1): expect Codex to ask to run those commands with more permissions, or to fail. Allow only those writes, and record each prompt or failure. |
+| A1 | setup creates both `CLAUDE.md` and `AGENTS.md` with the same factory section (the sample has neither; rehearsal finding D2, fixed). Check that a later Codex session, for example at A2, knows where the work lives and how to resume without being pointed at `CLAUDE.md`. |
+| A1, A2, A3 | the setup commit message, rendered prompts and quote files go to `~/.factory/staging/rangering/…`, outside the project. With `~/.factory` in Codex's writable roots (step 0.4) these writes should need no extra permission (the rehearsal's finding D1 was without it). If Codex still asks to run those commands with more permissions, or they fail with `Access to the path … is denied.`, allow only those writes, and record each prompt or failure. |
 | A2 | `approvals/ticket-rev1.md` names the host `codex` |
 | A3 | the implementer is the OpenAI binding (`factory role resolve implementer --host openai`); the lenses resolve with `--host openai --author openai` to **command** invocations of `claude -p`, read-only, started together as background jobs in one shell command; each lens file's stamp names a **Claude** model (`vendor=claude model=claude-…`) |
 | A3 | Codex may cap how long one shell command runs: record whether both lens runs finished, and how long each took |

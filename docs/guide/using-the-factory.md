@@ -44,7 +44,7 @@ The factory-setup skill then:
 
 **You merge the setup branch into the base branch.** The factory never merges into the base branch. With one branch per work item, merge it before you triage the first piece of work: work-item branches are cut from the base branch and need `factory.yaml` there.
 
-Setup creates `factory.yaml`, `REVIEW.md`, `factory/work/`, `factory/baseline/expected-failures.md` and `factory/lessons.md`, adds `factory/dashboard/` to `.gitignore`, and adds a short factory section to `CLAUDE.md` and `AGENTS.md` (or creates `CLAUDE.md` if the project has neither). It changes no other file. To change a setting later, edit `factory.yaml` with the agent's help; never run setup twice.
+Setup creates `factory.yaml`, `REVIEW.md`, `factory/work/`, `factory/baseline/expected-failures.md` and `factory/lessons.md`, adds `factory/dashboard/` to `.gitignore`, and adds a short factory section to `CLAUDE.md` and `AGENTS.md` (if the project has neither, it creates both with the same section: Claude Code reads `CLAUDE.md` and Codex reads `AGENTS.md`). It changes no other file. To change a setting later, edit `factory.yaml` with the agent's help; never run setup twice.
 
 ## 2. Bring it work: triage
 
@@ -182,3 +182,5 @@ factory skills check --host codex --project .
 ```
 
 `factory config check --project .` prints `config ok` or lists every problem with the factory's settings and the project's `factory.yaml`. Each skills check ends with `skills ok` or `skills not ready`, naming each missing skill and its fallback. The factory-run skill runs the config check and the check for its own host once per session, and tells you about anything missing before it starts.
+
+If a check, a reviewer or the tester does not start, see Troubleshooting in the [install guide](install.md#troubleshooting): it covers a `factory` command the host cannot find, Codex denying writes to the staging folder, and subagent names when the factory is installed as a plugin.

@@ -18,39 +18,54 @@ There is nothing else to trust or turn on: version 1 has no hooks, no MCP server
 
 - **Git**, with read access to the private repository `Battlespace-Research/software-factory`. Ask the factory's owner for access. To check it, run `git ls-remote https://github.com/Battlespace-Research/software-factory.git`; it lists branches when you have access.
 - **Python 3.11 or newer.** Check with `python --version`.
+- **pipx**, recommended for step 1. Its [installation guide](https://pipx.pypa.io/stable/installation/) shows how to install it on each system; step 1 also says how to do without it.
 - **Claude Code and the Codex CLI, both installed and signed in**, even if you only work in one of them. The review panel always asks the other vendor for a second opinion: a session in Claude Code runs some reviewers through `codex exec`, and a session in Codex runs them through `claude -p`. (A project limited to one vendor can change this in its `factory.yaml`; ask the owner.)
 - **Node.js**, only to install Matt Pocock's skills with `npx` (step 4).
 
 ## Step 1: install the `factory` command
 
-Clone the repository somewhere permanent and install the command from it, in a virtual environment:
+Clone the repository somewhere permanent:
 
 ```bash
 git clone https://github.com/Battlespace-Research/software-factory.git
-cd software-factory
-python -m venv .venv
 ```
 
-Activate the virtual environment:
+Then install the command so that **only `factory`** lands on your PATH, never the Python interpreter that runs it. Your projects' own commands (`python verify.py`, the merge gate's full verify) must keep running in your projects' Python: if the factory's virtual environment came first on the PATH, they would run in it instead.
 
-| Shell | Command |
-|---|---|
-| PowerShell | `.venv\Scripts\Activate.ps1` |
-| Git Bash | `source .venv/Scripts/activate` |
-| Linux or macOS | `source .venv/bin/activate` |
-
-Then install the command and check it:
+**With pipx (recommended).** [pipx](https://pipx.pypa.io/) installs a command-line tool in a virtual environment of its own and puts only the tool's commands on the PATH:
 
 ```bash
-python -m pip install -e tools
-factory --version
+pipx install -e <clone>/tools
+pipx ensurepath
 ```
 
-`factory --version` prints `0.1.0`.
+`-e` (editable) runs the command from the clone. `pipx ensurepath` adds pipx's command folder (`~/.local/bin`, which is `%USERPROFILE%\.local\bin` on Windows) to your user PATH; open a new terminal afterwards.
 
-**Keep the clone where it is.** The `-e` (editable) install runs the command from the clone, and the command reads the factory's role table, skills list, prompts and project templates (`config/`, `prompts/`, `templates/`) from it. Moving or deleting the clone breaks the command.
+**Without pipx.** Make a virtual environment in the clone, install the command into it, and put only the command on the PATH:
 
-**Make `factory` reachable from your agents.** Claude Code and Codex run commands in a shell of their own, so `factory` must be on the PATH there too. The reliable way is to add the virtual environment's scripts folder to your user PATH: `<clone>\.venv\Scripts` on Windows, `<clone>/.venv/bin` on Linux and macOS. Then open a new terminal, start a session, and ask the agent to run `factory --version`. (The factory-setup skill checks this first and stops if the command is missing.)
+```bash
+cd <clone>
+python -m venv .venv
+.venv/Scripts/python -m pip install -e tools     # Linux or macOS: .venv/bin/python -m pip install -e tools
+```
+
+- **Windows:** copy `<clone>\.venv\Scripts\factory.exe` into a folder that holds nothing else (for example `%USERPROFILE%\factory-bin`) and add that folder to your user PATH. The copy keeps working on its own: it starts the virtual environment's Python by its full path. Copy it again only if you re-create the virtual environment.
+- **Linux or macOS:** `ln -s <clone>/.venv/bin/factory ~/.local/bin/factory` (with `~/.local/bin` on your PATH).
+
+Do not add `<clone>\.venv\Scripts` (or `<clone>/.venv/bin`) itself to the PATH: it holds the virtual environment's `python` and `pip` too.
+
+**Check it** in a new terminal:
+
+```bash
+factory --version
+where python        # PowerShell: where.exe python; Linux or macOS: which -a python
+```
+
+`factory --version` prints `0.1.0`. The first `python` listed must be your own, the one your projects use, not one inside the factory's clone or pipx's folders. If it is the factory's, take that folder off the PATH and install the command as above.
+
+**Keep the clone where it is.** The editable install runs the command from the clone, and the command reads the factory's role table, skills list, prompts and project templates (`config/`, `prompts/`, `templates/`) from it. Moving or deleting the clone breaks the command.
+
+**Make `factory` reachable from your agents.** Claude Code and Codex run commands in a shell of their own, so `factory` must be on the PATH there too: start a new session after changing the PATH and ask the agent to run `factory --version`. (The factory-setup skill checks this first and stops if the command is missing.)
 
 ## Step 2: install the plugin in Claude Code
 
@@ -73,6 +88,21 @@ codex plugin add software-factory@bsri-factory
 ```
 
 Codex fetches the repository with your git credentials too. `codex plugin list --marketplace bsri-factory` shows the plugin as installed. Start a new Codex session afterwards.
+
+**Let Codex write to the factory's staging folder.** The skills keep their scratch files (rendered reviewer prompts, tester briefs, the text of your approvals before they are recorded, the setup commit message) in `~/.factory/staging/`, outside the project. Codex's `workspace-write` sandbox lets a session write only inside the project and the folders listed as its *writable roots*, so without this every such write fails with `Access to the path '…\.factory\staging\…' is denied.`, or Codex asks you for more permissions each time. Create the folder once, then add it to the writable roots in Codex's settings file, `~/.codex/config.toml`:
+
+```bash
+mkdir -p ~/.factory          # PowerShell: New-Item -ItemType Directory -Force "$HOME\.factory"
+```
+
+```toml
+[sandbox_workspace_write]
+writable_roots = ['C:\Users\<you>\.factory']    # Linux or macOS: ["/home/<you>/.factory"]
+```
+
+Write the full path of your own home folder (the single quotes keep the backslashes as they are). If `config.toml` already has a `[sandbox_workspace_write]` table, add the `writable_roots` line to it instead of a second table. Start a new Codex session afterwards. For one session only, you can instead start Codex with `codex --add-dir <your home folder>/.factory`.
+
+The table and key are the ones Codex CLI 0.163.0 recognises (`sandbox_workspace_write.writable_roots`; `--add-dir` is in `codex --help`), but this setting has not yet been tried in a Codex session for version 1. If Codex rejects it or still denies the writes, confirm the key in the Codex configuration docs for your version, and tell the factory's maintainers.
 
 The Codex app, and Codex in the ChatGPT desktop app, read the same Codex settings folder (`~/.codex`) as the CLI, so the plugin should appear in the app's Plugins list after a restart. This has not been checked for version 1 yet.
 
@@ -149,7 +179,7 @@ factory skills check --host codex
 
 Keep the command and the plugin on the same version: `factory --version` and the version that `claude plugin list` and `codex plugin list` show.
 
-- **The command:** run `git pull` in the clone. The editable install uses the new code at once; run `python -m pip install -e tools` again only if `tools/pyproject.toml` changed.
+- **The command:** run `git pull` in the clone. The editable install uses the new code at once. Only if `tools/pyproject.toml` changed, install it again: `pipx install --force -e <clone>/tools`, or, without pipx, the `pip install -e tools` line of step 1.
 - **Claude Code:** `claude plugin marketplace update bsri-factory`, then `claude plugin update software-factory@bsri-factory`, then restart Claude Code.
 - **Codex:** `codex plugin marketplace upgrade bsri-factory`, then check the version with `codex plugin list --marketplace bsri-factory`. If it still shows the old version, remove and add the plugin again: `codex plugin remove software-factory@bsri-factory`, then `codex plugin add software-factory@bsri-factory`.
 
@@ -157,8 +187,12 @@ Keep the command and the plugin on the same version: `factory --version` and the
 
 | Problem | What to do |
 |---|---|
-| A skill says `factory` was not found | The scripts folder of the virtual environment is not on the PATH the host sees (step 1). Fix the PATH, then restart the host. |
+| A skill says `factory` was not found | The folder holding the `factory` command (pipx's `~/.local/bin`, or the folder you copied it to) is not on the PATH the host sees (step 1). Fix the PATH, then restart the host. |
+| A project's `python` (its verify command, or the merge gate's full verify) runs in the factory's virtual environment: `merge-gate.md` shows a Python path inside the factory's clone | The factory's `.venv\Scripts` (or `.venv/bin`) folder is on the PATH ahead of your own Python. Take it off the PATH and install the command as step 1 says, so that only `factory` is on the PATH; `where python` (`which -a python`) then lists your own Python first. |
+| In a Codex session, writing a prompt, brief or quote file fails with `Access to the path '…\.factory\staging\…' is denied.`, or Codex asks for more permissions for each such file | The staging folder is outside Codex's writable roots. Add `~/.factory` to `writable_roots` in `~/.codex/config.toml` (step 3), then start a new Codex session. |
+| A skill cannot spawn `factory-lens-reviewer`, `factory-tester`, `factory-doc-reviewer` or `factory-researcher` (no such agent) | Installed as a plugin, the factory's subagents are named `software-factory:<name>`, for example `software-factory:factory-lens-reviewer`. The skills say to use that name when the bare one is not available; if a session still tries the bare name, tell it the plugin-qualified one. `/agents` in Claude Code lists the subagents it has. |
 | `claude plugin marketplace add` or `codex plugin marketplace add` cannot read the repository | You lack access to `Battlespace-Research/software-factory`, or git has no credentials for GitHub. Check with `git ls-remote` (see "Before you start"). |
 | A review run fails on Windows with a Codex sandbox error | Set the environment variable `FACTORY_CODEX_ARGS` to `-c windows.sandbox="unelevated"`. The factory adds it to every `codex exec` run it starts and notes it in each review file it writes. |
+| `factory role run` stops with `FACTORY_CODEX_ARGS: '…' is not allowed` | The variable may carry `-c key=value` settings and other options, but none that would replace what the factory sets for each run: `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `--full-auto`, `--approve-for-me`, `--dangerously-bypass…`, `-o`/`--output-last-message`, `--output-schema`, `-C`/`--cd`. Take it out of the variable. |
 | `factory skills check` misses a skill you know is installed in an unusual folder | Set `FACTORY_SKILL_PATHS` to that folder (several folders are separated by `;` on Windows and `:` elsewhere). This only widens the check; it does not change what the host loads. |
 | You want the command to use another clone of the factory | Set `FACTORY_HOME` to that clone's folder. |
