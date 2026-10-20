@@ -1,0 +1,11 @@
+{
+  "name": "software-factory",
+  "version": "0.1.0",
+  "description": "The BSRI software factory: sets up a project, triages work by size, and runs each task test-first through a cross-vendor review panel, an independent tester and a merge gate, with approvals in chat and a person merging. Needs the factory CLI (docs/guide/install.md).",
+  "author": {
+    "name": "Battlespace Research"
+  },
+  "repository": "https://github.com/Battlespace-Research/software-factory",
+  "license": "Proprietary",
+  "skills": "./skills/"
+}

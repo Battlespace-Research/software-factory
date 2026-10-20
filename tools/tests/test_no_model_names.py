@@ -1,8 +1,9 @@
 """No model name outside ``config/roles.yaml`` (design section 7.2).
 
-Skills, prompts, agents, templates and the swfactory code refer to roles only; the role table is the one file
-that binds a role to a model. The scan covers every file under the scanned folders, including folders that do
-not exist yet, so the test fails the moment a model id is written into any of them.
+Skills, prompts, agents, templates, the swfactory code and the teammate guides refer to roles only; the role
+table is the one file that binds a role to a model. The scan covers every file under the scanned folders,
+including folders that do not exist yet, so the test fails the moment a model id is written into any of them.
+Model ids are caught as written in the table and in their display form ("Sonnet 5.5").
 """
 from __future__ import annotations
 
@@ -14,8 +15,8 @@ import yaml
 
 from swfactory.config import factory_home, load_role_table
 
-SCANNED = ("skills", "prompts", "agents", "templates", "tools/swfactory")
-GENERIC_PATTERNS = (r"\bclaude-(opus|sonnet|haiku|fable)-\d", r"\bgpt-\d")
+SCANNED = ("skills", "prompts", "agents", "templates", "tools/swfactory", "docs/guide")
+GENERIC_PATTERNS = (r"\bclaude-(opus|sonnet|haiku|fable)-\d", r"\bgpt-\d", r"\b(opus|sonnet|haiku|fable)[ -]?\d")
 
 
 def models_in(node: Any) -> set[str]:
@@ -92,6 +93,8 @@ def test_scan_finds_model_names_in_any_scanned_folder(tmp_path):
         "tools/swfactory/m.py": "ALIAS = 'claude-haiku-9'\n",
         "templates/project/ok.md": "claude-([a-z]+)- is a pattern, not a model\n",
         "tools/swfactory/__pycache__/m.cpython-314.pyc": "claude-haiku-9",
+        "docs/guide/using.md": "The tester runs on Sonnet 5.5 by default.\n",
+        "docs/guide/ok.md": "Models come from config/roles.yaml; a sonnet is a poem.\n",
     }
     for name, text in files.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
@@ -101,4 +104,5 @@ def test_scan_finds_model_names_in_any_scanned_folder(tmp_path):
         f"skills/factory-run/SKILL.md:1: Run it with {a_model.upper()}.",
         "agents/x.md:4: uses GPT-7 today",
         "tools/swfactory/m.py:1: ALIAS = 'claude-haiku-9'",
+        "docs/guide/using.md:1: The tester runs on Sonnet 5.5 by default.",
     ]

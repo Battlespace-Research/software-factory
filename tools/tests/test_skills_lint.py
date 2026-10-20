@@ -7,6 +7,9 @@ for every deterministic step. These checks keep the skills honest about what the
 - every ``factory …`` call names a real command, subcommand and option of the CLI;
 - one ``Uses skills:`` line per skill, naming only third-party skills registered in ``config/skills.yaml``;
 - every ``references/…`` file a skill points to exists, and the hard-stop reference lists every default id.
+
+The teammate guides (``docs/guide/*.md``) and the README follow the same command rule: every ``factory …`` call
+they show is a real command line of the CLI.
 """
 from __future__ import annotations
 
@@ -50,6 +53,14 @@ def skill_files() -> list[Path]:
 def skill_markdown() -> list[Path]:
     """Every Markdown file of every skill: the SKILL.md files and their references."""
     return sorted(skills_dir().glob("*/**/*.md"))
+
+
+GUIDES = ("install.md", "using-the-factory.md")
+
+
+def guide_markdown() -> list[Path]:
+    """The teammate guides and the README: the documents that show ``factory`` commands to people."""
+    return sorted((factory_home() / "docs" / "guide").glob("*.md")) + [factory_home() / "README.md"]
 
 
 def skill_names() -> set[str]:
@@ -170,6 +181,22 @@ def test_referenced_files_exist(skill_md):
 def test_hard_stop_reference_lists_every_default_id():
     text = read(skills_dir() / "factory-run" / "references" / "hard-stops.md")
     assert [stop for stop in DEFAULT_HARD_STOPS if f"`{stop}`" not in text] == []
+
+
+# --------------------------------------------------------------------------- the guides
+
+
+def test_guides_present():
+    guides = factory_home() / "docs" / "guide"
+    assert [name for name in GUIDES if not (guides / name).is_file()] == []
+
+
+@pytest.mark.parametrize("md", guide_markdown(), ids=lambda p: p.relative_to(factory_home()).as_posix())
+def test_guide_commands_exist(md):
+    text = read(md)
+    assert set(_COMMAND.findall(text)) <= COMMANDS
+    problems = [problem for call in factory_calls(text) for problem in call_problems(call)]
+    assert problems == []
 
 
 # --------------------------------------------------------------------------- the lint itself

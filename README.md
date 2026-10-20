@@ -2,7 +2,18 @@
 
 A reusable way for BSI teams to take work from an idea to running software with AI agents. It runs in **Claude Code** and in **Codex** (CLI and the ChatGPT desktop app), lets one model drive another, and scales from a one-session bug fix to a multi-week program.
 
-> **Status: design stage.** The design is written and under review; nothing is built yet. Read the [design](docs/specs/2026-10-20-software-factory-design.md) and the [decision log](docs/decisions.md). The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
+> **Status: version 1 core built, being reviewed; not yet piloted.** Built: the `factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. It has not yet run end to end on a project; that acceptance run comes next. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
+
+## Install
+
+The short version; the [install guide](docs/guide/install.md) has the prerequisites, every command and the third-party skills to add.
+
+1. Clone this repository and install the `factory` command from it, in a virtual environment: `python -m pip install -e tools`, then `factory --version`.
+2. Claude Code: `claude plugin marketplace add Battlespace-Research/software-factory`, then `claude plugin install software-factory@bsri-factory`.
+3. Codex: `codex plugin marketplace add Battlespace-Research/software-factory`, then `codex plugin add software-factory@bsri-factory`.
+4. Install the third-party skills, then check both hosts with `factory skills check --host claude` and `factory skills check --host codex`.
+
+Then read [Using the factory](docs/guide/using-the-factory.md), a walkthrough from project setup to your first merged fix.
 
 ## Why it exists
 
@@ -179,7 +190,7 @@ The dashboard is never the source of truth: every number traces back to a file o
 
 ## Third-party skills
 
-The factory calls installed skills rather than copying them. It checks they are present before a run and names a fallback for each.
+The factory calls installed skills rather than copying them. It checks they are present before a run and names a fallback for each. The [install guide](docs/guide/install.md) says which are required and how to install them.
 
 | Stage | Skills | Source |
 |---|---|---|
@@ -193,23 +204,35 @@ The factory calls installed skills rather than copying them. It checks they are 
 
 ## Repository layout
 
-What exists today:
+What exists today. The factory is one plugin, `software-factory`, with a Claude Code manifest and a Codex manifest that share one `skills/` folder:
 
 ```
+.claude-plugin/    the Claude Code plugin manifest and its marketplace (bsri-factory)
+.codex-plugin/     the Codex plugin manifest
+.agents/plugins/   the Codex marketplace (bsri-factory)
+skills/            the factory skills: setup, triage, run, task loop, review panel, merge gate
+agents/            Claude Code subagents: lens reviewer, document reviewer, tester, researcher
+prompts/           the four review lenses, the document review and the tester brief
+schemas/           the JSON schema of a review
+config/            roles.yaml (the role table, the one file that names models) and skills.yaml (third-party skills)
+templates/         project/ (what setup creates in a project) and work/ (a new work item's files, per track)
+tools/             the factory command (Python package swfactory) and its tests
 docs/
-  specs/       the design
-  decisions.md the decision log (F-rows, append-only)
-  map/         the factory map (HTML) and the exported figures
-  dashboard/   the dashboard template and screenshots
+  guide/           the install guide and the walkthrough for teammates
+  specs/           the design
+  plans/           the implementation plan
+  decisions.md     the decision log (F-rows, append-only)
+  map/             the factory map (HTML) and the exported figures
+  dashboard/       the dashboard template and screenshots
 ```
 
-Planned, per the design: one plugin with a Claude Code manifest and a Codex manifest sharing one `skills/` folder, plus `agents/`, `prompts/`, `schemas/`, `config/roles.yaml`, `config/skills.yaml`, `templates/project/`, `tools/` and `evals/`.
+Not built yet, per the design: the dashboard and map generators, the Deploy, Maintain, dashboard and evals skills, and `evals/`.
 
 ## Roadmap
 
-1. Owner approves the design.
-2. Implementation plan.
-3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo.
+1. Owner approves the design. **Done** (F15).
+2. Implementation plan. **Done:** [plan 1 of 4](docs/plans/2026-10-20-factory-core-v1.md), the core, is written.
+3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **In progress:** built and under review; the end-to-end run on a sample repo is next.
 4. Pilot on a real project, likely a new MACE plugin.
 5. The Program track and the dashboard generator.
 6. Deploy paths (desktop installer and Helm) and Maintain.
@@ -223,4 +246,4 @@ Planned, per the design: one plugin with a Claude Code manifest and a Codex mani
 - [super-board](https://github.com/EricTechPro/super-board) (MIT).
 - Figures drawn with the [diagram-design](https://github.com/cathrynlavery/diagram-design) skill.
 
-Internal to BSRI (Battlespace-Research). No license has been chosen yet.
+Internal to BSRI (Battlespace-Research) and proprietary; the plugin manifests say `Proprietary`. No open-source license has been chosen.
