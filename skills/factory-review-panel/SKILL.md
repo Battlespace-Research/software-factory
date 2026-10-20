@@ -86,8 +86,8 @@ Create no work item now: `factory work new` switches the checkout under the runn
 ## 6. Record the round
 
 1. `factory work set-status <ID> --stage <stage> --state "<state>" --next "<next>" --note "<task> round <N>: panel <verdict> (reviews/<task>-r<N>-panel.md)"`, with the stage that `factory work status <ID>` shows. Add to the note each lens that ran on its fallback binding (`lens-security ran on its fallback`). The state and next step:
-   - PASS: `<task> review passed`; next, the caller's step after a passing round (the task loop: the tester, or for a Fix the close; the merge gate: the gate).
-   - CHANGES: `<task> changes requested`; next `<task>: write disposition-<task>-r<N>.md, then fix`.
+   - PASS: `<task> review passed`; next, the caller's step after a passing round (the task loop: the tester, or for a Fix the close; a merge-gate re-review: `the merge gate (factory-merge-gate section 3)`).
+   - CHANGES: `<task> changes requested`; next `<task>: write disposition-<task>-r<N>.md, then fix`, ending with `, then the merge gate (factory-merge-gate section 3)` in a merge-gate re-review.
    - INCOMPLETE after the retry: `blocked`, as section 4 says.
 2. Commit `<work>/reviews/<task>-r<N>-*.md`, `<work>/follow-ups.md` (if changed) and `progress.md` with the task's trailers (`Factory-Work: <ID>/<task>`, `Factory-Role: implementer` and the implementer's model, as the factory-task-loop skill says). This commit changes only `factory/work/`, so `<head>` stays the commit the merge gate accepts as reviewed.
 

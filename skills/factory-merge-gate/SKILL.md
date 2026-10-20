@@ -23,7 +23,7 @@ Run every command from the repository root. Commits follow factory-run section 8
 
 ## 1. Check the work is ready
 
-1. You are on `<branch>`. Read `factory work status <ID>` and note its `stage` and `next`.
+1. You are on `<branch>`. Read `factory work status <ID>` and note its `stage` and `next`. If `next` contains `then the merge gate`, a re-review (section 2, step 4) was interrupted: finish it first with the factory-task-loop skill, which resumes it and sends a PASS back here, then start this section again.
 2. Every task this merge carries is ticked in `plan.md` (a Fix: the criteria in `ticket.md`), and each has a passing panel summary (`<work>/reviews/<task>-r<N>-panel.md`, first line `VERDICT: PASS`) and, except in a Fix, a tester report `<work>/reviews/<task>-tester-<try>.md` that starts `RESULT: PASS`. For a Program milestone, its demo checkpoint is passed (approved, or noted in auto mode). If anything is missing, go back to factory-run.
 
 ## 2. Bring the branch up to date with the base
@@ -33,7 +33,9 @@ This comes before the final review round, because merging the base after the rev
 1. If `git remote` lists `origin`, run `git fetch origin`. The gate reads `<base ref>` without fetching, so it sees what you fetched now.
 2. `git merge-base --is-ancestor <base ref> HEAD` exits 0 when the branch already contains the base: go to section 3.
 3. Otherwise merge it in: `git merge --no-commit <base ref>` (a merge, never a rebase). Resolve any conflict keeping the intent of both sides; a resolution that needs a decision outside the work's scope goes to the owner. Run `verify.quick` from `factory.yaml` and paste its totals, then commit the merge with the factory trailers: `git commit -m "<ID>: merge <base ref>" --trailer "Factory-Work: <ID>" --trailer "Factory-Role: implementer" --trailer "Factory-Model: <model> (<effort>)"`.
-4. The merge changed files outside `factory/work/`, so the last passing review no longer covers HEAD (the gate's `reviewed-commit` check would fail). Run one more review round of `<last task>`, as sections 3 and 4 of the factory-task-loop skill say, with `<N>` one above that task's highest round and `<start>` = the full SHA of `<base ref>`, so the reviewers see the whole item's change on top of the updated base. On CHANGES, answer and fix as section 5 of the task loop says and run the next round; the round limit and the `third-failed-round` hard stop apply. On PASS, go on to section 3 here: the tester does not run again, because the gate runs the full verify itself.
+4. The merge changed files outside `factory/work/`, so the last passing review no longer covers HEAD (the gate's `reviewed-commit` check would fail). Run one more review round of `<last task>`, with `<N>` one above that task's highest round, so the reviewers see the whole item's change on top of the updated base:
+   1. **Record the re-review's start.** `<base sha>` is the full SHA that `git rev-parse <base ref>` prints. Run `factory work set-status <ID> --stage <the stage from section 1> --state "<last task> re-review" --next "<last task>: review round <N> (factory-review-panel), then the merge gate (factory-merge-gate section 3)" --note "<last task> started at <base sha> (merge-gate re-review)"` and commit it. That log entry tells the factory-task-loop skill, and any session that resumes the round, that it starts at `<base sha>` and belongs to the merge gate.
+   2. **Run the round:** sections 3 and 4 of the factory-task-loop skill for `<last task>`, round `<N>`, with `<start>` = `<base sha>`. On CHANGES, answer and fix as its section 5 says and run the next round; the round limit and the `third-failed-round` hard stop apply. On PASS, go on to section 3 here: the tester does not run again, because the gate runs the full verify itself.
 
 ## 3. Commit everything
 
