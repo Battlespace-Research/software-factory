@@ -246,7 +246,7 @@
           <rect class="node" x="888" y="72" width="160" height="64" rx="6"/>
           <rect class="tag" x="896" y="80" width="20" height="12" rx="2"/><text class="t-tag" x="906" y="89" text-anchor="middle">05</text>
           <text class="t-head" x="968" y="106" text-anchor="middle">Deploy</text>
-          <text class="t-sub" x="968" y="124" text-anchor="middle">PR · CI · release</text>
+          <text class="t-sub" x="968" y="124" text-anchor="middle">merge · CI · release</text>
         </g>
         <g>
           <rect class="node" x="1072" y="72" width="160" height="64" rx="6"/>
@@ -269,8 +269,8 @@
         <text class="t-name" x="784" y="184" text-anchor="middle">Evidence</text>
         <text class="t-sub" x="784" y="200" text-anchor="middle">verify log · demo.md</text>
         <rect class="node" x="888" y="160" width="160" height="56" rx="6"/>
-        <text class="t-name" x="968" y="184" text-anchor="middle">PR + release notes</text>
-        <text class="t-sub" x="968" y="200" text-anchor="middle">CHANGELOG · tag</text>
+        <text class="t-name" x="968" y="184" text-anchor="middle">Merge + release</text>
+        <text class="t-sub" x="968" y="200" text-anchor="middle">PR if used · CHANGELOG</text>
         <rect class="node" x="1072" y="160" width="160" height="56" rx="6"/>
         <text class="t-name" x="1152" y="184" text-anchor="middle">Signals + lessons</text>
         <text class="t-sub" x="1152" y="200" text-anchor="middle">incident → intent.md</text>
@@ -289,7 +289,7 @@
         <text class="t-name" x="784" y="260" text-anchor="middle">Owner reviews demo</text>
         <text class="t-sub" x="784" y="276" text-anchor="middle">pasted output, not "done"</text>
         <rect class="node" x="888" y="236" width="160" height="56" rx="6"/>
-        <text class="t-name" x="968" y="260" text-anchor="middle">Human merges PR</text>
+        <text class="t-name" x="968" y="260" text-anchor="middle">Human merges</text>
         <text class="t-sub" x="968" y="276" text-anchor="middle">author never approves</text>
         <rect class="node" x="1072" y="236" width="160" height="56" rx="6"/>
         <text class="t-name" x="1152" y="260" text-anchor="middle">On-call triages</text>
@@ -336,7 +336,7 @@
     <div class="figure-head">
       <span class="fig-num">Figure 2</span>
       <h2>Three tracks, one factory</h2>
-      <p class="caption">A quick triage picks the track. Smaller tracks run a lighter version of the same stages or skip one, so small work still lands as a reviewed PR with evidence.</p>
+      <p class="caption">A quick triage picks the track. Smaller tracks run a lighter version of the same stages or skip one, so small work still lands as a reviewed merge with evidence.</p>
     </div>
     <div class="diagram-container">
       <svg viewBox="0 0 1280 412" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-tracks-title sf-tracks-desc">
@@ -397,7 +397,7 @@
         <text class="t-name" x="862" y="106" text-anchor="middle">Milestone demos</text>
         <text class="t-sub" x="862" y="122" text-anchor="middle">tester subagent</text>
         <rect class="node" x="952" y="80" width="140" height="56" rx="6"/>
-        <text class="t-name" x="1022" y="106" text-anchor="middle">PR per milestone</text>
+        <text class="t-name" x="1022" y="106" text-anchor="middle">Milestone merge</text>
         <text class="t-sub" x="1022" y="122" text-anchor="middle">release gate</text>
         <rect class="node" x="1112" y="80" width="140" height="56" rx="6"/>
         <text class="t-name" x="1182" y="106" text-anchor="middle">Monitor + retro</text>
@@ -417,7 +417,7 @@
         <text class="t-name" x="862" y="186" text-anchor="middle">Verify command</text>
         <text class="t-sub" x="862" y="202" text-anchor="middle">vs. baseline</text>
         <rect class="node" x="952" y="160" width="140" height="56" rx="6"/>
-        <text class="t-name" x="1022" y="186" text-anchor="middle">PR + review</text>
+        <text class="t-name" x="1022" y="186" text-anchor="middle">Reviewed merge</text>
         <text class="t-sub" x="1022" y="202" text-anchor="middle">human merge</text>
         <rect class="node-light" x="1112" y="160" width="140" height="56" rx="6"/>
         <text class="t-name" x="1182" y="186" text-anchor="middle">Retro note</text>
@@ -436,7 +436,7 @@
         <text class="t-name" x="862" y="266" text-anchor="middle">Verify command</text>
         <text class="t-sub" x="862" y="282" text-anchor="middle">vs. baseline</text>
         <rect class="node" x="952" y="240" width="140" height="56" rx="6"/>
-        <text class="t-name" x="1022" y="266" text-anchor="middle">PR + 1 review</text>
+        <text class="t-name" x="1022" y="266" text-anchor="middle">Reviewed merge</text>
         <text class="t-sub" x="1022" y="282" text-anchor="middle">human merge</text>
         <rect class="node-light" x="1112" y="240" width="140" height="56" rx="6"/>
         <text class="t-name" x="1182" y="266" text-anchor="middle">Lesson if new</text>
@@ -740,6 +740,7 @@
     <ol class="questions">
       <li><div><strong>Track names and the line between them.</strong><p>When does a Fix become a Feature, and a Feature a Program?</p></div></li>
       <li><div><strong>Packaging.</strong><p>One repo that installs as a plugin in both Claude Code and Codex.</p></div></li>
+      <li><div><strong>Hooks that enforce rules (parked).</strong><p>Which rules block outright and which ask you; Codex hooks cannot ask yet.</p></div></li>
     </ol>
   </section>
 
@@ -764,6 +765,8 @@
           <tr><td class="mono">F08</td><td>Review mode is the default: the factory pauses for your review at its checkpoints. Auto mode is optional and stops only for hard stops.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F09</td><td>Reviews run as a panel of parallel reviewers, each with one lens: correctness, security, maintainability, spec compliance. At least one lens is from the other vendor.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F10</td><td>The factory keeps a dashboard that is updated throughout the work (template under review).</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F11</td><td>Agent review on GitHub PRs is optional per project and off by default. No GitHub Action for it yet.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F12</td><td>Project setup produces a <code>REVIEW.md</code> (lenses, severities, per-track lens sets, always-flag rules) that the review panel reads; PR review would read the same file.</td><td class="mono">2026-10-20</td></tr>
         </tbody>
       </table>
     </div>
