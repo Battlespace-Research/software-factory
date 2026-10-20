@@ -189,3 +189,44 @@ Also seen, not counted: git's `LF will be replaced by CRLF` warning on every com
 3. Decide which findings are fixed before v1 closes and which become `FIX-` items for plan 2.
 
 The rehearsal repo, its log and the staging folder are left in place for inspection; delete them when done (`C:\Users\cordc\AppData\Local\Temp\sf-rehearsal-20261020-1757*`, `C:\Users\cordc\.factory\staging\rangering-rehearsal`).
+
+## 10. After the final review
+
+The final whole-branch review asked for these findings to be fixed before `feature/core-v1` merges. Commits `4b343e2` to `93284e9`.
+
+| ID | What changed |
+|---|---|
+| D1 | Documented, not moved: the install guide (step 3) and checklist step 0.4 tell the owner to add `~/.factory` to `writable_roots` under `[sandbox_workspace_write]` in `~/.codex/config.toml` (or start Codex with `--add-dir`), and Troubleshooting names the `Access to the path … is denied.` symptom. Moving the staging folder stays a plan-2 item (design section 9.8). The key is the one Codex CLI 0.163.0 knows, but it has not been tried in a Codex session yet. |
+| D2 | Fixed: setup creates both `CLAUDE.md` and `AGENTS.md`, with the same section, when the project has neither. |
+| D3 | Documented: the install guide recommends `pipx install -e <clone>/tools`, or putting only the `factory` entry point on the PATH, and checks with `where python` that the project's Python comes first. |
+| D4 | Fixed: factory-run's Deploy and close step 4 sets `retro written`, next `run the merge gate (factory-merge-gate)`; the gate writes `merge pending` once it passes. |
+| D10 | Documented in the adapter: `--allowedTools` pre-approves tools and does not restrict them; plan mode is the read-only guard; `--disallowedTools` and `--max-turns` are plan-2 items. |
+
+Also fixed: `FACTORY_CODEX_ARGS` can no longer carry options that would replace a run's sandbox, approvals, output file or working folder (`-c key=value` stays allowed); the skills use the plugin-qualified subagent name (`software-factory:<name>`) when the bare one is not available; and the timeout test now proves the vendor CLI's process tree is killed instead of timing the run (10 of 10 runs passed).
+
+### 10.1 Linux check (WSL)
+
+The plan was one test run on Linux: copy the repository (without `.venv` and `.superpowers`) into the WSL file system, make a virtual environment with `python3 -m venv`, `pip install -e "tools[dev]"`, and `python -m pytest tools/tests -q`. **It could not run.** On 2026-10-20 at 22:45Z, in WSL 2 `Ubuntu-24.04` (Ubuntu 24.04.5 LTS, kernel 6.18.33.2-microsoft-standard-WSL2, Python 3.12.3), the first step after the environment check failed:
+
+```text
+$ python3 -m venv /tmp/sf-venv-probe
+The virtual environment was not created successfully because ensurepip is not
+available.  On Debian/Ubuntu systems, you need to install the python3-venv
+package using the following command.
+
+    apt install python3.12-venv
+```
+
+The distribution also has no pip (`/usr/bin/python3: No module named pip`) and no pytest; it has PyYAML 6.0.1 from `python3-yaml`. Installing `python3.12-venv` needs `sudo apt`, an installer run with administrator rights, which is the owner's to do, so the check stopped there: nothing was copied into WSL and no test ran. The POSIX code paths (process groups and `SIGKILL` in the adapter, shebang shims in the test fakes, permission bits in setup) remain untested on Linux.
+
+To run it, the owner installs the package once (`sudo apt install python3.12-venv`), then, inside WSL:
+
+```bash
+rm -rf ~/sf-check && mkdir -p ~/sf-check
+tar -C /mnt/e/BSRI/GitHub/software-factory --exclude=./.venv --exclude=./.superpowers --exclude='__pycache__' \
+    --exclude='.pytest_cache' --exclude='*.egg-info' -cf - . | tar -C ~/sf-check -xf -
+cd ~/sf-check && python3 -m venv .venv && . .venv/bin/activate
+python -m pip install -e "tools[dev]" && python -m pytest tools/tests -q
+```
+
+Otherwise the check waits for CI in plan 2.
