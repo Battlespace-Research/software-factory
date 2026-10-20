@@ -21,7 +21,14 @@ import yaml
 from swfactory.cli import COMMANDS, build_parser
 from swfactory.config import DEFAULT_HARD_STOPS, factory_home, load_skills_registry
 
-EXPECTED_SKILLS = {"factory-setup", "factory-triage", "factory-run"}
+EXPECTED_SKILLS = {
+    "factory-setup",
+    "factory-triage",
+    "factory-run",
+    "factory-task-loop",
+    "factory-review-panel",
+    "factory-merge-gate",
+}
 
 _USES_SKILLS = re.compile(r"^Uses skills:(.*)$", re.MULTILINE)
 _COMMAND = re.compile(r"`factory ([a-z][a-z-]*)")
