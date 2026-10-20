@@ -87,7 +87,7 @@ Never start a round numbered above `review.max_rounds`. If one is needed for ano
    - `<verify.full>`: the full verify command, quoted for your shell. Then open the brief and check that its "Verify command" line shows the command exactly as `factory.yaml` writes it; if your shell changed it (quotes, `$`, `%`), correct that line with your file-writing tool.
    - `<demo>`: the demo script the plan's task names, if it names one; otherwise `none`.
 4. **Start the tester** as `factory role resolve tester --host <vendor> --project .` says:
-   - `subagent`: spawn `factory-tester` (`invocation.agent`) with model `invocation.model_alias`, giving it the brief's text as its task.
+   - `subagent`: spawn `factory-tester` (`invocation.agent`; `software-factory:factory-tester` when the factory is installed as a plugin and the bare name is not available) with model `invocation.model_alias`, giving it the brief's text as its task.
    - `command`: `factory role run tester --host <vendor> --project . --prompt <staging>/<task>-tester-brief-<try>.md --out <staging>/<task>-tester-reply-<try>.md`, in the background if your host limits how long a command may run. If it exits 1, run it once more with `--fallback` and say so in the next log entry; if that fails too, stop and tell the owner.
 5. **Edit nothing in the working tree while the tester runs:** no file edits, no `factory work set-status`, no git command that writes. A fix you think of meanwhile goes into a patch file under `<staging>` (never in the project or the session scratchpad), applied only after step 6.
 6. **When the tester has finished:**
