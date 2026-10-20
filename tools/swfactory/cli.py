@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import re
 import signal
 import subprocess
 import sys
@@ -34,6 +35,7 @@ from swfactory.config import (
 from swfactory.gitutil import GitError
 from swfactory.mergegate import run_gate, write_gate_report
 from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
+from swfactory.prompts import MissingValue, render, required_placeholders
 from swfactory.readiness import SkillHost, check_readiness
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
@@ -41,7 +43,7 @@ from swfactory.setup import SetupAnswers, SetupError, setup_project
 from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup", "skills"}
+COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup", "skills", "prompt"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -358,6 +360,78 @@ def _cmd_skills_check(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _cmd_prompt_help(args: argparse.Namespace) -> int:
+    args.prompt_parser.print_help()
+    return EXIT_USAGE
+
+
+_SET_ITEM = re.compile(r"(\w+)=(.*)", re.ASCII | re.DOTALL)
+
+
+def _template_path(raw: Path) -> Path:
+    """TEMPLATE as given when it is absolute or exists from the current folder; otherwise the same relative path
+    in the factory checkout, so a skill can name ``prompts/tester-brief.md`` from inside any project."""
+    if raw.is_absolute() or raw.exists():
+        return raw
+    return factory_home() / raw
+
+
+def _prompt_values(args: argparse.Namespace) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """The values from ``--set`` and ``--from-review-md``, where each came from, and every problem with them."""
+    values: dict[str, str] = {}
+    source: dict[str, str] = {}
+    problems: list[str] = []
+    for item in args.set:
+        match = _SET_ITEM.fullmatch(item)
+        if match is None:
+            problems.append(f"--set {item!r}: write NAME=VALUE, NAME being letters, digits and _")
+            continue
+        name, value = match.groups()
+        if name in values:
+            problems.append(f"--set {name} is given twice")
+        values[name], source[name] = value, f"--set {name}"
+    if (args.from_review_md is None) != (args.lens is None):
+        problems.append("--from-review-md and --lens go together: the lens names the checklist to fill")
+    if problems or args.from_review_md is None:
+        return values, source, problems
+    try:
+        cfg = load_review_md(args.from_review_md)
+    except ConfigError as err:
+        return values, source, err.problems
+    if args.lens not in cfg.lenses:
+        return values, source, [f"{args.from_review_md}: it has no lens '{args.lens}' (it has {', '.join(cfg.lenses)})"]
+    for name, value in (("lens", args.lens), ("checklist", cfg.lenses[args.lens]), ("nit_cap", str(cfg.nit_cap))):
+        if name in values:
+            problems.append(f"--set {name} clashes with --from-review-md, which fills {name}")
+        values[name], source[name] = value, "--from-review-md"
+    return values, source, problems
+
+
+def _cmd_prompt_render(args: argparse.Namespace) -> int:
+    values, source, problems = _prompt_values(args)
+    if problems:
+        return _print_problems(problems)
+    template = _template_path(args.template)
+    try:
+        unused = sorted(values.keys() - required_placeholders(template))
+        if unused:  # a typo, or the wrong template: either way the prompt would not say what the caller meant
+            return _print_problems(
+                [f"{template.name} has no {{{{{name}}}}} placeholder (given by {source[name]})" for name in unused]
+            )
+        text = render(template, values)
+    except MissingValue as err:
+        return _print_problems([f"{err} (pass --set NAME=VALUE for each)"])
+    except (OSError, UnicodeDecodeError) as err:
+        return _print_problems([f"cannot read the template {template}: {err}"])
+    try:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as err:
+        return _print_problems([f"cannot write {args.out}: {err}"])
+    _print_text(f"wrote {args.out}\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -596,6 +670,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="the home folder that holds the host's skill folders (default: the user's home)",
     )
     skills_check.set_defaults(handler=_cmd_skills_check)
+
+    prompt = commands.add_parser("prompt", help="fill in the prompt templates the factory's roles read")
+    prompt.set_defaults(handler=_cmd_prompt_help, prompt_parser=prompt)
+    prompt_commands = prompt.add_subparsers(dest="prompt_command", metavar="<subcommand>")
+    render_cmd = prompt_commands.add_parser(
+        "render",
+        help="fill every {{name}} placeholder of a template and write the prompt to --out (exit 2, listing every "
+        "placeholder without a value, if any is missing)",
+    )
+    render_cmd.add_argument(
+        "template",
+        type=Path,
+        metavar="TEMPLATE",
+        help="the template, such as prompts/lens-security.md; a relative path that does not exist from the current "
+        "folder is taken from the factory checkout",
+    )
+    render_cmd.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="NAME=VALUE",
+        help="the value of the placeholder {{NAME}}; repeat for each placeholder",
+    )
+    render_cmd.add_argument(
+        "--from-review-md",
+        type=Path,
+        metavar="PATH",
+        help="a project's REVIEW.md: fills lens, checklist (that lens's section) and nit_cap for a lens prompt; "
+        "needs --lens",
+    )
+    render_cmd.add_argument("--lens", metavar="L", help="the lens whose checklist --from-review-md fills in")
+    render_cmd.add_argument("--out", required=True, type=Path, metavar="FILE", help="where the prompt is written (UTF-8)")
+    render_cmd.set_defaults(handler=_cmd_prompt_render)
     return parser
 
 
