@@ -1,0 +1,65 @@
+# Factory settings for this project. `factory config check` validates this file.
+# Every key is written out with its default so the owner can see and change it.
+version: 1
+
+# The project's name, as shown in reports.
+project: {{project}}
+
+# The branch finished work merges into.
+base_branch: {{base_branch}}
+
+# How work is branched.
+#   per-item: one branch per work item, cut from base_branch.
+#   single:   all work on the one local branch named in work_branch, one work item at a time
+#             (for a project whose own rules forbid extra branches).
+branching: {{branching}}
+work_branch: {{work_branch}}
+
+# review: the factory stops at each checkpoint (intent, spec, plan, milestone demo, merge) for the owner's approval.
+# auto:   the factory writes a note and carries on. The hard stops below halt it in both modes.
+mode: {{mode}}
+
+# Who may approve a checkpoint in chat. An approval record names one of these people.
+approvers: {{approvers}}
+
+# The project's verify commands. Each exits 0 on success and non-zero on failure, and prints totals.
+#   quick: builds and tests what a task touched; run at every task.
+#   full:  the whole build and test suite; run by the tester, at milestone demos and at the merge gate.
+#          It compares its results with factory/baseline/expected-failures.md.
+verify:
+  quick: {{verify_quick}}
+  full: {{verify_full}}
+
+# allow: the factory runs the full build when the plan says so.
+# ask:   the factory asks the owner before each full run (for a project whose rules restrict builds).
+builds: {{builds}}
+
+merge:
+  # The most changed lines one merge may carry, not counting generated files. Over it, the work is split.
+  size_cap: 400
+  # Glob patterns of generated files that do not count against the cap, such as "**/*.g.cs".
+  generated: []
+
+review:
+  # Review rounds allowed on one task. Failing the last round is a hard stop (third-failed-round).
+  max_rounds: 3
+
+# Situations where the factory halts and asks the owner, in both modes. Remove an id only on purpose.
+hard_stops:
+  - main-branch           # any push or merge to the main branch
+  - delete-data           # deleting data or files outside the work's scope
+  - credentials           # credentials, licences, secrets
+  - installers-admin      # installers, or admin/UAC prompts
+  - purchases             # anything that spends money
+  - auth-money-schema     # changes to authentication, money handling or database schemas
+  - new-dependency        # a new third-party dependency
+  - production-data       # touching production data
+  - third-failed-round    # a third failed review round on one task
+  - business-assumption   # an assumption that is really a business decision
+
+# Per-role overrides of the factory's default roles (config/roles.yaml in the factory), merged field by field.
+# For example, a project limited to one vendor. Empty means every default stands.
+roles: {}
+
+# Mirror work items to GitHub issues. Leave false: the files in factory/work/ are the source of truth.
+github_mirror: false

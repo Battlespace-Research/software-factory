@@ -486,6 +486,74 @@ def test_check_config_validates_project_role_overrides(tmp_path):
     assert any("ghost" in p for p in problems)
 
 
+LENSES = ("correctness", "security", "maintainability", "spec")
+PANEL_TRACKS = {
+    "fix": ["correctness", "security"],
+    "feature": ["correctness", "security", "maintainability"],
+    "program": ["correctness", "security", "maintainability", "spec"],
+}
+
+
+def write_review_md(folder: Path, tracks: dict[str, list[str]] = PANEL_TRACKS) -> Path:
+    """A valid REVIEW.md with all four lenses and the given tracks."""
+    front = yaml.safe_dump({"lenses": list(LENSES), "tracks": tracks}, sort_keys=False)
+    sections = "".join(f"## Lens: {lens}\n- check the {lens}\n\n" for lens in LENSES)
+    path = folder / "REVIEW.md"
+    path.write_text(f"---\n{front}---\n{sections}", encoding="utf-8")
+    return path
+
+
+def test_check_config_project_with_a_good_review_md_ok(tmp_path):
+    write_project(tmp_path)
+    write_review_md(tmp_path)
+    assert check_config(tmp_path) == []
+    assert check_config(tmp_path / "factory.yaml") == []
+
+
+def test_check_config_reports_review_md_load_problems(tmp_path):
+    write_project(tmp_path)
+    (tmp_path / "REVIEW.md").write_text("just prose, no front matter\n", encoding="utf-8")
+    problems = check_config(tmp_path)
+    assert len(problems) == 1 and "REVIEW.md" in problems[0] and "front matter" in problems[0]
+
+
+def test_check_config_reports_a_track_with_no_other_vendor_lens(tmp_path):
+    write_project(tmp_path)
+    write_review_md(tmp_path, {**PANEL_TRACKS, "fix": ["maintainability"], "feature": ["spec"]})
+    problems = check_config(tmp_path)
+    assert len(problems) == 2
+    assert all(p.startswith("REVIEW.md: track ") and "other vendor" in p for p in problems)
+    assert any("'fix'" in p for p in problems) and any("'feature'" in p for p in problems)
+
+
+def test_check_config_panel_check_uses_the_projects_role_overrides(tmp_path):
+    write_project(tmp_path, roles={"lens-maintainability": {"vendor": "other"}})
+    write_review_md(tmp_path, {**PANEL_TRACKS, "fix": ["maintainability"]})
+    assert check_config(tmp_path) == []
+
+
+def test_check_config_review_md_is_found_next_to_the_factory_yaml_only(tmp_path):
+    folder = tmp_path / "project"
+    folder.mkdir()
+    write_project(folder)
+    write_review_md(tmp_path, {"fix": ["maintainability"]})  # beside the project folder, not in it
+    assert check_config(folder) == []
+
+
+def test_check_config_skips_the_panel_check_when_the_factory_yaml_is_invalid(tmp_path):
+    write_project(tmp_path, mode="turbo")
+    write_review_md(tmp_path, {**PANEL_TRACKS, "fix": ["maintainability"]})
+    problems = check_config(tmp_path)
+    assert len(problems) == 1 and "mode" in problems[0]
+
+
+def test_check_config_reports_review_md_load_problems_even_when_the_factory_yaml_is_invalid(tmp_path):
+    write_project(tmp_path, mode="turbo")
+    (tmp_path / "REVIEW.md").write_text("no front matter\n", encoding="utf-8")
+    problems = check_config(tmp_path)
+    assert any("mode" in p for p in problems) and any("REVIEW.md" in p for p in problems)
+
+
 def test_check_config_reports_unknown_skill_role(monkeypatch, tmp_path):
     home = tmp_path / "home"
     (home / "config").mkdir(parents=True)
@@ -531,7 +599,7 @@ def test_cli_commands_set_matches_parser():
         if action.__class__.__name__ == "_SubParsersAction"
         for name in action.choices
     }
-    assert registered == cli.COMMANDS == {"config", "role", "panel", "work", "approve", "gate"}
+    assert registered == cli.COMMANDS == {"config", "role", "panel", "work", "approve", "gate", "setup"}
 
 
 def test_cli_config_check_ok(capsys):
@@ -550,6 +618,30 @@ def test_cli_config_check_project_problems_one_per_line(tmp_path, capsys):
 def test_cli_config_check_project_ok(tmp_path, capsys):
     write_project(tmp_path)
     assert cli.main(["config", "check", "--project", str(tmp_path / "factory.yaml")]) == 0
+    assert capsys.readouterr().out.strip() == "config ok"
+
+
+def test_cli_config_check_reports_review_md_problems_one_per_line(tmp_path, capsys):
+    write_project(tmp_path)
+    write_review_md(tmp_path, {**PANEL_TRACKS, "fix": ["maintainability"], "feature": ["spec"]})
+    assert cli.main(["config", "check", "--project", str(tmp_path)]) == 1
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 2 and all(x.startswith("REVIEW.md: ") and "other vendor" in x for x in lines)
+    assert any("track 'fix'" in x for x in lines) and any("track 'feature'" in x for x in lines)
+
+
+def test_cli_config_check_reports_a_review_md_that_does_not_load(tmp_path, capsys):
+    write_project(tmp_path)
+    write_review_md(tmp_path, {**PANEL_TRACKS, "feature": ["bogus"]})
+    assert cli.main(["config", "check", "--project", str(tmp_path)]) == 1
+    lines = capsys.readouterr().out.splitlines()
+    assert len(lines) == 1 and lines[0].startswith("REVIEW.md: ") and "bogus" in lines[0]
+
+
+def test_cli_config_check_project_with_review_md_ok(tmp_path, capsys):
+    write_project(tmp_path)
+    write_review_md(tmp_path)
+    assert cli.main(["config", "check", "--project", str(tmp_path)]) == 0
     assert capsys.readouterr().out.strip() == "config ok"
 
 

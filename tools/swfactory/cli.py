@@ -20,6 +20,9 @@ from swfactory import __version__
 from swfactory.adapters import plan_invocation, run_invocation
 from swfactory.approvals import ApprovalError, record_approval
 from swfactory.config import (
+    BRANCHING,
+    BUILDS,
+    MODES,
     ConfigError,
     RoleTable,
     check_config,
@@ -32,10 +35,11 @@ from swfactory.mergegate import run_gate, write_gate_report
 from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
+from swfactory.setup import SetupAnswers, SetupError, setup_project
 from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate"}
+COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -297,6 +301,31 @@ def _cmd_gate(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _cmd_setup(args: argparse.Namespace) -> int:
+    repo = Path.cwd()
+    answers = SetupAnswers(
+        project=args.project,
+        verify_quick=args.verify_quick,
+        verify_full=args.verify_full,
+        approvers=args.approver,
+        base_branch=args.base,
+        branching=args.branching,
+        work_branch=args.work_branch,
+        builds=args.builds,
+        mode=args.mode,
+    )
+    try:
+        result = setup_project(repo, answers)
+    except (SetupError, OSError) as err:
+        return _print_problems([str(err)])
+    print(json.dumps({
+        "created": [path.relative_to(repo).as_posix() for path in result.created],
+        "updated": [path.relative_to(repo).as_posix() for path in result.updated],
+        "conflicts": result.conflicts,
+    }, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -455,6 +484,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="the owner agreed to the full build (needed when factory.yaml says builds: ask)",
     )
     gate.set_defaults(handler=_cmd_gate)
+
+    setup = commands.add_parser(
+        "setup",
+        help="set up the project in the current folder for the factory: factory.yaml, REVIEW.md, the factory/ "
+        "folders and a factory section in CLAUDE.md/AGENTS.md; prints what it created and updated, and the project "
+        "rules that conflict with factory defaults, as JSON (does not commit; exit 2 if it refuses)",
+    )
+    setup.add_argument("--project", required=True, metavar="NAME", help="the project's name, as shown in reports")
+    setup.add_argument(
+        "--verify-quick",
+        required=True,
+        metavar="CMD",
+        help="the verify command for one task: builds and tests what the task touched",
+    )
+    setup.add_argument(
+        "--verify-full",
+        required=True,
+        metavar="CMD",
+        help="the verify command for the whole build and test suite",
+    )
+    setup.add_argument(
+        "--approver",
+        required=True,
+        action="append",
+        metavar="NAME",
+        help="who may approve a checkpoint in chat; repeat for more than one",
+    )
+    setup.add_argument(
+        "--base",
+        default=SetupAnswers.base_branch,
+        metavar="B",
+        help="the branch finished work merges into (default: %(default)s)",
+    )
+    setup.add_argument(
+        "--branching",
+        choices=BRANCHING,
+        default=SetupAnswers.branching,
+        help="one branch per work item, or all work on one branch (default: %(default)s)",
+    )
+    setup.add_argument(
+        "--work-branch",
+        metavar="B",
+        help="the one branch all work goes on; used only with --branching single",
+    )
+    setup.add_argument(
+        "--builds",
+        choices=BUILDS,
+        default=SetupAnswers.builds,
+        help="allow the full build, or ask the owner before each run (default: %(default)s)",
+    )
+    setup.add_argument(
+        "--mode",
+        choices=MODES,
+        default=SetupAnswers.mode,
+        help="stop at each checkpoint for approval, or carry on (default: %(default)s)",
+    )
+    setup.set_defaults(handler=_cmd_setup)
     return parser
 
 

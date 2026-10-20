@@ -445,21 +445,47 @@ def load_project_config(path: Path) -> ProjectConfig:
 
 # --------------------------------------------------------------------------- whole-config check
 
+def _check_review_md(path: Path, table: RoleTable | None) -> list[str]:
+    """Problems with the ``REVIEW.md`` at ``path`` (none when there is no such file).
+
+    A file that does not load is reported as such. One that loads is checked against ``table`` (the role table
+    with the project's overrides) for a review panel that never runs on the other vendor; that check is skipped
+    when there is no ``table`` to judge by.
+    """
+    # Imported here: reviewmd itself imports this module.
+    from swfactory.reviewmd import check_panel_vendor_mix, load_review_md
+
+    if not path.is_file():
+        return []
+    try:
+        review = load_review_md(path)
+    except ConfigError as err:
+        return err.problems
+    if table is None:
+        return []
+    return [f"{path.name}: {problem}" for problem in check_panel_vendor_mix(review, table)]
+
+
 def check_config(project: Path | None = None) -> list[str]:
     """Validate the factory's own config, and a project's ``factory.yaml`` when given.
 
-    ``project`` is a project folder or a ``factory.yaml`` path. Returns every problem found
-    (empty when all is well); never raises ``ConfigError``.
+    ``project`` is a project folder or a ``factory.yaml`` path. When a ``REVIEW.md`` sits next to the
+    ``factory.yaml`` it is checked too: that it loads, and that every track has a lens on the other vendor
+    (judged with the project's role overrides, so only when its ``factory.yaml`` is valid). Returns every
+    problem found (empty when all is well); never raises ``ConfigError``.
     """
     home = factory_home()
     problems: list[str] = []
 
     overrides: dict | None = None
+    factory_yaml: Path | None = None
+    project_loaded = False
     if project is not None:
         project = Path(project)
         factory_yaml = project / "factory.yaml" if project.is_dir() else project
         try:
             overrides = load_project_config(factory_yaml).role_overrides
+            project_loaded = True
         except ConfigError as err:
             problems.extend(err.problems)
 
@@ -479,4 +505,7 @@ def check_config(project: Path | None = None) -> list[str]:
         for role in registry:
             if role != "*" and role not in table.roles:
                 problems.append(f"skills.yaml: role '{role}' is not in roles.yaml")
+
+    if factory_yaml is not None:
+        problems.extend(_check_review_md(factory_yaml.parent / "REVIEW.md", table if project_loaded else None))
     return problems

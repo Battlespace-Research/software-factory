@@ -1,0 +1,249 @@
+"""Project setup: scaffold a project for the factory, and find the project's own rules that conflict with factory defaults.
+
+``setup_project`` writes ``factory.yaml`` and ``REVIEW.md`` from ``templates/project/``, creates the ``factory/``
+folders, ignores the generated dashboard, and adds the factory's marked section to ``CLAUDE.md`` and ``AGENTS.md``.
+It never runs git and never commits: the owner reviews the result first. Everything that can refuse is checked
+before the first file is written, so a refusal leaves the project as it was.
+"""
+from __future__ import annotations
+
+import re
+import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+
+import yaml
+
+from swfactory.config import ConfigError, factory_home, load_project_config
+
+BEGIN_MARKER = "<!-- factory:begin -->"
+END_MARKER = "<!-- factory:end -->"
+GITIGNORE_ENTRY = "factory/dashboard/"
+
+_BEGIN = BEGIN_MARKER.encode("utf-8")
+_END = END_MARKER.encode("utf-8")
+# Ways a .gitignore line can already ignore the generated dashboard.
+_IGNORES_DASHBOARD = {"factory/dashboard/", "/factory/dashboard/", "factory/dashboard", "/factory/dashboard"}
+_SECTION_FILES = ("CLAUDE.md", "AGENTS.md")  # the factory section goes into each that exists
+_CONFLICT_FILES = ("AGENTS.md", "CLAUDE.md")  # the project's own rules are read from these, in this order
+_CONFLICT_RULES = re.compile(
+    r"do not create (git )?branches|do not build|commit (directly )?to main|never push", re.IGNORECASE
+)
+_PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
+
+
+class SetupError(RuntimeError):
+    """Setup refuses to go ahead; the message says why. Nothing has been written."""
+
+
+@dataclass
+class SetupAnswers:
+    """What the owner decides at setup. ``work_branch`` is used only when ``branching`` is ``single``."""
+
+    project: str
+    verify_quick: str
+    verify_full: str
+    approvers: list[str]
+    base_branch: str = "main"
+    branching: str = "per-item"
+    work_branch: str | None = None
+    builds: str = "allow"
+    mode: str = "review"
+
+
+@dataclass
+class SetupResult:
+    """The files setup made (``created``) and changed (``updated``), and the project's own rules that conflict with
+    factory defaults (``conflicts``, each as ``<file>:<line>: <text>``)."""
+
+    created: list[Path]
+    updated: list[Path]
+    conflicts: list[str]
+
+
+# --------------------------------------------------------------------------- templates and values
+
+def _template(name: str) -> str:
+    """The text of ``templates/project/<name>`` in the factory checkout, with LF line endings."""
+    path = factory_home() / "templates" / "project" / name
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError) as err:
+        raise SetupError(f"cannot read the template {path}: {err}") from None
+
+
+def _fill(text: str, values: dict[str, str]) -> str:
+    """Replace each ``{{name}}`` with its value in one pass, so a value that looks like a placeholder stays as typed."""
+    return _PLACEHOLDER.sub(lambda match: values[match.group(1)], text)
+
+
+def _quote(value: str) -> str:
+    """``value`` as a double-quoted YAML scalar. PyYAML escapes quotes, backslashes, control characters and line
+    breaks, and never wraps the line, so any text the owner types stays one safe value."""
+    return yaml.safe_dump(value, default_style='"', allow_unicode=True, width=sys.maxsize).rstrip("\n")
+
+
+def _code_span(text: str) -> str:
+    """``text`` as a Markdown inline code span that holds however many backticks it contains."""
+    text = re.sub(r"\s*[\r\n]+\s*", " ", text)
+    longest = max((len(run) for run in re.findall(r"`+", text)), default=0)
+    fence = "`" * (longest + 1)
+    pad = " " if text.startswith("`") or text.endswith("`") else ""
+    return f"{fence}{pad}{text}{pad}{fence}"
+
+
+def _render_factory_yaml(answers: SetupAnswers) -> str:
+    """The project's ``factory.yaml``; raises ``SetupError`` listing every problem when the answers are not valid."""
+    work_branch = answers.work_branch if answers.branching == "single" else None
+    text = _fill(_template("factory.yaml"), {
+        "project": _quote(answers.project),
+        "base_branch": _quote(answers.base_branch),
+        "branching": _quote(answers.branching),
+        "work_branch": "null" if work_branch is None else _quote(work_branch),
+        "mode": _quote(answers.mode),
+        "approvers": "[" + ", ".join(_quote(name) for name in answers.approvers) + "]",
+        "verify_quick": _quote(answers.verify_quick),
+        "verify_full": _quote(answers.verify_full),
+        "builds": _quote(answers.builds),
+    })
+    with tempfile.TemporaryDirectory() as scratch:
+        probe = Path(scratch) / "factory.yaml"
+        probe.write_text(text, encoding="utf-8", newline="\n")
+        try:
+            load_project_config(probe)
+        except ConfigError as err:
+            raise SetupError("the answers do not make a valid factory.yaml:\n" + "\n".join(err.problems)) from None
+    return text
+
+
+# --------------------------------------------------------------------------- edits to existing files
+
+def _newline_of(data: bytes) -> bytes:
+    """The line ending ``data`` mostly uses (LF when it has none or they tie)."""
+    crlf = data.count(b"\r\n")
+    return b"\r\n" if crlf > data.count(b"\n") - crlf else b"\n"
+
+
+def _with_section(name: str, data: bytes, section: str) -> bytes:
+    """``data`` (the bytes of a ``CLAUDE.md`` or ``AGENTS.md``) with the factory section in place of the old one, or
+    added at the end when there is none. Everything outside the markers keeps its bytes; the section takes the
+    file's own line ending. Raises ``SetupError`` when the markers are not one begin line followed by one end line."""
+    eol = _newline_of(data)
+    block = eol.join(line.encode("utf-8") for line in (BEGIN_MARKER, *section.split("\n"), END_MARKER))
+    begins, ends = data.count(_BEGIN), data.count(_END)
+    if begins == 0 and ends == 0:
+        text = data if data.endswith(b"\n") or not data else data + eol
+        if text and not text.endswith(eol * 2):
+            text += eol
+        return text + block + eol
+    first, last = data.find(_BEGIN), data.find(_END)
+    if begins != 1 or ends != 1 or last < first:
+        raise SetupError(
+            f"{name} has a factory section setup cannot replace safely: it needs exactly one {BEGIN_MARKER} "
+            f"followed by one {END_MARKER} (fix or remove the markers, then run setup again)"
+        )
+    return data[:first] + block + data[last + len(_END):]
+
+
+def _with_ignore_entry(data: bytes) -> bytes | None:
+    """``data`` (the bytes of a ``.gitignore``) with the dashboard folder added, or ``None`` when it is already ignored."""
+    if any(line.strip() in _IGNORES_DASHBOARD for line in data.decode("utf-8", errors="replace").splitlines()):
+        return None
+    eol = _newline_of(data)
+    text = data if data.endswith(b"\n") or not data else data + eol
+    return text + GITIGNORE_ENTRY.encode("utf-8") + eol
+
+
+# --------------------------------------------------------------------------- setup
+
+def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
+    """Scaffold the project at ``repo`` for the factory. Does not run git and does not commit.
+
+    Creates ``factory.yaml``, ``REVIEW.md``, ``factory/work/``, ``factory/baseline/expected-failures.md`` and
+    ``factory/lessons.md``; adds ``factory/dashboard/`` to ``.gitignore`` unless it is already ignored; and puts the
+    factory section between ``<!-- factory:begin -->`` and ``<!-- factory:end -->`` in ``CLAUDE.md`` and ``AGENTS.md``
+    wherever they exist (a new ``CLAUDE.md`` when neither does), replacing a section already there.
+
+    Raises ``SetupError``, having written nothing, when ``factory.yaml`` already exists ("already set up"), when
+    another file setup would create exists, when the answers do not make a valid ``factory.yaml``, or when the
+    markers in an existing ``CLAUDE.md`` or ``AGENTS.md`` are not one begin line followed by one end line.
+    """
+    repo = Path(repo)
+    if not repo.is_dir():
+        raise SetupError(f"{repo} is not a folder")
+    factory_yaml = repo / "factory.yaml"
+    if factory_yaml.exists():
+        raise SetupError(f"already set up: {factory_yaml} exists (setup runs once for a project)")
+    review_md = repo / "REVIEW.md"
+    expected_failures = repo / "factory" / "baseline" / "expected-failures.md"
+    lessons = repo / "factory" / "lessons.md"
+    for path in (review_md, expected_failures, lessons):
+        if path.exists():
+            raise SetupError(f"{path} already exists; setup will not overwrite it (move it aside, then run setup again)")
+    factory_yaml_text = _render_factory_yaml(answers)
+    review_md_text = _template("REVIEW.md")
+    expected_failures_text = _template("expected-failures.md")
+    lessons_text = _template("lessons.md")
+
+    # Edits to files that may exist: (file, its bytes now or None when it is new, its bytes afterwards).
+    edits: list[tuple[Path, bytes | None, bytes]] = []
+    gitignore = repo / ".gitignore"
+    ignore_before = gitignore.read_bytes() if gitignore.is_file() else None
+    ignore_after = _with_ignore_entry(ignore_before or b"")
+    if ignore_after is not None:
+        edits.append((gitignore, ignore_before, ignore_after))
+    section = _fill(_template("claude-section.md"), {
+        "verify_quick": _code_span(answers.verify_quick),
+        "verify_full": _code_span(answers.verify_full),
+    }).strip("\n")
+    holders = [repo / name for name in _SECTION_FILES if (repo / name).is_file()]
+    for path in holders:
+        before = path.read_bytes()
+        after = _with_section(path.name, before, section)
+        if after != before:
+            edits.append((path, before, after))
+    if not holders:
+        edits.append((repo / "CLAUDE.md", None, _with_section("CLAUDE.md", b"", section)))
+
+    created: list[Path] = []
+    updated: list[Path] = []
+
+    def create(path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+        created.append(path)
+
+    create(factory_yaml, factory_yaml_text)
+    create(review_md, review_md_text)
+    work = repo / "factory" / "work"
+    if not work.exists():
+        work.mkdir(parents=True)
+        created.append(work)
+    create(expected_failures, expected_failures_text)
+    create(lessons, lessons_text)
+    for path, before, after in edits:
+        path.write_bytes(after)
+        (created if before is None else updated).append(path)
+    return SetupResult(created=created, updated=updated, conflicts=find_conflicts(repo))
+
+
+# --------------------------------------------------------------------------- conflicts
+
+def find_conflicts(repo: Path) -> list[str]:
+    """The lines of ``AGENTS.md`` and ``CLAUDE.md`` at the root of ``repo`` that look like rules the factory's
+    defaults would break (no extra branches, no builds, commit straight to main, never push).
+
+    Each is ``"<file>:<line>: <text>"``: the file name, the 1-based line number and the line without trailing
+    whitespace; ``AGENTS.md`` is read first, and lines come in file order. The owner settles each in ``factory.yaml``.
+    """
+    found: list[str] = []
+    for name in _CONFLICT_FILES:
+        path = Path(repo) / name
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+        for number, line in enumerate(text.split("\n"), start=1):
+            if _CONFLICT_RULES.search(line):
+                found.append(f"{name}:{number}: {line.rstrip()}")
+    return found
