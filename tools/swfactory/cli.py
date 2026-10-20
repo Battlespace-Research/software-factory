@@ -28,13 +28,14 @@ from swfactory.config import (
     load_role_table,
 )
 from swfactory.gitutil import GitError
-from swfactory.panel import combine, render_panel_summary, write_panel_summary
+from swfactory.mergegate import run_gate, write_gate_report
+from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
 from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel", "work", "approve"}
+COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -268,6 +269,34 @@ def _cmd_approve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_gate(args: argparse.Namespace) -> int:
+    try:
+        root = find_project_root(Path.cwd())
+        cfg = load_project_config(root / "factory.yaml")
+        item = find_work_item(root, args.id)
+        reviewed = args.reviewed_commit
+        if reviewed is None:
+            reviewed = latest_passing_commit(item.path)
+            if reviewed is None:  # exit 1, like a failed gate: the work is not ready to merge
+                print(
+                    f"no passing panel summary found for {item.id} under {item.path / 'reviews'} "
+                    "(run the review panel, or name the reviewed commit with --reviewed-commit)",
+                    file=sys.stderr,
+                )
+                return 1
+        report = run_gate(
+            root, cfg, item, reviewed, args.spot_check, run_verify=not args.no_verify, builds_approved=args.builds_approved
+        )
+        path = write_gate_report(item.path, report)
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    except (ValueError, OSError, GitError) as err:
+        return _print_problems([str(err)])
+    _print_text(f"{path}\n")
+    _print_text(f"GATE: {'PASS' if report.ok else 'FAIL'}\n")
+    return 0 if report.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -401,6 +430,31 @@ def build_parser() -> argparse.ArgumentParser:
     approve.add_argument("--host", default="", metavar="H", help="the host of the session, such as claude or codex")
     approve.add_argument("--session", default="", metavar="S", help="the session id, if the host has one")
     approve.set_defaults(handler=_cmd_approve)
+    gate = commands.add_parser(
+        "gate",
+        help="run the merge gate on a work item and write merge-gate.md in its folder; prints the report's path "
+        "and GATE: PASS or GATE: FAIL (exit 0 PASS, 1 FAIL, 2 could not run)",
+    )
+    gate.add_argument("id", metavar="ID", help="the work id, such as FEA-12; its folder must be in the checked-out tree")
+    gate.add_argument(
+        "--spot-check",
+        required=True,
+        metavar="TEXT",
+        help="the acceptance criterion you checked by hand and what you saw (write --spot-check=TEXT if it could "
+        "start with a dash); empty text fails the gate",
+    )
+    gate.add_argument(
+        "--reviewed-commit",
+        metavar="SHA",
+        help="the commit the panel passed (default: the commit of the newest passing panel summary of the work item)",
+    )
+    gate.add_argument("--no-verify", action="store_true", help="skip the full verify command (reported as skipped)")
+    gate.add_argument(
+        "--builds-approved",
+        action="store_true",
+        help="the owner agreed to the full build (needed when factory.yaml says builds: ask)",
+    )
+    gate.set_defaults(handler=_cmd_gate)
     return parser
 
 
