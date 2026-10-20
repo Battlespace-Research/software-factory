@@ -11,7 +11,9 @@ A review file starts with ``VERDICT: PASS`` or ``VERDICT: CHANGES`` and may cont
     | R2 | major | src/x.py:40 | ... | ... |
 
 The same content can arrive as JSON (``schemas/review.schema.json``), which is what Codex returns when it is
-given the schema. The parsers are deliberately strict: anything that is not clearly a review raises
+given the schema. Under ``## Earlier findings`` and ``## Findings`` there is only a table, or ``None.`` when
+there is nothing to list; other text there (a bullet list, say) would read as "no findings", so it is an error.
+The parsers are deliberately strict: anything that is not clearly a review raises
 ``ReviewFormatError`` so the panel reports INCOMPLETE and never a PASS read out of garbled text. Windows
 files (CRLF line endings, a UTF-8 BOM) parse exactly like Unix ones.
 """
@@ -126,6 +128,12 @@ _HEADING = re.compile(r"#{1,6}[ \t]+(.+?)[ \t]*#*")
 _SEPARATOR_CELL = re.compile(r":?-+:?")
 _UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 _SECTION_FOR_HEADING = {"earlier findings": "prior", "findings": "findings"}
+_SECTION_TITLE = {"prior": "Earlier findings", "findings": "Findings"}
+_NONE_LINE = re.compile(r"none\.?", re.IGNORECASE)
+
+
+def _clip(text: str, limit: int = 60) -> str:
+    return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
 def _normalize(text: str) -> str:
@@ -170,8 +178,7 @@ def parse_review_markdown(text: str, lens: str, nit_cap: int = DEFAULT_NIT_CAP) 
     if first is None:
         if not text.strip():
             raise ReviewFormatError("the review is empty; its first line must be 'VERDICT: PASS' or 'VERDICT: CHANGES'")
-        shown = lines[0] if len(lines[0]) <= 60 else lines[0][:57] + "..."
-        raise ReviewFormatError(f"the first line must be 'VERDICT: PASS' or 'VERDICT: CHANGES', not {shown!r}")
+        raise ReviewFormatError(f"the first line must be 'VERDICT: PASS' or 'VERDICT: CHANGES', not {_clip(lines[0])!r}")
 
     sections: dict[str, list[tuple[int, str]]] = {}
     current: str | None = None  # None before the first heading; "" under a heading that is neither table's
@@ -190,6 +197,13 @@ def parse_review_markdown(text: str, lens: str, nit_cap: int = DEFAULT_NIT_CAP) 
                     f"line {number}: a table must sit under '## Earlier findings' or '## Findings'"
                 )
             sections[current].append((number, line))
+        elif current and line.strip() and not _NONE_LINE.fullmatch(line.strip()):
+            # Only a table, or "None.", can say what a findings section holds. Anything else (a bullet list,
+            # a paragraph) would be read as "no findings" and let a PASS through over findings written as prose.
+            raise ReviewFormatError(
+                f"line {number}: under '## {_SECTION_TITLE[current]}' write a table, or 'None.' when there is "
+                f"nothing to list, not {_clip(line.strip())!r}"
+            )
 
     findings = [
         _make_finding(f"line {number}", *cells)

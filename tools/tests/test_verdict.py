@@ -133,10 +133,49 @@ def test_tables_need_no_separator_row_and_no_trailing_pipe():
     assert parse_review_markdown(text, "spec").findings == [Finding("R2", "major", "src/x.py:40", "a", "b")]
 
 
-def test_prose_around_the_tables_is_ignored():
-    text = "VERDICT: PASS\n\nSummary: all good.\n\n## Findings\nNone.\n\n## Notes\nChecked twice.\n"
+def test_prose_outside_the_findings_sections_is_ignored():
+    # Prose before the first heading, and under a heading that is neither table's, is not a finding list.
+    text = ("VERDICT: PASS\n\nSummary: all good.\n\n## Findings\nNone.\n\n"
+            "## Earlier findings\nnone\n\n## Notes\n- Checked twice.\nSee the spec.\n")
     review = parse_review_markdown(text, "spec")
     assert (review.verdict, review.findings, review.prior) == ("PASS", [], [])
+
+
+@pytest.mark.parametrize("none", ["None.", "None", "none", "NONE.", "  None.  "])
+def test_none_marks_an_empty_findings_section(none):
+    review = parse_review_markdown(f"VERDICT: PASS\n## Findings\n{none}\n## Earlier findings\n{none}\n", "spec")
+    assert (review.findings, review.prior) == ([], [])
+
+
+def test_none_may_sit_beside_a_table_and_blank_lines_are_fine():
+    text = "VERDICT: CHANGES\n## Findings\n\nNone.\n\n" + HEADER + "| R1 | major | a.py:1 | x | y |\n\n"
+    assert parse_review_markdown(text, "spec").findings == [Finding("R1", "major", "a.py:1", "x", "y")]
+
+
+@pytest.mark.parametrize(
+    "section, body",
+    [
+        ("Findings", "- R1 major a.py:1 the loop never ends\n"),  # findings as a bullet list, not a table
+        ("Findings", "* R1 (blocker) a.py:1 the loop never ends\n"),
+        ("Findings", "R1: major - the loop never ends\n"),
+        ("Findings", "There are no findings.\n"),
+        ("Findings", "None found.\n"),
+        ("Findings", "Nonexistent.\n"),
+        ("Findings", "```\n| R1 | major | a.py:1 | x | y |\n```\n"),
+        ("Findings", "None.\n- R1 major a.py:1 the loop never ends\n"),  # "None." does not excuse the list after it
+        ("Earlier findings", "- R1 not fixed\n"),
+    ],
+)
+def test_a_findings_section_that_is_not_a_table_or_none_raises(section, body):
+    # Read as "no findings", a bullet list of blockers would let a PASS through.
+    with pytest.raises(ReviewFormatError, match=rf"under '## {section}' write a table"):
+        parse_review_markdown(f"VERDICT: PASS\n## {section}\n{body}", "correctness")
+
+
+def test_the_bullet_list_case_names_its_line():
+    text = "VERDICT: PASS\n## Findings\n- R1 major a.py:1 the loop never ends\n"
+    with pytest.raises(ReviewFormatError, match=r"line 3: .*the loop never ends"):
+        parse_review_markdown(text, "correctness")
 
 
 def test_headings_are_case_insensitive_and_any_level():

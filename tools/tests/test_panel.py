@@ -81,6 +81,15 @@ def test_combine_empty_file_is_invalid_not_a_pass(tmp_path):
     assert combine(tmp_path, "T1", 1, FIX_LENSES, "abc").verdict == "INCOMPLETE"
 
 
+def test_combine_findings_written_as_a_bullet_list_are_invalid_not_a_pass(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", "VERDICT: PASS\n## Findings\n- R1 major a.py:1 the loop never ends\n")
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    result = combine(tmp_path, "T1", 1, FIX_LENSES, "abc")
+    assert result.verdict == "INCOMPLETE" and result.missing == [] and result.blocking == []
+    assert list(result.invalid) == ["correctness"]
+    assert "T1-r1-correctness.md" in result.invalid["correctness"] and "write a table" in result.invalid["correctness"]
+
+
 def test_combine_file_that_is_not_utf8_is_invalid(tmp_path):
     write_review(tmp_path, "T1", 1, "correctness", PASS)
     write_review(tmp_path, "T1", 1, "security", b"VERDICT: PASS\n\xff\xfe")
