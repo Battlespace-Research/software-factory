@@ -33,6 +33,7 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 - Agent review on GitHub pull requests. Optional per project, off by default, no GitHub Action yet [F11].
 - Organization-wide managed settings, telemetry export (OpenTelemetry) and org dashboards. Revisit when several teams use the factory.
 - Automatic vendor fallback when one vendor's usage runs low. Interesting (super-board does it); later.
+- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it (open question for the owner). Touching a submodule does not by itself make work a Program. **[Claude's call]**
 
 ## 4. Anti-goals — failure even if it technically works
 
@@ -47,7 +48,8 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 
 ## 5. Constraints
 
-- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Never write to the MACE checkout from factory work; MACE and NGC2 are read-only references.
+- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Factory work never writes to the NGC2 checkout (`E:\BSI\GitHub\MACE-NGC2-Prototype`), where other sessions are working; MACE and NGC2 are read-only references for the design.
+- **Project rules win.** Where a project's own rules (its `AGENTS.md`, `CLAUDE.md`, contribution rules) conflict with a factory default, the project's rule wins. Setup lists each conflict and the owner settles it in `factory.yaml`; the owner approving `factory.yaml` counts as the explicit request such rules ask for. **[Claude's call]**
 - **Work state is files in the project's own repo**, the source of truth; GitHub issues are an optional mirror [F07].
 - **Platforms.** BSI develops on Windows (PowerShell 7, Git Bash, Visual Studio); CI and Kubernetes work run on Linux. Factory scripts must run on both. Python 3 is available on both and is already used for the NGC2 dashboard.
 - **Licensing of prior art.** zazencodes' factory has no license: reuse ideas, never text. super-board is MIT: code or text borrowed from it keeps its notice. Third-party skills are referenced, not copied into the factory (section 13).
@@ -178,6 +180,13 @@ A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of int
 - Every spec and plan starts with a Status line: revision, review rounds, approval state. The major revision goes up once per review round; a decimal marks a correction or an amendment after approval.
 - A document is **frozen while a review round is open**: the author waits for every reviewer before editing (NGC2: a reviewer read a plan while it was being rewritten).
 
+### 8.2a Branches, ids and where in-flight work lives [Claude's call]
+
+- Triage creates a branch per work item, `factory/<ID>-<slug>`, and the work folder lives on it until merge. A queued item's branch is its place in the queue.
+- A project whose rules forbid extra branches sets `branching: single` in `factory.yaml`; the factory then works on one local branch the owner names, one work item at a time.
+- **Ids:** triage scans the base branch and all local and remote `factory/*` branches for ids in use and takes the next number. The merge gate checks the id is still unused on the base; on a rare collision the later item takes a letter suffix (`FEA-12b`). Ids never change once given. With the GitHub mirror on, the issue number can be the id.
+- The dashboard reads work folders across branches with git (`git show <branch>:<path>`), without checking anything out, so it shows queued, in-flight and merged work from one place.
+
 ### 8.3 Tracks and triage [Claude's call on the thresholds]
 
 | | Program | Feature | Fix |
@@ -208,7 +217,11 @@ Triage puts work in the **smallest track that fits** and records why. A Fix beco
 
 ### 9.2 Verify command
 
-Each project declares **one** verify command in `factory.yaml`. It exits non-zero on failure and prints totals. "Done" requires its pasted output. Results are compared with `factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (NGC2 lesson).
+Each project declares **one** verify command in `factory.yaml`, with two modes **[Claude's call]**:
+- `quick`: builds and tests what the task touched; run at every task's Verify step. Must fit a Fix inside one session.
+- `full`: the whole build and suite; run by the tester when the plan says so, at milestone demos, and at the merge gate.
+
+Both exit non-zero on failure and print totals. "Done" requires the pasted output. Full results are compared with `factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (NGC2 lesson). A project whose rules restrict builds (MACE builds only when instructed) sets `builds: ask`, and the factory asks before each full run.
 
 ### 9.3 Review panel [F09]
 
@@ -285,6 +298,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 - Each eval runs a track headless in a scratch clone at the pre-change commit; the hidden check scores it; the run records pass/fail, rounds, cost and time.
 - Evals run whenever `roles.yaml`, `skills.yaml`, a factory skill, a prompt or a host version changes, before that change merges into the factory's main. A drop in pass rate blocks the change until the owner accepts it.
 - Every factory incident (a wrong merge, a missed bug) becomes a new eval.
+- **Where and how much (version 1) [Claude's call]:** evals run locally, on demand, through `factory-evals`, on a machine that can build each eval's project. Each run has a time and cost cap in the factory config (default: the five seed evals, run in full, one at a time). Results are committed to `evals/results/`, and the factory repo's own merge gate checks that a change touching the triggers has a fresh, non-worse result. Running evals in CI comes later; it needs vendor API keys set as CI secrets by a person and eval projects that build on Linux.
 
 ## 13. Third-party skills
 
