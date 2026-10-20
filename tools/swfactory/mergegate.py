@@ -3,8 +3,10 @@
 ``run_gate`` runs six checks, always all of them so one report shows everything that is wrong:
 
 1. ``base-merged``: the base branch is already merged into the branch being merged.
-2. ``reviewed-commit``: HEAD is the commit the review panel passed, and no tracked file has uncommitted changes.
-3. ``size-cap``: the change is under the project's line cap (generated files and binaries do not count).
+2. ``reviewed-commit``: HEAD is the commit the review panel passed (or later commits changed nothing but
+   factory bookkeeping under ``factory/work/``), and no tracked file has uncommitted changes.
+3. ``size-cap``: the change is under the project's line cap. Generated files, binaries and everything under
+   ``factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
 4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id).
 5. ``verify-full``: the project's full verify command passes.
 6. ``spot-check``: someone checked one acceptance criterion by hand and said so.
@@ -35,7 +37,8 @@ GATE_FILE = "merge-gate.md"
 
 _REMOTE = "origin"
 _VERIFY_TAIL_LINES = 40
-_LISTED_PATHS = 5  # paths named in the detail of a tree with uncommitted changes
+_LISTED_PATHS = 5  # paths a detail names before it says "and N more"
+_WORK_ROOT = "factory/work/"  # where the factory keeps work folders; git paths always use "/"
 _DASH = "—"  # between a check's result and its detail in the report
 
 
@@ -118,11 +121,56 @@ def _modified_tracked_files(repo: Path) -> list[str]:
     return paths
 
 
+def _name_paths(paths: list[str]) -> str:
+    """The first few paths for a detail, then how many more there are."""
+    listed = ", ".join(paths[:_LISTED_PATHS])
+    return f"{listed} and {len(paths) - _LISTED_PATHS} more" if len(paths) > _LISTED_PATHS else listed
+
+
+def _paths_changed_since(repo: Path, reviewed: str) -> list[str]:
+    """Every path that differs between the commit ``reviewed`` and HEAD. ``--no-renames`` lists both the old and
+    the new path of a move, so a product file moved into ``factory/work/`` still shows up under its old name."""
+    listing = run_git(repo, "diff", "--no-renames", "--name-only", "-z", f"{reviewed}..HEAD")
+    return [path for path in listing.split("\0") if path]
+
+
+def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None, str | None]:
+    """How HEAD relates to the reviewed commit: ``(problem, None)`` or ``(None, what to say when it is fine)``.
+
+    Fine when they are the same commit, or when the reviewed commit is an ancestor of HEAD and the commits
+    since changed only paths under ``factory/work/``: the factory commits its bookkeeping (panel summaries, the
+    tester report, progress notes, approvals, this gate's report) after a review has passed, and none of that
+    is product code the panel would have to look at again.
+    """
+    if head == reviewed:
+        return None, f"HEAD {head[:12]} is the commit the panel passed"
+    if int(run_git(repo, "rev-list", "--count", f"HEAD..{reviewed}")) != 0:  # the reviewed commit has commits HEAD lacks
+        return (
+            f"HEAD is {head[:12]} but the panel passed {reviewed[:12]}, which is not an ancestor of HEAD; "
+            "run the panel again on HEAD",
+            None,
+        )
+    later = int(run_git(repo, "rev-list", "--count", f"{reviewed}..HEAD"))
+    outside = [path for path in _paths_changed_since(repo, reviewed) if not path.startswith(_WORK_ROOT)]
+    if outside:
+        return (
+            f"HEAD is {head[:12]}, {later} commit(s) after the reviewed commit {reviewed[:12]}, and they changed "
+            f"files outside {_WORK_ROOT}: {_name_paths(outside)}; run the panel again on HEAD",
+            None,
+        )
+    return None, (
+        f"HEAD is {later} commit(s) after the reviewed commit; later changes are factory bookkeeping only "
+        f"(reviewed {reviewed[:12]}, HEAD {head[:12]})"
+    )
+
+
 def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
-    """HEAD is the commit the panel passed, and no tracked file differs from HEAD: the full verify runs on the
-    working tree, so an uncommitted change would let it pass on something that is not in the merged commit."""
+    """HEAD is the commit the panel passed (see ``_since_the_review``), and no tracked file differs from HEAD:
+    the full verify runs on the working tree, so an uncommitted change would let it pass on something that is
+    not in the merged commit. Both kinds of failure are reported together."""
     head = run_git(repo, "rev-parse", "--verify", "HEAD^{commit}")
     problems = []
+    fine = None
     wanted = reviewed_commit.strip()
     if not wanted or wanted.startswith("-"):
         problems.append(f"{reviewed_commit!r} does not name the commit the panel passed")
@@ -132,21 +180,22 @@ def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
         except GitError:
             problems.append(f"the reviewed commit {wanted} is not a commit in this repository")
         else:
-            if head != reviewed:
-                problems.append(f"HEAD is {head[:12]} but the panel passed {reviewed[:12]}; run the panel again on HEAD")
+            problem, fine = _since_the_review(repo, head, reviewed)
+            if problem:
+                problems.append(problem)
     modified = _modified_tracked_files(repo)
     if modified:
-        listed = ", ".join(modified[:_LISTED_PATHS])
-        more = f" and {len(modified) - _LISTED_PATHS} more" if len(modified) > _LISTED_PATHS else ""
-        problems.append(f"uncommitted changes in {len(modified)} tracked file(s): {listed}{more}")
+        problems.append(f"uncommitted changes in {len(modified)} tracked file(s): {_name_paths(modified)}")
     if problems:
         return False, "; ".join(problems)
-    return True, f"HEAD {head[:12]} is the commit the panel passed, and no uncommitted changes in tracked files"
+    return True, f"{fine}; no uncommitted changes in tracked files"
 
 
 def _changed_lines(numstat: str, generated: list[str]) -> int:
-    """Lines added plus lines deleted in the output of ``git diff --numstat -z``, leaving out binary files and
-    paths that match a pattern in ``generated`` (``fnmatch`` globs; ``*`` also crosses ``/``).
+    """Lines added plus lines deleted in the output of ``git diff --numstat -z``, leaving out binary files,
+    everything under ``factory/work/`` (the factory's own artifacts are not product code, so the size cap
+    does not count them) and paths that match a pattern in ``generated`` (``fnmatch`` globs; ``*`` also
+    crosses ``/``).
 
     With ``-z`` a record is ``<added> TAB <deleted> TAB <path> NUL``, or for a rename or copy
     ``<added> TAB <deleted> TAB NUL <old path> NUL <new path> NUL``; the new path is the one that is matched.
@@ -168,9 +217,9 @@ def _changed_lines(numstat: str, generated: list[str]) -> int:
             lines = None if added == "-" and deleted == "-" else int(added) + int(deleted)
         except (ValueError, IndexError):
             raise GitError(f"cannot read the output of git diff --numstat: unexpected record {record!r}") from None
-        if lines is None or any(fnmatch.fnmatchcase(path, pattern) for pattern in generated):
-            continue
-        total += lines
+        left_out = path.startswith(_WORK_ROOT) or any(fnmatch.fnmatchcase(path, pattern) for pattern in generated)
+        if lines is not None and not left_out:
+            total += lines
     return total
 
 
@@ -189,7 +238,7 @@ def _size_cap(repo: Path, cfg: ProjectConfig, refs: list[_BaseRef]) -> tuple[boo
 
 def _work_folders(repo: Path, ref: str) -> list[str]:
     """The names of the folders directly inside ``factory/work/`` in the tree of ``ref``."""
-    listing = run_git(repo, "ls-tree", "-z", ref, "--", "factory/work/")
+    listing = run_git(repo, "ls-tree", "-z", ref, "--", _WORK_ROOT)
     names = []
     for entry in listing.split("\0"):
         meta, _, path = entry.partition("\t")  # "<mode> <type> <object>" TAB "<path>"

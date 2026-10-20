@@ -18,7 +18,7 @@ from swfactory import cli
 from swfactory.gitutil import run_git
 from swfactory.mergegate import GateCheck, GateReport, run_gate, write_gate_report
 from swfactory.panel import PanelResult, write_panel_summary
-from swfactory.workitems import WorkItem, create_work_item
+from swfactory.workitems import WorkItem, create_work_item, write_status
 
 CHECK_NAMES = ["base-merged", "reviewed-commit", "size-cap", "id-unused-on-base", "verify-full", "spot-check"]
 SPOT = "AC1: the licence dialog now opens (seen on the demo project)"
@@ -263,7 +263,114 @@ def test_a_wrong_commit_and_uncommitted_changes_are_both_reported(work, gate_cfg
     older = run_git(work.repo, "rev-parse", "HEAD~1")
     result = check(gate(work, gate_cfg, reviewed_commit=older), "reviewed-commit")
     assert not result.ok
-    assert "the panel passed" in result.detail and "uncommitted changes in 1 tracked file(s)" in result.detail
+    assert "run the panel again" in result.detail and "uncommitted changes in 1 tracked file(s)" in result.detail
+
+
+# The factory commits its own bookkeeping after a review passes (panel summary, progress.md, approvals, the
+# gate report), all inside the work folder under factory/work/. That must not make the gate unpassable.
+
+WORK_FOLDER = "factory/work/FEA-1-demo"
+
+
+def test_bookkeeping_commits_after_the_review_keep_reviewed_commit_ok(work, gate_cfg):
+    commit_file(work.repo, f"{WORK_FOLDER}/reviews/T1-r1-panel.md", "VERDICT: PASS\n", message="FEA-1: panel summary")
+    commit_file(work.repo, f"{WORK_FOLDER}/progress.md", "Status: build\n", message="FEA-1: progress")
+    result = check(gate(work, gate_cfg), "reviewed-commit")  # reviewed = the commit before both
+    assert result.ok
+    assert "HEAD is 2 commit(s) after the reviewed commit" in result.detail
+    assert "later changes are factory bookkeeping only" in result.detail
+
+
+def test_one_bookkeeping_commit_touching_several_files_is_fine(work, gate_cfg):
+    for name in ("reviews/T1-r1-panel.md", "approvals/spec-rev1.md", "progress.md"):
+        path = work.repo / WORK_FOLDER / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x\n", encoding="utf-8", newline="\n")
+    run_git(work.repo, "add", "-A")
+    run_git(work.repo, "commit", "-q", "-m", "FEA-1: bookkeeping")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert result.ok and "HEAD is 1 commit(s) after the reviewed commit" in result.detail
+
+
+def test_bookkeeping_in_another_items_folder_counts_too(work, gate_cfg):
+    commit_file(work.repo, "factory/work/FIX-3-other/progress.md", "Status: build\n", message="FIX-3: progress")
+    assert check(gate(work, gate_cfg), "reviewed-commit").ok
+
+
+def test_a_product_commit_after_the_review_fails_naming_the_file(work, gate_cfg):
+    commit_file(work.repo, f"{WORK_FOLDER}/progress.md", "Status: build\n", message="FEA-1: progress")
+    commit_file(work.repo, "src/late.py", message="a change after the review")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok
+    assert "src/late.py" in result.detail and "progress.md" not in result.detail
+    assert "bookkeeping only" not in result.detail
+
+
+def test_a_commit_mixing_bookkeeping_and_product_files_names_only_the_product_ones(work, gate_cfg):
+    (work.repo / WORK_FOLDER).mkdir(parents=True)
+    (work.repo / WORK_FOLDER / "progress.md").write_text("x\n", encoding="utf-8", newline="\n")
+    (work.repo / "src" / "app.py").write_text("sneaked in with the bookkeeping\n", encoding="utf-8", newline="\n")
+    run_git(work.repo, "add", "-A")
+    run_git(work.repo, "commit", "-q", "-m", "FEA-1: progress and a fix")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/app.py" in result.detail and "progress.md" not in result.detail
+
+
+def test_a_product_file_moved_into_the_work_folder_is_not_bookkeeping(work, gate_cfg):
+    (work.repo / WORK_FOLDER).mkdir(parents=True)
+    run_git(work.repo, "mv", "src/app.py", f"{WORK_FOLDER}/app.py")
+    run_git(work.repo, "commit", "-q", "-m", "hide a product file in the work folder")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/app.py" in result.detail  # the deletion of the old path shows
+
+
+def test_paths_that_only_look_like_the_work_folder_are_product_files(work, gate_cfg):
+    commit_file(work.repo, "factory/workshop/tool.py", message="not the work folder")
+    commit_file(work.repo, "docs/factory/work/note.md", message="not at the root")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok
+    assert "factory/workshop/tool.py" in result.detail and "docs/factory/work/note.md" in result.detail
+
+
+def test_product_changes_since_the_review_list_at_most_five_paths_but_count_them_all(work, gate_cfg):
+    for n in range(8):
+        commit_file(work.repo, f"src/late{n}.py", message=f"late {n}")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok
+    assert sum(f"src/late{n}.py" in result.detail for n in range(8)) == 5 and "and 3 more" in result.detail
+
+
+def test_a_reviewed_commit_that_is_not_an_ancestor_fails(work, gate_cfg):
+    run_git(work.repo, "switch", "-q", "-c", "elsewhere", "main")
+    commit_file(work.repo, "other.txt", message="a commit on another branch")
+    elsewhere = head(work.repo)
+    run_git(work.repo, "switch", "-q", "factory/FEA-1-demo")
+    result = check(gate(work, gate_cfg, reviewed_commit=elsewhere), "reviewed-commit")
+    assert not result.ok and "not an ancestor" in result.detail
+    assert elsewhere[:7] in result.detail and work.head[:7] in result.detail
+
+
+def test_a_review_of_a_later_commit_than_head_fails(work, gate_cfg):
+    commit_file(work.repo, f"{WORK_FOLDER}/progress.md", "Status: build\n", message="FEA-1: progress")
+    later = head(work.repo)
+    run_git(work.repo, "reset", "-q", "--hard", "HEAD~1")  # HEAD went back behind the reviewed commit
+    result = check(gate(work, gate_cfg, reviewed_commit=later), "reviewed-commit")
+    assert not result.ok and "not an ancestor" in result.detail
+
+
+def test_bookkeeping_after_the_review_and_an_uncommitted_edit_are_both_reported(work, gate_cfg):
+    commit_file(work.repo, f"{WORK_FOLDER}/progress.md", "Status: build\n", message="FEA-1: progress")
+    (work.repo / "src" / "app.py").write_text("edited\n", encoding="utf-8", newline="\n")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "uncommitted changes in 1 tracked file(s): src/app.py" in result.detail
+    assert "bookkeeping only" not in result.detail  # a pass is not claimed beside a failure
+
+
+def test_a_product_change_after_the_review_and_an_uncommitted_edit_are_both_reported(work, gate_cfg):
+    commit_file(work.repo, "src/late.py", message="a change after the review")
+    (work.repo / "src" / "app.py").write_text("edited\n", encoding="utf-8", newline="\n")
+    detail = check(gate(work, gate_cfg), "reviewed-commit").detail
+    assert "src/late.py" in detail and "uncommitted changes in 1 tracked file(s)" in detail
 
 
 def test_a_clean_tree_says_so_in_the_detail(work, gate_cfg):
@@ -370,6 +477,36 @@ def test_a_generated_pattern_without_a_folder_matches_any_depth(work, gate_cfg):
     commit_file(work.repo, "deep/er/api.g.cs", numbered(500), message="generated")
     cfg = dataclasses.replace(gate_cfg, generated=["*.g.cs"])
     assert check(gate(work, cfg, reviewed_commit=head(work.repo)), "size-cap").detail == "10 lines (cap 400)"
+
+
+def test_size_cap_ignores_the_work_folder(work, gate_cfg):
+    commit_file(work.repo, "factory/work/FEA-1-demo/spec.md", numbered(450, "spec"), message="FEA-1: spec")
+    commit_file(work.repo, "src/big.py", numbered(40), message="more code")  # 10 + 40 = 50 product lines
+    result = check(gate(work, gate_cfg, reviewed_commit=head(work.repo)), "size-cap")
+    assert result.ok and result.detail == "50 lines (cap 400)"
+
+
+def test_the_work_folder_is_left_out_whatever_generated_says(work, gate_cfg):
+    commit_file(work.repo, "factory/work/FEA-1-demo/plan.md", numbered(450, "plan"), message="FEA-1: plan")
+    cfg = dataclasses.replace(gate_cfg, generated=[])
+    assert check(gate(work, cfg, reviewed_commit=head(work.repo)), "size-cap").detail == "10 lines (cap 400)"
+
+
+def test_only_the_root_work_folder_is_left_out_of_the_size(work, gate_cfg):
+    commit_file(work.repo, "factory/workshop/tool.py", numbered(100), message="not the work folder")
+    commit_file(work.repo, "docs/factory/work/note.md", numbered(100), message="not at the root")
+    result = check(gate(work, gate_cfg, reviewed_commit=head(work.repo)), "size-cap")
+    assert result.detail == "210 lines (cap 400)"
+
+
+def test_a_file_renamed_into_the_work_folder_is_not_counted_there(git_repo, gate_cfg):
+    commit_file(git_repo, "docs/design.md", numbered(300, "doc"), message="a doc on the base")
+    run_git(git_repo, "push", "-q", "origin", "main")
+    work = make_work(git_repo)
+    (git_repo / "factory" / "work" / "FEA-1-demo").mkdir(parents=True)
+    run_git(git_repo, "mv", "docs/design.md", "factory/work/FEA-1-demo/design.md")
+    run_git(git_repo, "commit", "-q", "-m", "move the doc into the work folder")
+    assert check(gate(work, gate_cfg, reviewed_commit=head(git_repo)), "size-cap").detail == "10 lines (cap 400)"
 
 
 # --------------------------------------------------------------------------- id-unused-on-base
@@ -696,6 +833,18 @@ def test_cli_gate_builds_ask_needs_the_flag(opened, capsys):
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT]) == 1
     assert "ask the owner" in (opened.item.path / "merge-gate.md").read_text(encoding="utf-8")
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT, "--builds-approved"]) == 0
+
+
+def test_cli_gate_passes_after_the_factory_committed_its_bookkeeping(opened, capsys):
+    """The whole loop: the panel passes at a commit, the summary and a progress note are committed, then the gate runs."""
+    pass_panel(opened)  # reviews/T1-r1-panel.md names the commit that was reviewed
+    write_status(opened.item.path, "build", "reviewed", "run the gate", "panel passed")
+    run_git(opened.repo, "add", "--", "factory/work")
+    run_git(opened.repo, "commit", "-q", "-m", "FEA-1: panel summary and progress")
+    assert head(opened.repo) != opened.head
+    assert cli.main(["gate", "FEA-1", "--spot-check", SPOT]) == 0
+    report = (opened.item.path / "merge-gate.md").read_text(encoding="utf-8")
+    assert "- reviewed-commit: ok — HEAD is 1 commit(s) after the reviewed commit" in report
 
 
 def test_cli_gate_fails_on_uncommitted_changes_to_a_tracked_file(opened, capsys):
