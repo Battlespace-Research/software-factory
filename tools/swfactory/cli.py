@@ -9,6 +9,7 @@ import argparse
 import contextlib
 import json
 import signal
+import subprocess
 import sys
 from collections.abc import Iterator
 from dataclasses import asdict
@@ -25,13 +26,20 @@ from swfactory.config import (
     load_project_config,
     load_role_table,
 )
+from swfactory.panel import combine, render_panel_summary, write_panel_summary
+from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
+from swfactory.tracks import find_project_root, track_for_id
 
-COMMANDS: set[str] = {"config", "role"}
+COMMANDS: set[str] = {"config", "role", "panel"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
 EXIT_NOT_A_COMMAND = 3  # a main or subagent role: the caller has to act on what was printed
+
+# Exit codes of ``factory panel combine`` are the panel verdict. A problem that stops it reaching a verdict
+# (not a work folder, no REVIEW.md, no git to name the commit) exits EXIT_USAGE with the reason on stderr.
+_PANEL_EXIT = {"PASS": 0, "CHANGES": 1, "INCOMPLETE": 2}
 
 # ``factory role resolve`` prints the invocation without a real output file; this stands in.
 _PLACEHOLDER_OUT = Path("<out-file>")
@@ -129,6 +137,54 @@ def _cmd_role_run(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_panel_help(args: argparse.Namespace) -> int:
+    args.panel_parser.print_help()
+    return EXIT_USAGE
+
+
+def _head_commit(root: Path) -> str:
+    """The full SHA of HEAD in the project at ``root``; raises ``RuntimeError`` saying why there is none."""
+    problem = f"cannot read HEAD of {root} to name the reviewed commit (pass --commit)"
+    try:
+        done = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as err:
+        raise RuntimeError(f"{problem}: {err}") from None
+    sha = done.stdout.strip()
+    if done.returncode != 0 or not sha:
+        raise RuntimeError(f"{problem}: {done.stderr.strip() or 'git printed nothing'}")
+    return sha
+
+
+def _print_text(text: str) -> None:
+    """Print ``text``, replacing any character the console's encoding cannot show. An uncaught
+    ``UnicodeEncodeError`` would exit 1, which ``panel combine`` uses to say CHANGES."""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    sys.stdout.write(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+
+
+def _cmd_panel_combine(args: argparse.Namespace) -> int:
+    work_dir: Path = args.work_dir
+    if not work_dir.is_dir():
+        return _print_problems([f"{work_dir} is not a folder"])
+    try:
+        track = track_for_id(work_dir.resolve().name)
+        root = find_project_root(work_dir)
+        cfg = load_review_md(root / "REVIEW.md")
+        lenses = cfg.tracks.get(track)
+        if lenses is None:
+            raise ConfigError([f"{root / 'REVIEW.md'} lists no lenses for the '{track}' track (add it under tracks)"])
+        commit = args.commit if args.commit is not None else _head_commit(root)
+        result = combine(work_dir, args.task, args.round, lenses, commit, cfg.nit_cap)
+        path = write_panel_summary(work_dir, args.task, args.round, result)
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    except (ValueError, OSError, RuntimeError) as err:
+        return _print_problems([str(err)])
+    _print_text(render_panel_summary(result))
+    _print_text(f"wrote {path}\n")
+    return _PANEL_EXIT[result.verdict]
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -179,6 +235,29 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--schema", type=Path, metavar="FILE", help="a JSON schema for the reply (Codex only)")
     resolve.set_defaults(handler=_cmd_role_resolve)
     run.set_defaults(handler=_cmd_role_run)
+
+    panel = commands.add_parser("panel", help="combine the lens reviews of a task round into one verdict")
+    panel.set_defaults(handler=_cmd_panel_help, panel_parser=panel)
+    panel_commands = panel.add_subparsers(dest="panel_command", metavar="<subcommand>")
+    combine_cmd = panel_commands.add_parser(
+        "combine",
+        help="read the round's lens reviews, write the panel summary (exit 0 PASS, 1 CHANGES, 2 INCOMPLETE)",
+    )
+    combine_cmd.add_argument(
+        "work_dir",
+        type=Path,
+        metavar="WORK_DIR",
+        help="the work item's folder, factory/work/<ID>-<slug>; its name gives the track, and its lenses come "
+        "from the project's REVIEW.md",
+    )
+    combine_cmd.add_argument("--task", required=True, metavar="T", help="the task id, as in reviews/<T>-r<N>-<lens>.md")
+    combine_cmd.add_argument("--round", required=True, type=int, metavar="N", help="the review round, 1 or more")
+    combine_cmd.add_argument(
+        "--commit",
+        metavar="SHA",
+        help="the commit that was reviewed (default: HEAD of the project, as a full SHA)",
+    )
+    combine_cmd.set_defaults(handler=_cmd_panel_combine)
     return parser
 
 

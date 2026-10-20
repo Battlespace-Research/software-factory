@@ -1,0 +1,65 @@
+{
+  "title": "Lens review",
+  "description": "One lens reviewer's verdict on a task, the status of the findings it raised in an earlier round, and its findings in this round. It is the JSON form of the review file (see tools/swfactory/verdict.py); `codex exec --output-schema` accepts it as-is.",
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "description": "CHANGES when any blocker or major finding is listed or still not fixed, otherwise PASS.",
+      "type": "string",
+      "enum": ["PASS", "CHANGES"]
+    },
+    "findings": {
+      "description": "The findings of this round, at most the nit cap of nits. Empty when there are none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "A short id that is never reused across rounds, such as R3.",
+            "type": "string"
+          },
+          "severity": {
+            "description": "blocker or major sends the task back; minor and nit do not.",
+            "type": "string",
+            "enum": ["blocker", "major", "minor", "nit"]
+          },
+          "location": {
+            "description": "file:line, or empty when the finding is not about one place.",
+            "type": "string"
+          },
+          "summary": {
+            "description": "What is wrong and why it matters.",
+            "type": "string"
+          },
+          "fix": {
+            "description": "A concrete change that resolves it.",
+            "type": "string"
+          }
+        },
+        "required": ["id", "severity", "location", "summary", "fix"],
+        "additionalProperties": false
+      }
+    },
+    "prior": {
+      "description": "The status of each finding from the earlier round's review. Empty in the first round.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "The id the finding had in the earlier round.",
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["fixed", "not fixed", "no longer applies"]
+          }
+        },
+        "required": ["id", "status"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["verdict", "findings", "prior"],
+  "additionalProperties": false
+}
