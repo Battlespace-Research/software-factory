@@ -307,16 +307,23 @@ def test_a_run_that_produces_no_text_is_a_failure(tmp_path, table, fake_cli):
     assert res.exit_code == 0 and "no output" in res.stderr_tail
 
 
-def test_timeout_is_a_failure_and_does_not_wait_for_the_child(tmp_path, table, fake_cli):
+def test_timeout_is_a_failure_and_kills_the_whole_process_tree(tmp_path, table, fake_cli, monkeypatch):
+    # The fake runs behind a shim process (cmd.exe on Windows), creates the marker 3 s after it has read
+    # the prompt, then sleeps a minute. Killing only the shim would leave it running to create the marker.
+    marker_after_s = 3
+    marker = tmp_path / "still-running.txt"
     fake_cli.mode("sleep")
+    monkeypatch.setenv("FAKE_CLI_SLEEP", str(marker_after_s))
+    monkeypatch.setenv("FAKE_CLI_MARKER", str(marker))
     r, inv, out = lens(table, tmp_path)
     started = time.monotonic()
     res = run_invocation(inv, r, "prompt", out, timeout_s=1)
-    # The fake sleeps 60 s behind a shim process. Killing only the shim leaves the pipes open and the
-    # run would wait out the drain limit (10 s); killing the whole tree returns within a second or two.
-    assert time.monotonic() - started < 8
+    assert time.monotonic() - started < 60            # generous: it never waits out the fake's minute
     assert not res.ok and res.suggest_fallback and not out.exists()
     assert res.exit_code is None and "timed out" in res.stderr_tail
+    assert len(fake_cli.calls()) == 1                  # the fake was running when the timeout hit
+    time.sleep(marker_after_s + 2)                     # past the moment a surviving fake would create it
+    assert not marker.exists(), "the vendor CLI outlived the timeout: the process tree was not killed"
 
 
 def test_paths_with_spaces(tmp_path, table, fake_cli):
@@ -536,6 +543,58 @@ def test_unbalanced_quotes_in_extra_codex_args_are_a_config_error(tmp_path, tabl
         run_invocation(inv, r, "prompt", out)
     assert "FACTORY_CODEX_ARGS" in e.value.problems[0]
     assert fake_cli.calls() == []
+
+
+REFUSED_EXTRA_ARGS = [
+    "-s danger-full-access", "-sdanger-full-access", "--sandbox danger-full-access",
+    "--sandbox=danger-full-access", "-s=workspace-write",
+    "-a never", "--ask-for-approval never", "--ask-for-approval=on-request",
+    "--full-auto", "--approve-for-me",
+    "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "--dangerously-bypass",
+    "-o elsewhere.md", "--output-last-message elsewhere.md", "--output-last-message=elsewhere.md",
+    "--output-schema other.json", "--output-schema=other.json",
+    "-C ..", "--cd ..", "--cd=..",
+    '-c windows.sandbox="unelevated" --sandbox workspace-write',   # a refused option after an allowed one
+    '"--sandbox" danger-full-access',                               # quoted, as Windows keeps the quotes
+]
+
+
+@pytest.mark.parametrize("extra", REFUSED_EXTRA_ARGS)
+def test_extra_codex_args_cannot_override_the_sandbox_approvals_output_or_folder(
+        tmp_path, table, fake_cli, monkeypatch, extra):
+    monkeypatch.setenv("FACTORY_CODEX_ARGS", extra)
+    r = resolve_role(table, "lens-security", "claude", "claude")
+    out = tmp_path / "reviews" / "o.md"                             # its folder does not exist yet
+    inv = plan_invocation(r, "claude", out)
+    with pytest.raises(ConfigError) as e:
+        run_invocation(inv, r, "prompt", out)
+    (problem,) = e.value.problems
+    assert "FACTORY_CODEX_ARGS" in problem and "not allowed" in problem
+    assert fake_cli.calls() == [] and list(tmp_path.iterdir()) == []   # nothing ran, nothing was created
+
+
+def test_a_refused_extra_arg_does_not_delete_an_earlier_output(tmp_path, table, fake_cli, monkeypatch):
+    monkeypatch.setenv("FACTORY_CODEX_ARGS", "--full-auto")
+    r, inv, out = lens(table, tmp_path)
+    out.write_text("VERDICT: PASS\nfrom an earlier run\n", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        run_invocation(inv, r, "prompt", out)
+    assert out.read_text(encoding="utf-8") == "VERDICT: PASS\nfrom an earlier run\n"
+
+
+@pytest.mark.parametrize("extra", [
+    '-c windows.sandbox="unelevated"',
+    "-c windows.sandbox=unelevated",
+    "--config windows.sandbox=unelevated",
+    "--profile quick",
+])
+def test_config_overrides_and_other_options_stay_allowed_in_extra_codex_args(
+        tmp_path, table, fake_cli, monkeypatch, extra):
+    monkeypatch.setenv("FACTORY_CODEX_ARGS", extra)
+    r, inv, out = lens(table, tmp_path)
+    assert run_invocation(inv, r, "prompt", out).ok
+    (call,) = fake_cli.calls()
+    assert call["argv"][-1] == "-" and len(call["argv"]) == len(run_argv(inv, out)) + 2
 
 
 def test_run_invocation_refuses_a_non_command_invocation(tmp_path, table):

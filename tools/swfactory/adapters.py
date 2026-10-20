@@ -53,12 +53,22 @@ CLAUDE_PRINT_FLAGS = {
     "allowed_tools": "--allowedTools",  # variadic: keep it the last option on the command line
 }
 CLAUDE_OUTPUT_FORMAT = "json"
-CLAUDE_PERMISSION_MODE = "plan"
-CLAUDE_READ_ONLY_TOOLS = "Read,Grep,Glob"
+CLAUDE_PERMISSION_MODE = "plan"  # the read-only guard of a claude -p run (see plan_invocation)
+CLAUDE_READ_ONLY_TOOLS = "Read,Grep,Glob"  # pre-approved so the run needs no prompt; not a limit on its tools
 
 # Environment variable holding extra arguments for every ``codex exec`` run, for example the
 # Windows workaround ``-c windows.sandbox="unelevated"`` when Codex's elevated sandbox fails.
 CODEX_ARGS_ENV = "FACTORY_CODEX_ARGS"
+
+# Options the extra arguments may not carry, as a whole argument or its start (``--sandbox=...``, ``-sread-only``,
+# every ``--dangerously-bypass...``): they would replace the sandbox, the approval policy, the output file or
+# schema, or the working folder the factory chose for the run. ``-c key=value`` overrides stay allowed.
+REFUSED_CODEX_ARGS = (
+    "-s", "--sandbox",
+    "-a", "--ask-for-approval", "--full-auto", "--approve-for-me", "--dangerously-bypass",
+    "-o", "--output-last-message", "--output-schema",
+    "-C", "--cd",
+)
 
 # Role-name globs (first match wins) to the subagent definition that runs them on a Claude host.
 AGENT_FOR_ROLE: dict[str, str] = {
@@ -157,6 +167,12 @@ def plan_invocation(r: ResolvedRole, host: Vendor, out_path: Path, schema_path: 
     A ``main`` role is done by the session. Any other OpenAI role runs through ``codex exec``.
     A Claude role on a Codex host runs through ``claude -p`` (always read-only). A Claude role on
     a Claude host is a subagent.
+
+    What keeps ``claude -p`` read-only is plan mode (``--permission-mode plan``), not the tool list:
+    ``--allowedTools Read,Grep,Glob`` pre-approves those tools, it does not restrict the run to them,
+    and the v1 rehearsal saw such a reviewer run read-only shell commands (``git diff``, ``git show``)
+    through Bash, which the lens needs. Denying writing tools by name (``--disallowedTools``) and
+    capping the turns (``--max-turns``) are plan-2 items.
     """
     sandbox = _sandbox_for(r.access)
     if r.run_as == "main":
@@ -187,14 +203,23 @@ def _tail(text: str) -> str:
 
 
 def _extra_codex_args() -> list[str]:
+    """The arguments in ``FACTORY_CODEX_ARGS``; ``ConfigError`` for unbalanced quotes or a refused option."""
     raw = os.environ.get(CODEX_ARGS_ENV, "")
     if not raw.strip():
         return []
     try:
         # Windows keeps the quotes (a TOML string such as "unelevated" needs them); POSIX strips them.
-        return shlex.split(raw, posix=(os.name != "nt"))
+        extra = shlex.split(raw, posix=(os.name != "nt"))
     except ValueError as err:
         raise ConfigError([f"{CODEX_ARGS_ENV}: cannot split {raw!r} into arguments: {err}"]) from None
+    refused = [arg for arg in extra if arg.strip("\"'").startswith(REFUSED_CODEX_ARGS)]
+    if refused:
+        raise ConfigError([
+            f"{CODEX_ARGS_ENV}: {arg!r} is not allowed: it would override the sandbox, approval, output-file or "
+            "working-folder settings the factory gives every codex exec run (use -c key=value for other settings)"
+            for arg in refused
+        ])
+    return extra
 
 
 def _with_extra(argv: list[str], extra: list[str]) -> list[str]:
@@ -370,7 +395,9 @@ def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path:
     A batch file (``.cmd``, ``.bat``; the npm shim of a vendor CLI is one) is refused with
     ``suggest_fallback=False`` and nothing is created when an argument holds a character cmd.exe
     would re-interpret (``& | < > ^ % !`` or a line break). Extra Codex arguments come from the
-    ``FACTORY_CODEX_ARGS`` environment variable; unbalanced quotes there raise ``ConfigError``.
+    ``FACTORY_CODEX_ARGS`` environment variable; unbalanced quotes there, or an option in
+    ``REFUSED_CODEX_ARGS`` (sandbox, approvals, output file or schema, working folder), raise
+    ``ConfigError`` before anything is started, created or deleted.
     """
     if inv.kind != "command" or not inv.argv:
         raise ValueError(f"run_invocation runs command invocations only, not {inv.kind!r}")

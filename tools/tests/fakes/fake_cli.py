@@ -6,7 +6,10 @@ The shims the ``fake_cli`` fixture puts on PATH run this script as
 * ``FAKE_CLI_MODE`` picks what the fake does (see ``MODES``); the default is ``pass``.
 * ``FAKE_CLI_LOG``, when set, names a file that receives one JSON line per call holding the
   tool name, the arguments the tool received, and the prompt it read from stdin.
-* ``FAKE_CLI_SLEEP`` is how many seconds ``partial-late`` waits (default 3).
+* ``FAKE_CLI_SLEEP`` is how many seconds ``partial-late`` waits, and how long ``sleep`` waits before it
+  writes ``FAKE_CLI_MARKER`` (default 3).
+* ``FAKE_CLI_MARKER``, when set, names a file ``sleep`` creates once that wait is over, so a test can
+  tell whether the process outlived a kill.
 
 Nothing here talks to a model.
 """
@@ -27,7 +30,7 @@ MODES = {
     "json-error": "a JSON object on stdout with is_error true, exit code 0",
     "badjson": "text that is not JSON on stdout, exit code 0",
     "empty": "no output at all, exit code 0",
-    "sleep": "sleeps for a minute (for the timeout test)",
+    "sleep": "waits FAKE_CLI_SLEEP s, creates FAKE_CLI_MARKER (when set), then sleeps a minute (the timeout test)",
     "partial-late": "writes partial text to -o FILE, waits, then writes a late verdict to it (a run nobody killed)",
 }
 
@@ -83,6 +86,10 @@ def main() -> int:
             _write_file(out_file, "")
         return 0
     if mode == "sleep":
+        time.sleep(float(os.environ.get("FAKE_CLI_SLEEP", "3")))
+        marker = os.environ.get("FAKE_CLI_MARKER")
+        if marker:
+            _write_file(marker, "still running\n")
         time.sleep(60)
         return 0
     if mode == "partial-late":
