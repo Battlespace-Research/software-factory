@@ -7,7 +7,8 @@
    factory bookkeeping under ``factory/work/``), and no tracked file has uncommitted changes.
 3. ``size-cap``: the change is under the project's line cap. Generated files, binaries and everything under
    ``factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
-4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id).
+4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id). The
+   item's own folder, ``<ID>-<slug>`` exactly, is not counted: a Program merges once per milestone.
 5. ``verify-full``: the project's full verify command passes.
 6. ``spot-check``: someone checked one acceptance criterion by hand and said so.
 
@@ -251,13 +252,16 @@ def _id_unused(repo: Path, cfg: ProjectConfig, item: WorkItem, refs: list[_BaseR
     if not refs:
         return _missing_base(cfg.base_branch)
     prefix = f"{item.id}-"  # the dash keeps FEA-1 apart from FEA-12 and FEA-1b
+    # This item's own folder, already merged by an earlier merge of the same item (a Program merges once per
+    # milestone), is not a clash; any other folder with the id is, whatever its slug.
+    own = f"{item.id}-{item.slug}"
     found: dict[str, str] = {}  # folder name -> the first base ref it was seen on
     for ref in refs:  # the remote copy and the local branch: either one holding the id is a clash
         for folder in _work_folders(repo, ref.full):
-            if folder.startswith(prefix):
+            if folder.startswith(prefix) and folder != own:
                 found.setdefault(folder, ref.label)
     if not found:
-        return True, f"no factory/work/{item.id}-* folder on {' or '.join(ref.label for ref in refs)}"
+        return True, f"no other factory/work/{item.id}-* folder than {own} on {' or '.join(ref.label for ref in refs)}"
     taken = ", ".join(f"factory/work/{folder} on {label}" for folder, label in found.items())
     try:
         suggestion = f"; the next free id is {with_letter_suffix(item.id, ids_in_use(repo, cfg.base_branch))}"

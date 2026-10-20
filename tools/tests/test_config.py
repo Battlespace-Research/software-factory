@@ -392,6 +392,21 @@ def test_project_config_rejects_bad_mode_and_single_without_branch(tmp_path):
     assert any("work_branch" in x and "single" in x for x in problems)
 
 
+@pytest.mark.parametrize("base", [None, "develop"])  # None: base_branch left to its default, main
+def test_project_config_rejects_single_branching_on_the_base_branch(tmp_path, base):
+    p = write_project(tmp_path, base_branch=base, branching="single", work_branch=base or "main")
+    with pytest.raises(ConfigError) as e:
+        load_project_config(p)
+    problems = e.value.problems
+    assert len(problems) == 1
+    assert "work_branch" in problems[0] and "base_branch" in problems[0] and (base or "main") in problems[0]
+
+
+def test_project_config_per_item_ignores_a_work_branch_equal_to_the_base(tmp_path):
+    c = load_project_config(write_project(tmp_path, branching="per-item", work_branch="main"))
+    assert (c.branching, c.base_branch) == ("per-item", "main")
+
+
 def test_project_config_missing_required_keys_all_reported(tmp_path):
     p = write_yaml(tmp_path / "factory.yaml", {"version": 1})
     with pytest.raises(ConfigError) as e:

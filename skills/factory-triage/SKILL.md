@@ -48,7 +48,7 @@ Tell the owner the track and the reason in a sentence or two. The owner may choo
 4. **Open it:** `factory work new --track <fix|feature|program> --slug <slug> --title "<title>"`. It allocates the id, creates (with `per-item`, switches to) the branch, copies the track's template files and commits them; it prints JSON with `id`, `branch` and `folder`.
 5. **Record the reason:** `factory work set-status <ID> --stage plan --state open --next "<next step>" --note "Triage: <track>, because <reason>"`. The next step is "write ticket.md" for a Fix, "short grill, then write intent.md" for a Feature, and "research and grill, then write intent.md and decisions.md" for a Program.
 6. **Commit it:** `factory role resolve interviewer --host <vendor> --project .` gives `resolved.model` and `resolved.effort`; then `git add -- <folder>/progress.md` and `git commit -m "<ID>: triage as <track>" --trailer "Factory-Work: <ID>" --trailer "Factory-Role: interviewer" --trailer "Factory-Model: <model> (<effort>)"`. Keep your host's own co-author line if it adds one.
-7. **Claim the id:** with `per-item` branching and a remote, push the new branch: `git push -u origin factory/<ID>-<slug>`. Push nothing else. (With `single`, push the work branch only if the project's rules allow it.)
+7. **Claim the id** by pushing the item's branch, under the factory's one push rule (section 8 of `../factory-run/SKILL.md`): push only the work item's branch (or its lessons branch, after the merge), only when a remote exists, only if the project's rules and `hard_stops` allow it, and never the base branch. First read `hard_stops` in `factory.yaml` and `../factory-run/references/hard-stops.md`; if a stop covers pushing (such as a project `no-push` id), do not push, and tell the owner. Otherwise: `git push -u origin <branch>` (with `per-item` branching `factory/<ID>-<slug>`; with `single`, the work branch).
 
 ## 5. A Fix: write the ticket
 
@@ -67,7 +67,7 @@ If writing the ticket shows the work is bigger than a Fix, stop and step it up (
 
 Give the item to the `factory-run` skill with its id: a Fix once its ticket is confirmed, a Feature or Program straight after step 4.
 
-If the owner wants the item queued rather than started (a Fix after its ticket is confirmed, while the owner is here), switch back to the branch you were on (`git switch <previous branch>`) and stop. With `per-item` branching the pushed branch is the item's place in the queue.
+If the owner wants the item queued rather than started (a Fix after its ticket is confirmed, while the owner is here), switch back to the branch you were on (`git switch <previous branch>`) and stop. With `per-item` branching the item's branch is its place in the queue.
 
 ## Stepping up
 
@@ -75,4 +75,4 @@ When the work outgrows its track (found here, or by `factory-run`), tell the own
 
 1. Commit any work on the old item, then open the new item at the bigger track (sections 3 and 4). Its triage note starts "Stepped up from <old ID>: <why>".
 2. Carry forward what still holds: read the old files without switching, with `git show <old branch>:factory/work/<old ID>-<old slug>/ticket.md` (or `intent.md`), and use them in the new item's intent, naming the old id. Commit.
-3. Switch to the old item's branch, run `factory work set-status <old ID> --stage close --state "stepped up" --next "none: continues as <new ID>" --note "Stepped up to <new ID>: <why>"`, commit and push it, and switch back to the new item's branch. The old id is never reused, and no id is renumbered.
+3. Switch to the old item's branch, run `factory work set-status <old ID> --stage close --state "stepped up" --next "none: continues as <new ID>" --note "Stepped up to <new ID>: <why>"`, commit, push it under the push rule (step 4.7), and switch back to the new item's branch. The old id is never reused, and no id is renumbered.

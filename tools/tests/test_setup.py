@@ -135,6 +135,7 @@ def test_values_with_backticks_get_a_safe_code_span(repo):
 def test_invalid_answers_raise_and_write_nothing(repo):
     for bad in (
         {"branching": "single"},  # work_branch is required
+        {"branching": "single", "work_branch": "main"},  # and must not be the base branch
         {"approvers": []},
         {"mode": "turbo"},
         {"verify_full": "  "},

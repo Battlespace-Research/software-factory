@@ -523,8 +523,23 @@ def test_id_in_use_on_the_base_fails_and_suggests_the_next_free_id(work, gate_cf
     assert "FEA-1-other-thing" in result.detail and "FEA-1b" in result.detail
 
 
-def test_id_check_fails_whatever_the_slug(work, gate_cfg):
-    advance_base(work.repo, "factory/work/FEA-1-demo/progress.md")  # even the same slug
+def test_the_items_own_folder_already_on_the_base_is_not_a_collision(work, gate_cfg):
+    """A Program merges once per milestone: from milestone 2 the base holds this item's own folder."""
+    advance_base(work.repo, "factory/work/FEA-1-demo/progress.md")  # exactly <ID>-<slug>
+    result = check(gate(work, gate_cfg), "id-unused-on-base")
+    assert result.ok, result.detail
+
+
+def test_the_same_id_with_another_slug_on_the_base_fails(work, gate_cfg):
+    advance_base(work.repo, "factory/work/FEA-1-demo/progress.md")  # this item's own folder: exempt
+    advance_base(work.repo, "factory/work/FEA-1-demo-2/progress.md")  # the same id, another slug: a clash
+    result = check(gate(work, gate_cfg), "id-unused-on-base")
+    assert not result.ok
+    assert "factory/work/FEA-1-demo-2 " in result.detail and "factory/work/FEA-1-demo " not in result.detail
+
+
+def test_the_own_folder_exemption_needs_the_exact_name(work, gate_cfg):
+    advance_base(work.repo, "factory/work/FEA-1-Demo/progress.md")  # differs only in case
     assert not check(gate(work, gate_cfg), "id-unused-on-base").ok
 
 

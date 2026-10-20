@@ -11,7 +11,8 @@ base_branch: {{base_branch}}
 # How work is branched.
 #   per-item: one branch per work item, cut from base_branch.
 #   single:   all work on the one local branch named in work_branch, one work item at a time
-#             (for a project whose own rules forbid extra branches).
+#             (for a project whose own rules forbid extra branches). work_branch is never base_branch:
+#             the owner merges it into the base.
 branching: {{branching}}
 work_branch: {{work_branch}}
 

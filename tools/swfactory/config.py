@@ -382,6 +382,12 @@ def load_project_config(path: Path) -> ProjectConfig:
         require_str("work_branch", work_branch)
     elif branching == "single":
         problems.append(f"{file}: work_branch is required when branching is 'single'")
+    if branching == "single" and work_branch is not None and work_branch == base_branch:
+        # The factory never pushes to or merges into the base branch, and the merge gate compares the work with it.
+        problems.append(
+            f"{file}: work_branch must not be the base_branch ('{base_branch}') when branching is 'single': "
+            "name a separate branch, which the owner merges"
+        )
 
     mode = get(data, "mode", "review")
     _expect_choice(file, "mode", mode, MODES, problems)

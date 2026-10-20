@@ -23,7 +23,7 @@ Approvals happen in chat (decision F13). The record of an approval holds the own
 
 ### Asking
 
-1. Commit everything for the checkpoint, then `factory work set-status <ID> --stage <stage> --state "waiting for approval" --next "owner approves <artifact> rev <R>" --note "Asked the owner to approve <artifact> rev <R>"`, commit that too and push `<branch>`.
+1. Commit everything for the checkpoint, then `factory work set-status <ID> --stage <stage> --state "waiting for approval" --next "owner approves <artifact> rev <R>" --note "Asked the owner to approve <artifact> rev <R>"`, commit that too, and push `<branch>` under the push rule (section 8 of `../SKILL.md`).
 2. Note the full SHA of that commit: `git rev-parse HEAD`. This is the commit the approval names.
 3. Present the artifact: its name, revision, path and commit, a short summary (the "Show the owner" column), the review outcome, and any risks or open items. End with one question: "Do you approve <artifact> rev <R>?"
 4. Wait. Change nothing in the artifact while you wait.
@@ -44,7 +44,7 @@ Approvals happen in chat (decision F13). The record of an approval holds the own
    - **1**: refused, with the reason on stderr. A name that is not an approver can only be added by the owner, by editing `factory.yaml`; a record that already exists means the changed artifact needs a new revision. Never retry with other words or another name.
    - **2**: the command could not run (a typo, a missing file). Fix that and run it again.
 4. Mark the artifact approved: a spec or plan's Status line becomes `Status: rev <R> · <n> review rounds · approved (approvals/<artifact>-rev<R>.md)`; `intent.md`'s `## Status` section becomes `Accepted by <name> on <date> (approvals/intent-rev<R>.md)`.
-5. `factory work set-status <ID> --stage <next stage> --state "in progress" --next "<the next step>" --note "<artifact> rev <R> approved by <name> (approvals/<artifact>-rev<R>.md)"`. Commit the record, the artifact and `progress.md` together, with the factory trailers, and push `<branch>`.
+5. `factory work set-status <ID> --stage <next stage> --state "in progress" --next "<the next step>" --note "<artifact> rev <R> approved by <name> (approvals/<artifact>-rev<R>.md)"`. Commit the record, the artifact and `progress.md` together, with the factory trailers, and push `<branch>` under the push rule.
 6. Delete the quote file.
 
 ## Auto mode

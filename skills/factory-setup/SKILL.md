@@ -47,7 +47,7 @@ One question per message, in this order. Explain each setting in a sentence when
 1. **Quick verify command.** Builds and tests what one task touched; run at every task; must fit a Fix inside one session; exits non-zero on failure and prints totals.
 2. **Full verify command.** The whole build and test suite; run by the tester, at milestone demos and at the merge gate. Its exit code is the verdict. Ask whether the full suite passes on the base branch today. If it does not, each known failure goes in `factory/baseline/expected-failures.md` (with the base commit where it fails and why), and the command must exit 0 when only those fail; agree with the owner how (often a small wrapper script the owner adds).
 3. **Approvers.** Who may approve a checkpoint in chat, written exactly as each name will be used; default: the owner.
-4. **Branching.** `per-item` (one branch `factory/<ID>-<slug>` per work item; the default) or `single` (all work on one branch the owner names, one item at a time; for projects whose rules forbid extra branches).
+4. **Branching.** `per-item` (one branch `factory/<ID>-<slug>` per work item; the default) or `single` (all work on one branch the owner names, never the base branch, one item at a time; for projects whose rules forbid extra branches).
 5. **Build policy.** `allow` (the factory runs the full build when the plan says so) or `ask` (it asks the owner before each full run; for projects whose rules restrict builds).
 6. **The remaining defaults, in one confirmation.** The project's name, the base branch, and the mode: `review` (stop for the owner at intent, spec, plan, each milestone demo and the merge; the default) or `auto` (write a note and carry on; hard stops still halt).
 
@@ -56,7 +56,7 @@ One question per message, in this order. Explain each setting in a sentence when
 Setup's files go on a branch of their own, so the owner reviews them before they reach the base branch.
 
 - If the project's rules allow branches, cut `factory/setup` from the base branch: `git switch -c factory/setup <base>`, and tell the owner.
-- If the rules forbid or restrict extra branches, ask the owner first which branch setup goes on (often the work branch they named), and switch to it.
+- If the rules forbid or restrict extra branches, ask the owner first which branch setup goes on (often the work branch they named; never the base branch itself), and switch to it.
 
 ## 5. Run setup
 
@@ -78,7 +78,7 @@ Repeat `--approver` once per approver. With `single` branching add `--work-branc
 |---|---|
 | no extra branches | `branching: single` and `work_branch: <the branch the owner names>` |
 | do not build (unless instructed) | `builds: ask` |
-| commit straight to main | the owner chooses: work on a separate branch the owner merges (the default), or `branching: single` with `work_branch` set to the base branch (the factory commits there, and the owner pushes) |
+| commit straight to main | `branching: single` with a separate `work_branch` that the owner merges into the base branch. Never offer the base branch itself as the work branch: the factory never commits on, pushes to or merges into it, and `factory config check` refuses it. |
 | never push | add a project hard stop, such as `- no-push  # AGENTS.md:12: never push; the owner pushes` |
 | (a line that only looks like a conflict) | "not a conflict", with the reason |
 
