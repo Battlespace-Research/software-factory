@@ -18,6 +18,7 @@ from typing import get_args
 
 from swfactory import __version__
 from swfactory.adapters import plan_invocation, run_invocation
+from swfactory.approvals import ApprovalError, record_approval
 from swfactory.config import (
     ConfigError,
     RoleTable,
@@ -33,7 +34,7 @@ from swfactory.roles import Vendor, resolve_role
 from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 from swfactory.workitems import Status, WorkItem, create_work_item, find_work_item, read_status, write_status
 
-COMMANDS: set[str] = {"config", "role", "panel", "work"}
+COMMANDS: set[str] = {"config", "role", "panel", "work", "approve"}
 
 # Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
@@ -240,6 +241,25 @@ def _cmd_work_set_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_approve(args: argparse.Namespace) -> int:
+    try:
+        root = find_project_root(Path.cwd())
+        cfg = load_project_config(root / "factory.yaml")
+        item = find_work_item(root, args.id)
+        record = record_approval(
+            item.path, cfg, args.artifact, args.rev, args.quote, args.approver, args.commit, args.host, args.session
+        )
+    except ApprovalError as err:  # refused: exit 1, so a caller can tell this from a command that could not run
+        print(err, file=sys.stderr)
+        return 1
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    except (ValueError, OSError) as err:
+        return _print_problems([str(err)])
+    print(json.dumps({"path": str(record.path)}, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
@@ -346,6 +366,25 @@ def build_parser() -> argparse.ArgumentParser:
             metavar="PATH",
             help="a project folder or factory.yaml (default: the project around the current folder)",
         )
+    approve = commands.add_parser(
+        "approve",
+        help="record the owner's approval of a work item's artifact from their chat message; prints the "
+        "record's path as JSON (does not commit; exit 1 if refused)",
+    )
+    approve.add_argument("id", metavar="ID", help="the work id, such as FEA-12; its folder must be in the checked-out tree")
+    approve.add_argument("artifact", metavar="ARTIFACT", help="what was approved, such as spec or plan: a-z, 0-9 and -")
+    approve.add_argument("--rev", required=True, metavar="R", help="the revision approved, digits and dots, such as 2 or 1.1")
+    approve.add_argument(
+        "--quote",
+        required=True,
+        metavar="Q",
+        help="the owner's message, word for word (write --quote=TEXT if it could start with a dash)",
+    )
+    approve.add_argument("--approver", required=True, metavar="A", help="who approved; must be listed under approvers in factory.yaml")
+    approve.add_argument("--commit", required=True, metavar="C", help="the commit that holds the approved revision")
+    approve.add_argument("--host", default="", metavar="H", help="the host of the session, such as claude or codex")
+    approve.add_argument("--session", default="", metavar="S", help="the session id, if the host has one")
+    approve.set_defaults(handler=_cmd_approve)
     return parser
 
 
