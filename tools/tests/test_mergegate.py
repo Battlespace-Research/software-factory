@@ -209,6 +209,68 @@ def test_reviewed_commit_that_is_not_a_name_for_a_commit_fails(work, gate_cfg, v
     assert not check(gate(work, gate_cfg, reviewed_commit=value), "reviewed-commit").ok
 
 
+def test_a_modified_tracked_file_fails_reviewed_commit(work, gate_cfg):
+    (work.repo / "src" / "app.py").write_text("changed after the review\n", encoding="utf-8", newline="\n")
+    report = gate(work, gate_cfg)
+    result = check(report, "reviewed-commit")
+    assert not result.ok
+    assert "uncommitted changes in 1 tracked file(s)" in result.detail and "src/app.py" in result.detail
+    assert [c.name for c in report.checks] == CHECK_NAMES
+    assert check(report, "verify-full").ok and check(report, "size-cap").ok  # the other checks still run on the commit
+
+
+def test_a_staged_but_uncommitted_change_fails_reviewed_commit(work, gate_cfg):
+    (work.repo / "src" / "app.py").write_text("staged\n", encoding="utf-8", newline="\n")
+    run_git(work.repo, "add", "--", "src/app.py")
+    assert "src/app.py" in check(gate(work, gate_cfg), "reviewed-commit").detail
+
+
+def test_an_untracked_file_alone_does_not_fail_reviewed_commit(work, gate_cfg):
+    (work.repo / "notes.txt").write_text("scratch\n", encoding="utf-8", newline="\n")
+    folder = work.repo / "factory" / "work" / "FEA-1-demo"
+    folder.mkdir(parents=True)
+    (folder / "merge-gate.md").write_text("GATE: FAIL\n", encoding="utf-8", newline="\n")  # an earlier report
+    assert check(gate(work, gate_cfg), "reviewed-commit").ok
+
+
+def test_a_deleted_tracked_file_fails_reviewed_commit(work, gate_cfg):
+    (work.repo / "src" / "app.py").unlink()
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/app.py" in result.detail
+
+
+def test_a_renamed_tracked_file_counts_once_under_its_new_path(work, gate_cfg):
+    run_git(work.repo, "mv", "src/app.py", "src/my app.py")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok
+    assert "uncommitted changes in 1 tracked file(s)" in result.detail and "src/my app.py" in result.detail
+    assert "src/app.py" not in result.detail  # the old path is not listed as a second file
+
+
+def test_uncommitted_changes_list_at_most_five_paths_but_count_them_all(work, gate_cfg):
+    for n in range(8):
+        commit_file(work.repo, f"src/f{n}.py", "x\n", message=f"add f{n}")
+    reviewed = head(work.repo)
+    for n in range(8):
+        (work.repo / "src" / f"f{n}.py").write_text("y\n", encoding="utf-8", newline="\n")
+    detail = check(gate(work, gate_cfg, reviewed_commit=reviewed), "reviewed-commit").detail
+    assert "uncommitted changes in 8 tracked file(s)" in detail
+    assert sum(f"src/f{n}.py" in detail for n in range(8)) == 5
+
+
+def test_a_wrong_commit_and_uncommitted_changes_are_both_reported(work, gate_cfg):
+    (work.repo / "src" / "app.py").write_text("changed\n", encoding="utf-8", newline="\n")
+    older = run_git(work.repo, "rev-parse", "HEAD~1")
+    result = check(gate(work, gate_cfg, reviewed_commit=older), "reviewed-commit")
+    assert not result.ok
+    assert "the panel passed" in result.detail and "uncommitted changes in 1 tracked file(s)" in result.detail
+
+
+def test_a_clean_tree_says_so_in_the_detail(work, gate_cfg):
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert result.ok and "no uncommitted changes" in result.detail
+
+
 # --------------------------------------------------------------------------- size-cap
 
 def test_size_cap_counts_and_excludes_generated(work, gate_cfg):
@@ -564,6 +626,13 @@ def opened(git_repo: Path, cfg, monkeypatch) -> Work:
     return Work(git_repo, item, head(git_repo))
 
 
+def reconfigure(work: Work, **settings: str) -> None:
+    """Change factory.yaml and commit it (a modified tracked file would fail ``reviewed-commit``)."""
+    write_factory_yaml(work.repo, **settings)
+    run_git(work.repo, "commit", "-q", "-a", "-m", "Change factory.yaml")
+    work.head = head(work.repo)
+
+
 def pass_panel(work: Work, commit: str | None = None) -> None:
     write_panel_summary(work.item.path, "T1", 1, PanelResult("PASS", [], [], [], {}, commit or work.head))
 
@@ -614,7 +683,7 @@ def test_cli_gate_reviewed_commit_option_replaces_the_panel_summary(opened, caps
 
 
 def test_cli_gate_no_verify_skips_the_full_command(opened, capsys):
-    write_factory_yaml(opened.repo, verify_full=py("raise SystemExit(1)"))
+    reconfigure(opened, verify_full=py("raise SystemExit(1)"))
     pass_panel(opened)
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT]) == 1
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT, "--no-verify"]) == 0
@@ -622,11 +691,20 @@ def test_cli_gate_no_verify_skips_the_full_command(opened, capsys):
 
 
 def test_cli_gate_builds_ask_needs_the_flag(opened, capsys):
-    write_factory_yaml(opened.repo, builds="ask")
+    reconfigure(opened, builds="ask")
     pass_panel(opened)
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT]) == 1
     assert "ask the owner" in (opened.item.path / "merge-gate.md").read_text(encoding="utf-8")
     assert cli.main(["gate", "FEA-1", "--spot-check", SPOT, "--builds-approved"]) == 0
+
+
+def test_cli_gate_fails_on_uncommitted_changes_to_a_tracked_file(opened, capsys):
+    pass_panel(opened)
+    (opened.repo / "src" / "app.py").write_text("changed after the review\n", encoding="utf-8", newline="\n")
+    assert cli.main(["gate", "FEA-1", "--spot-check", SPOT]) == 1
+    report = (opened.item.path / "merge-gate.md").read_text(encoding="utf-8")
+    assert report.splitlines()[0] == "GATE: FAIL"
+    assert "- reviewed-commit: FAIL" in report and "src/app.py" in report
 
 
 def test_cli_gate_finds_the_project_from_a_subfolder(opened, monkeypatch, capsys):

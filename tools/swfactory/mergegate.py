@@ -3,7 +3,7 @@
 ``run_gate`` runs six checks, always all of them so one report shows everything that is wrong:
 
 1. ``base-merged``: the base branch is already merged into the branch being merged.
-2. ``reviewed-commit``: HEAD is the commit the review panel passed.
+2. ``reviewed-commit``: HEAD is the commit the review panel passed, and no tracked file has uncommitted changes.
 3. ``size-cap``: the change is under the project's line cap (generated files and binaries do not count).
 4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id).
 5. ``verify-full``: the project's full verify command passes.
@@ -35,6 +35,7 @@ GATE_FILE = "merge-gate.md"
 
 _REMOTE = "origin"
 _VERIFY_TAIL_LINES = 40
+_LISTED_PATHS = 5  # paths named in the detail of a tree with uncommitted changes
 _DASH = "—"  # between a check's result and its detail in the report
 
 
@@ -98,18 +99,49 @@ def _base_merged(repo: Path, base: str, refs: list[_BaseRef]) -> tuple[bool, str
     return True, f"HEAD contains {ref.label}"
 
 
+def _modified_tracked_files(repo: Path) -> list[str]:
+    """The tracked files with changes that are not committed (edited, staged, deleted, renamed); untracked
+    files are not listed. A renamed or copied file is one entry, under its new path."""
+    # ``--no-optional-locks`` keeps this read-only: a plain ``git status`` may refresh the index.
+    status = run_git(repo, "--no-optional-locks", "status", "--porcelain", "-z", "--untracked-files=no")
+    fields = status.split("\0")
+    paths = []
+    index = 0
+    while index < len(fields):
+        entry = fields[index]
+        index += 1
+        if len(entry) < 4:  # "XY <path>"; the empty field after the last NUL has none
+            continue
+        paths.append(entry[3:])
+        if "R" in entry[:2] or "C" in entry[:2]:  # the old path follows as a field of its own
+            index += 1
+    return paths
+
+
 def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
+    """HEAD is the commit the panel passed, and no tracked file differs from HEAD: the full verify runs on the
+    working tree, so an uncommitted change would let it pass on something that is not in the merged commit."""
+    head = run_git(repo, "rev-parse", "--verify", "HEAD^{commit}")
+    problems = []
     wanted = reviewed_commit.strip()
     if not wanted or wanted.startswith("-"):
-        return False, f"{reviewed_commit!r} does not name the commit the panel passed"
-    head = run_git(repo, "rev-parse", "--verify", "HEAD^{commit}")
-    try:
-        reviewed = run_git(repo, "rev-parse", "--verify", "--quiet", f"{wanted}^{{commit}}")
-    except GitError:
-        return False, f"the reviewed commit {wanted} is not a commit in this repository"
-    if head == reviewed:
-        return True, f"HEAD {head[:12]} is the commit the panel passed"
-    return False, f"HEAD is {head[:12]} but the panel passed {reviewed[:12]}; run the panel again on HEAD"
+        problems.append(f"{reviewed_commit!r} does not name the commit the panel passed")
+    else:
+        try:
+            reviewed = run_git(repo, "rev-parse", "--verify", "--quiet", f"{wanted}^{{commit}}")
+        except GitError:
+            problems.append(f"the reviewed commit {wanted} is not a commit in this repository")
+        else:
+            if head != reviewed:
+                problems.append(f"HEAD is {head[:12]} but the panel passed {reviewed[:12]}; run the panel again on HEAD")
+    modified = _modified_tracked_files(repo)
+    if modified:
+        listed = ", ".join(modified[:_LISTED_PATHS])
+        more = f" and {len(modified) - _LISTED_PATHS} more" if len(modified) > _LISTED_PATHS else ""
+        problems.append(f"uncommitted changes in {len(modified)} tracked file(s): {listed}{more}")
+    if problems:
+        return False, "; ".join(problems)
+    return True, f"HEAD {head[:12]} is the commit the panel passed, and no uncommitted changes in tracked files"
 
 
 def _changed_lines(numstat: str, generated: list[str]) -> int:
