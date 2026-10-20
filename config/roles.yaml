@@ -1,0 +1,179 @@
+# Factory role table (design section 7).
+#
+# This is the only file in the factory that names a model. Skills, prompts, agents,
+# templates and swfactory code refer to roles only. A project may override any role in
+# its factory.yaml under `roles:` (a partial override is merged field by field).
+#
+# Fields per role:
+#   stage    plan | design | build | test | deploy | maintain
+#   vendor   whose model runs the role: host | same | other | claude | openai.
+#            `same` and `other` are relative to the author of the work under review;
+#            `host` is the vendor of the session the factory is running in.
+#   run_as   main | subagent | headless
+#   access   write | read-only | no-product-edits
+#   bindings the model and reasoning effort to use, one per vendor (claude, openai), so
+#            swapping the host vendor is defined, not improvised.
+#   fallback the binding used when the primary is unavailable, one per vendor. Using a
+#            fallback is logged in progress.md and shown on the dashboard.
+#            Opus and Fable roles step down to Sonnet; Sonnet roles step up to Opus.
+#            OpenAI roles step down to gpt-6-astra (gpt-6-astra roles to gpt-6.1-sol),
+#            at the same effort.
+
+version: 1
+
+roles:
+  interviewer:
+    stage: plan
+    vendor: host
+    run_as: main
+    access: write
+    bindings:
+      claude: {model: claude-fable-5-1, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  researcher:
+    stage: plan
+    vendor: host
+    run_as: subagent
+    access: read-only
+    bindings:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}
+
+  author:
+    stage: design
+    vendor: host
+    run_as: main
+    access: write
+    bindings:
+      claude: {model: claude-fable-5-1, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  doc-reviewer-a:
+    stage: design
+    vendor: same
+    run_as: subagent
+    access: read-only
+    bindings:
+      claude: {model: claude-opus-5-5, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  doc-reviewer-b:
+    stage: design
+    vendor: other
+    run_as: headless
+    access: read-only
+    bindings:
+      claude: {model: claude-opus-5-5, effort: xhigh}
+      openai: {model: gpt-6-astra, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+
+  implementer:
+    stage: build
+    vendor: host
+    run_as: main
+    access: write
+    bindings:
+      claude: {model: claude-opus-5-5, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  lens-correctness:
+    stage: build
+    vendor: other
+    run_as: headless
+    access: read-only
+    bindings:
+      claude: {model: claude-opus-5-5, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  lens-security:
+    stage: build
+    vendor: other
+    run_as: headless
+    access: read-only
+    bindings:
+      claude: {model: claude-opus-5-5, effort: xhigh}
+      openai: {model: gpt-6.1-sol, effort: xhigh}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: xhigh}
+
+  lens-maintainability:
+    stage: build
+    vendor: same
+    run_as: subagent
+    access: read-only
+    bindings:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}
+
+  lens-spec:
+    stage: build
+    vendor: same
+    run_as: subagent
+    access: read-only
+    bindings:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}
+
+  tester:
+    stage: test
+    vendor: host
+    run_as: subagent
+    access: no-product-edits
+    bindings:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}
+
+  release-checker:
+    stage: deploy
+    vendor: host
+    run_as: headless
+    access: read-only
+    bindings:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}
+
+  triage:
+    stage: maintain
+    vendor: host
+    run_as: headless
+    access: read-only
+    bindings:
+      claude: {model: claude-sonnet-5-5, effort: high}
+      openai: {model: gpt-6.1-sol, effort: high}
+    fallback:
+      claude: {model: claude-opus-5-5, effort: high}
+      openai: {model: gpt-6-astra, effort: high}

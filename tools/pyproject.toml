@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swfactory"
+dynamic = ["version"]
+description = "Command-line tools for the BSRI software factory"
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+factory = "swfactory.cli:main"
+
+[tool.setuptools]
+packages = ["swfactory"]
+
+[tool.setuptools.dynamic]
+version = { attr = "swfactory.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

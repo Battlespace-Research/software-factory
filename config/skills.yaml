@@ -1,0 +1,68 @@
+# Third-party skills the factory references (design section 13).
+#
+# The factory references installed skills; it never copies them. This registry lists, per
+# role, each skill the factory requires or can use. The key "*" applies to every role.
+# `factory skills check` and the skill lint read it, so every skill name a factory skill or
+# prompt mentions must be registered here.
+#
+# Fields per skill:
+#   name         the skill's name as installed
+#   required     true when a shipped factory skill declares it; a missing required skill
+#                fails the readiness check. A missing optional skill is not reported.
+#   fallback     the name of an installed skill to use instead, or null
+#   interactive  true when the skill talks to the user. Interactive skills are never used
+#                inside unattended (subagent or headless) roles.
+
+version: 1
+
+roles:
+  interviewer:
+    - {name: grilling,        required: true,  fallback: grill-me, interactive: true}
+    - {name: grill-with-docs, required: false, fallback: grilling, interactive: true}
+    - {name: research,        required: true,  fallback: null,     interactive: false}
+    - {name: domain-modeling, required: false, fallback: null,     interactive: false}
+
+  researcher:
+    - {name: research,   required: true,  fallback: null, interactive: false}
+    - {name: last30days, required: false, fallback: null, interactive: false}
+
+  author:
+    - {name: to-spec,         required: true,  fallback: null, interactive: false}
+    - {name: codebase-design, required: false, fallback: null, interactive: false}
+    - {name: diagram-design,  required: false, fallback: null, interactive: false}
+    - {name: writing-plans,   required: true,  fallback: null, interactive: false}
+    - {name: to-tickets,      required: false, fallback: null, interactive: false}
+    - {name: wayfinder,       required: false, fallback: null, interactive: false}
+
+  implementer:
+    - {name: tdd,                         required: true,  fallback: test-driven-development, interactive: false}
+    - {name: implement,                   required: false, fallback: null,                    interactive: false}
+    - {name: subagent-driven-development, required: false, fallback: null,                    interactive: false}
+    - {name: diagnosing-bugs,             required: true,  fallback: systematic-debugging,    interactive: false}
+
+  tester:
+    - {name: verification-before-completion, required: true,  fallback: null,                    interactive: false}
+    - {name: tdd,                            required: true,  fallback: test-driven-development, interactive: false}
+
+  lens-correctness:
+    - {name: code-review, required: true,  fallback: null, interactive: false}
+
+  lens-security:
+    - {name: code-review,     required: true,  fallback: null, interactive: false}
+    - {name: security-review, required: false, fallback: null, interactive: false}
+
+  lens-maintainability:
+    - {name: code-review, required: true,  fallback: null, interactive: false}
+
+  lens-spec:
+    - {name: code-review, required: true,  fallback: null, interactive: false}
+
+  release-checker:
+    - {name: deploy-checklist, required: false, fallback: null, interactive: false}
+
+  triage:
+    - {name: triage,            required: false, fallback: null, interactive: false}
+    - {name: incident-response, required: false, fallback: null, interactive: false}
+
+  "*":
+    - {name: handoff, required: true,  fallback: null, interactive: false}
