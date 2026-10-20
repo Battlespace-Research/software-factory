@@ -1,7 +1,10 @@
 """Tests for swfactory.setup: scaffolding a project for the factory, and finding conflicts with its own rules."""
 from __future__ import annotations
 
+import errno
 import json
+import os
+import stat
 import subprocess
 from pathlib import Path
 
@@ -262,6 +265,205 @@ def test_setup_will_not_overwrite_an_existing_file(repo, name):
         setup_project(repo, make_answers())
     assert (repo / name).read_text(encoding="utf-8") == "the project's own text\n"
     assert not (repo / "factory.yaml").exists() and not (repo / "CLAUDE.md").exists()
+
+
+# --------------------------------------------------------------------------- a write that fails
+
+def snapshot(repo: Path) -> dict[str, bytes | None]:
+    """Every file (its bytes) and folder (None) under ``repo``, temporary files included."""
+    return {p.relative_to(repo).as_posix(): (p.read_bytes() if p.is_file() else None) for p in repo.rglob("*")}
+
+
+def project_with_files_to_edit(repo: Path) -> None:
+    """A .gitignore, CLAUDE.md and AGENTS.md that setup edits (in that order), each in a different state."""
+    put(repo / ".gitignore", b"*.pyc\r\n")
+    put(repo / "CLAUDE.md", "# C\nuser text\n")
+    put(repo / "AGENTS.md", b"# A\r\nrules\r\n")
+
+
+def failing_replace(monkeypatch, name: str, exc: BaseException | None = None):
+    """Make ``os.replace`` fail for the file called ``name``; returns the bytes that file held at that moment."""
+    real = os.replace
+    seen: list[bytes] = []
+
+    def replace(src, dst, *args, **kwargs):
+        if Path(dst).name == name:
+            seen.append(Path(dst).read_bytes())
+            raise exc or PermissionError(errno.EACCES, "Permission denied", str(dst))
+        return real(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(os, "replace", replace)
+    return seen
+
+
+@pytest.mark.parametrize("name", ["factory", "factory/baseline", "factory/work"])
+def test_a_plain_file_where_a_factory_folder_goes_is_refused_before_any_write(repo, name):
+    put(repo / "AGENTS.md", "# A\n")
+    put(repo / name, "not a folder")
+    before = snapshot(repo)
+    with pytest.raises(SetupError, match=r"exists and is not a folder"):
+        setup_project(repo, make_answers())
+    assert snapshot(repo) == before
+
+
+def test_a_read_only_file_is_refused_and_a_retry_after_making_it_writable_succeeds(repo):
+    project_with_files_to_edit(repo)
+    agents = repo / "AGENTS.md"
+    os.chmod(agents, stat.S_IREAD)
+    try:
+        if os.access(agents, os.W_OK):
+            pytest.skip("this account can write read-only files")
+        before = snapshot(repo)
+        with pytest.raises(SetupError, match=r"AGENTS\.md is read-only"):
+            setup_project(repo, make_answers())
+        assert snapshot(repo) == before  # nothing left behind, every original byte-identical
+    finally:
+        os.chmod(agents, stat.S_IREAD | stat.S_IWRITE)
+    res = setup_project(repo, make_answers())
+    assert {"AGENTS.md", "CLAUDE.md", ".gitignore"} <= set(relative(repo, res.updated))
+    assert (repo / "AGENTS.md").read_text(encoding="utf-8").count(BEGIN) == 1 and (repo / "factory.yaml").is_file()
+
+
+def test_a_failed_edit_undoes_everything_and_a_retry_succeeds(repo, monkeypatch):
+    project_with_files_to_edit(repo)
+    before = snapshot(repo)
+    seen = failing_replace(monkeypatch, "AGENTS.md")  # the last edit, after every new file and the other edits
+    with pytest.raises(SetupError) as raised:
+        setup_project(repo, make_answers())
+    message = str(raised.value)
+    assert "AGENTS.md" in message and "Permission denied" in message and "undid" in message
+    assert isinstance(raised.value.__cause__, PermissionError)
+    assert seen == [before["AGENTS.md"]]  # the file was untouched up to the swap: it cannot be left truncated
+    assert snapshot(repo) == before  # no new file or folder, no temporary file, every original byte-identical
+    monkeypatch.undo()
+    res = setup_project(repo, make_answers())
+    assert (repo / "factory.yaml").is_file() and "AGENTS.md" in relative(repo, res.updated)
+
+
+def test_a_failed_swap_of_a_read_only_file_leaves_no_temporary_file(repo, monkeypatch):
+    # The temporary copy takes the original's read-only mode, and Windows will not delete such a file as it is.
+    project_with_files_to_edit(repo)
+    agents = repo / "AGENTS.md"
+    os.chmod(agents, stat.S_IREAD)
+    try:
+        before = snapshot(repo)
+        monkeypatch.setattr(os, "access", lambda *args, **kwargs: True)  # skip the pre-check: the swap itself fails
+        failing_replace(monkeypatch, "AGENTS.md")
+        with pytest.raises(SetupError, match=r"AGENTS\.md"):
+            setup_project(repo, make_answers())
+        monkeypatch.undo()
+        assert snapshot(repo) == before
+    finally:
+        os.chmod(agents, stat.S_IREAD | stat.S_IWRITE)
+
+
+def test_a_failed_folder_creation_removes_what_was_made_before_it(repo, monkeypatch):
+    project_with_files_to_edit(repo)
+    before = snapshot(repo)
+    real = Path.mkdir
+
+    def mkdir(self, *args, **kwargs):
+        if self.name == "work":
+            raise OSError(errno.ENOSPC, "No space left on device", str(self))
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)
+    with pytest.raises(SetupError, match=r"cannot write .*work: No space left on device"):
+        setup_project(repo, make_answers())
+    assert snapshot(repo) == before
+
+
+def test_a_failed_last_write_leaves_no_partial_factory_yaml_and_restores_the_edits(repo, monkeypatch):
+    project_with_files_to_edit(repo)
+    before = snapshot(repo)
+    real = Path.write_bytes
+
+    def write_bytes(self, data):
+        if self.name == "factory.yaml":
+            real(self, data[:10])  # a partial file, as a full disk would leave
+            raise OSError(errno.ENOSPC, "No space left on device", str(self))
+        return real(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", write_bytes)
+    with pytest.raises(SetupError, match=r"cannot write .*factory\.yaml: No space left on device"):
+        setup_project(repo, make_answers())
+    monkeypatch.undo()
+    assert snapshot(repo) == before
+
+
+def test_an_unexpected_error_also_undoes_everything_and_is_not_disguised(repo, monkeypatch):
+    project_with_files_to_edit(repo)
+    before = snapshot(repo)
+    failing_replace(monkeypatch, "AGENTS.md", RuntimeError("boom"))
+    with pytest.raises(RuntimeError, match="boom"):
+        setup_project(repo, make_answers())
+    assert snapshot(repo) == before
+
+
+def test_what_setup_could_not_undo_is_named(repo, monkeypatch):
+    project_with_files_to_edit(repo)
+    before = snapshot(repo)
+    real = os.replace
+    swaps_of_claude_md: list[int] = []
+
+    def replace(src, dst, *args, **kwargs):
+        name = Path(dst).name
+        if name == "AGENTS.md" or (name == "CLAUDE.md" and swaps_of_claude_md):  # the edit fails; so does CLAUDE.md's undo
+            raise PermissionError(errno.EACCES, "Permission denied", str(dst))
+        if name == "CLAUDE.md":
+            swaps_of_claude_md.append(1)
+        return real(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(os, "replace", replace)
+    with pytest.raises(SetupError, match=r"could not undo .*CLAUDE\.md"):
+        setup_project(repo, make_answers())
+    after = snapshot(repo)
+    assert not any("factory-tmp" in name for name in after)  # the failed undo left no temporary file
+    assert BEGIN.encode() in after["CLAUDE.md"]  # the one file it could not restore is still edited
+    for name in before:
+        if name != "CLAUDE.md":  # everything else was put back or removed
+            assert after[name] == before[name], name
+    assert set(after) == set(before)
+
+
+def test_factory_yaml_is_written_last(repo, monkeypatch):
+    put(repo / "AGENTS.md", "# A\n")
+    events: list[str] = []
+    real_write, real_replace = Path.write_bytes, os.replace
+
+    def write_bytes(self, data):
+        events.append(self.name)
+        return real_write(self, data)
+
+    def replace(src, dst, *args, **kwargs):
+        events.append(Path(dst).name)
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_bytes", write_bytes)
+    monkeypatch.setattr(os, "replace", replace)
+    setup_project(repo, make_answers())
+    assert events[-1] == "factory.yaml"
+    assert {"REVIEW.md", "lessons.md", "expected-failures.md", ".gitignore", "AGENTS.md"} <= set(events)
+
+
+def test_a_symlinked_claude_md_stays_a_link(repo):
+    put(repo / "AGENTS.md", "# A\n")
+    try:
+        os.symlink("AGENTS.md", repo / "CLAUDE.md")
+    except (OSError, NotImplementedError):
+        pytest.skip("cannot create symbolic links here")
+    setup_project(repo, make_answers())
+    text = (repo / "AGENTS.md").read_text(encoding="utf-8")
+    assert (repo / "CLAUDE.md").is_symlink() and text.count(BEGIN) == 1
+    assert (repo / "CLAUDE.md").read_text(encoding="utf-8") == text
+
+
+@pytest.mark.skipif(os.name == "nt", reason="permission bits are not the same on Windows")
+def test_an_edited_file_keeps_its_permissions(repo):
+    put(repo / "AGENTS.md", "# A\n")
+    os.chmod(repo / "AGENTS.md", 0o640)
+    setup_project(repo, make_answers())
+    assert stat.S_IMODE((repo / "AGENTS.md").stat().st_mode) == 0o640
 
 
 # --------------------------------------------------------------------------- the CLAUDE.md / AGENTS.md section

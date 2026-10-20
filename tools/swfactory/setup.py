@@ -3,11 +3,15 @@
 ``setup_project`` writes ``factory.yaml`` and ``REVIEW.md`` from ``templates/project/``, creates the ``factory/``
 folders, ignores the generated dashboard, and adds the factory's marked section to ``CLAUDE.md`` and ``AGENTS.md``.
 It never runs git and never commits: the owner reviews the result first. Everything that can refuse is checked
-before the first file is written, so a refusal leaves the project as it was.
+before the first file is written, and a write that fails is undone, so setup either finishes or leaves the project
+as it was (``factory.yaml``, whose presence means "already set up", is written last).
 """
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import stat
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -34,7 +38,8 @@ _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
 
 
 class SetupError(RuntimeError):
-    """Setup refuses to go ahead; the message says why. Nothing has been written."""
+    """Setup refuses to go ahead, or a write failed; the message says why. The project is as it was (a message that
+    says setup could not undo something names it)."""
 
 
 @dataclass
@@ -155,6 +160,52 @@ def _with_ignore_entry(data: bytes) -> bytes | None:
     return text + GITIGNORE_ENTRY.encode("utf-8") + eol
 
 
+def _write_atomically(path: Path, data: bytes) -> None:
+    """Replace the existing file ``path`` with ``data`` all at once: the bytes go to a temporary file beside it and
+    that file takes its place, so a failure part way cannot truncate the original. The file keeps its permissions,
+    and a symbolic link is followed (the file it points to is replaced, the link stays)."""
+    target = Path(os.path.realpath(path))
+    descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".factory-tmp")
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+        shutil.copymode(target, temporary)
+        os.replace(temporary, target)
+    except BaseException:
+        try:
+            os.chmod(temporary, stat.S_IREAD | stat.S_IWRITE)  # Windows will not delete a read-only copy of a read-only file
+            os.unlink(temporary)
+        except OSError:
+            pass  # best effort: the error being raised is the one that matters
+        raise
+
+
+class _Undo:
+    """What setup has done so far, so that a failure can put the project back as it was."""
+
+    def __init__(self) -> None:
+        self.made: list[Path] = []  # files and folders created, oldest first (a file is listed before it is written)
+        self.changed: list[tuple[Path, bytes]] = []  # existing files rewritten, with their original bytes
+
+    def roll_back(self) -> list[Path]:
+        """Restore the changed files and delete what was created, newest first. Returns the paths it could not put back."""
+        stuck: list[Path] = []
+        for path, original in reversed(self.changed):
+            try:
+                _write_atomically(path, original)
+            except OSError:
+                stuck.append(path)
+        for path in reversed(self.made):
+            try:
+                if path.is_dir():
+                    path.rmdir()
+                else:
+                    path.unlink(missing_ok=True)
+            except OSError:
+                stuck.append(path)
+        return stuck
+
+
 # --------------------------------------------------------------------------- setup
 
 def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
@@ -166,8 +217,12 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
     wherever they exist (a new ``CLAUDE.md`` when neither does), replacing a section already there.
 
     Raises ``SetupError``, having written nothing, when ``factory.yaml`` already exists ("already set up"), when
-    another file setup would create exists, when the answers do not make a valid ``factory.yaml``, or when the
-    markers in an existing ``CLAUDE.md`` or ``AGENTS.md`` are not one begin line followed by one end line.
+    another file setup would create exists, when ``factory`` (or a folder in it) exists as a file, when a file setup
+    must change is read-only, when the answers do not make a valid ``factory.yaml``, or when the markers in an
+    existing ``CLAUDE.md`` or ``AGENTS.md`` are not one begin line followed by one end line. If a write fails
+    anyway, everything written so far is removed or restored (existing files are replaced atomically, never
+    truncated) and ``SetupError`` names the path that failed; ``factory.yaml`` is written last, so a failed run
+    never leaves the project looking set up.
     """
     repo = Path(repo)
     if not repo.is_dir():
@@ -181,10 +236,20 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
     for path in (review_md, expected_failures, lessons):
         if path.exists():
             raise SetupError(f"{path} already exists; setup will not overwrite it (move it aside, then run setup again)")
+    work_folder = repo / "factory" / "work"
+    folders = [repo / "factory", repo / "factory" / "baseline", work_folder]
+    for folder in folders:
+        if folder.exists() and not folder.is_dir():
+            raise SetupError(
+                f"{folder} exists and is not a folder; setup needs a folder there (move it aside, then run setup again)"
+            )
+    new_folders = [folder for folder in folders if not folder.exists()]
     factory_yaml_text = _render_factory_yaml(answers)
-    review_md_text = _template("REVIEW.md")
-    expected_failures_text = _template("expected-failures.md")
-    lessons_text = _template("lessons.md")
+    new_files = [
+        (review_md, _template("REVIEW.md")),
+        (expected_failures, _template("expected-failures.md")),
+        (lessons, _template("lessons.md")),
+    ]
 
     # Edits to files that may exist: (file, its bytes now or None when it is new, its bytes afterwards).
     edits: list[tuple[Path, bytes | None, bytes]] = []
@@ -205,27 +270,54 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
             edits.append((path, before, after))
     if not holders:
         edits.append((repo / "CLAUDE.md", None, _with_section("CLAUDE.md", b"", section)))
+    for path, before, _ in edits:
+        if before is not None and not os.access(path, os.W_OK):
+            raise SetupError(f"{path} is read-only, so setup cannot add to it (make it writable, then run setup again)")
 
-    created: list[Path] = []
-    updated: list[Path] = []
+    undo = _Undo()
+    current = repo  # the path being worked on, named if its write fails
+    try:
+        for folder in new_folders:
+            current = folder
+            folder.mkdir()
+            undo.made.append(folder)
+        for path, text in new_files:
+            current = path
+            undo.made.append(path)
+            path.write_bytes(text.encode("utf-8"))
+        for path, before, after in edits:
+            current = path
+            if before is None:
+                undo.made.append(path)
+                path.write_bytes(after)
+            else:
+                _write_atomically(path, after)
+                undo.changed.append((path, before))
+        current = factory_yaml
+        undo.made.append(factory_yaml)
+        factory_yaml.write_bytes(factory_yaml_text.encode("utf-8"))
+        conflicts = find_conflicts(repo)
+    except BaseException as err:
+        stuck = undo.roll_back()
+        if not isinstance(err, OSError):
+            raise
+        reason = f"cannot write {current}: {err.strerror or err}."
+        if stuck:
+            raise SetupError(
+                f"{reason} Setup could not undo {', '.join(map(str, stuck))}: "
+                "remove or restore these by hand before running setup again."
+            ) from err
+        raise SetupError(
+            f"{reason} Setup undid what it had written, so the project is as it was; fix the problem and run setup again."
+        ) from err
 
-    def create(path: Path, text: str) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8", newline="\n")
-        created.append(path)
-
-    create(factory_yaml, factory_yaml_text)
-    create(review_md, review_md_text)
-    work = repo / "factory" / "work"
-    if not work.exists():
-        work.mkdir(parents=True)
-        created.append(work)
-    create(expected_failures, expected_failures_text)
-    create(lessons, lessons_text)
-    for path, before, after in edits:
-        path.write_bytes(after)
-        (created if before is None else updated).append(path)
-    return SetupResult(created=created, updated=updated, conflicts=find_conflicts(repo))
+    created = [factory_yaml, review_md]
+    if work_folder in new_folders:
+        created.append(work_folder)
+    created += [expected_failures, lessons]
+    created += [path for path, before, _ in edits if before is None]
+    updated = [path for path, before, _ in edits if before is not None]
+    return SetupResult(created=created, updated=updated, conflicts=conflicts)
 
 
 # --------------------------------------------------------------------------- conflicts
