@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: draft 1 · 2026-10-20 · not yet approved by the owner
-Decisions: `docs/decisions.md` (F01–F12) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: draft 2 · 2026-10-20 · builder check done · awaiting owner approval
+Decisions: `docs/decisions.md` (F01–F14) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
@@ -33,14 +33,14 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 - Agent review on GitHub pull requests. Optional per project, off by default, no GitHub Action yet [F11].
 - Organization-wide managed settings, telemetry export (OpenTelemetry) and org dashboards. Revisit when several teams use the factory.
 - Automatic vendor fallback when one vendor's usage runs low. Interesting (super-board does it); later.
-- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it (open question for the owner). Touching a submodule does not by itself make work a Program. **[Claude's call]**
+- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it; the pilot is deferred and will likely be a new MACE plugin in its own repo [F14]. Touching a submodule does not by itself make work a Program. **[Claude's call]**
 
 ## 4. Anti-goals — failure even if it technically works
 
 - The factory only works on NGC2, or only for its original author.
 - A one-line fix needs a spec, a plan and four reviewers.
 - Model names hard-coded in skills, prompts or scripts.
-- An agent approves or merges its own work, or writes the record of a human approval.
+- An agent approves or merges its own work, or records an approval the owner did not give.
 - The real state of a piece of work exists only in a chat transcript.
 - Installing or running the factory disturbs ongoing work in a project (for example the NGC2 sessions in the MACE checkout).
 - The factory locks a project into one vendor.
@@ -206,7 +206,7 @@ Triage puts work in the **smallest track that fits** and records why. A Fix beco
 
 - **Review mode (default):** the factory pauses for the owner at the intent, the spec, the plan, each milestone demo, and the merge. Between checkpoints it runs the task loop on its own.
 - **Auto mode (opt-in per project or per work item):** at a checkpoint the factory writes a short note in `progress.md` and continues. Only hard stops halt it. A person still merges.
-- **Approval records:** `approvals/<artifact>-rev<N>.md` quotes the owner's message, the time and the commit it approves. Until hooks exist (section 14), the agent writes the record only in response to an explicit owner message in the session and the record quotes it verbatim; reviewers check the quote exists in the transcript summary in `progress.md`. **[Claude's call]**
+- **Approvals happen in chat [F13].** When the owner approves a checkpoint in the session, the factory writes `approvals/<artifact>-rev<N>.md` with the owner's exact words, the time, the session and host, and the commit approved, and commits it. It never writes an approval without such a message. `factory.yaml` lists who may approve (`approvers:`), defaulting to the person who set up the project. When hooks are unparked (section 14), a hook writes the record straight from the owner's typed message.
 - **Hard stops** (halt in both modes; each project keeps its list in `factory.yaml`, starting from these defaults): any push or merge to the main branch; deleting data or files outside the work's scope; credentials, licences, secrets; installers or admin/UAC prompts; purchases; changes to authentication, money handling or database schemas; new third-party dependencies; production data; a third failed review round on one task; an assumption that is really a business decision.
 
 ## 9. Build and Test: the task loop
@@ -356,6 +356,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 - JSON schema details, beyond the contracts named here.
 - Prompt wording for lenses, tester, authors and triage.
 - Which five tasks seed the evals, picked with the owner.
+- The pilot project, deferred by the owner; likely a new MACE plugin in its own repo [F14]. Version 1 is built and tested without a pilot first (on a small sample repo the builder creates), then piloted.
 - Phasing and order of work, in the implementation plan. A sensible order: core (setup, triage, Fix and Feature tracks, review panel, role table, adapters) on a pilot project; then the Program track and dashboard generator; then the two Deploy paths and Maintain; then evals; hooks when unparked.
 
 ---
@@ -373,7 +374,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 | 7 | Pasted verification output for "done"; bugs fixed test-first; test edits blocked during fixes | 9.2, 8.3 (Fix); blocking needs hooks — **partial** |
 | 8 | Hermetic evals on every configuration or model change; incidents become evals | 12 |
 | 9 | Every PR reviewed by an agent against `REVIEW.md`; human code-owner approval; author never approves | review panel reads `REVIEW.md` (9.3); human merge (8.4); GitHub PR review optional (F11) — **partial by owner decision** |
-| 10 | Approvals as self-explaining hooks; agents cannot write approval records | 8.4 interim rule; hooks parked — **partial** |
+| 10 | Approvals as self-explaining hooks; agents cannot write approval records | 8.4: chat approvals recorded verbatim, never without the owner's message; hooks parked — **partial** |
 | 11 | Headless, sandboxed CI with scoped credentials; autonomy tiered by environment; rehearsed rollback | 10 |
 | 12 | Deterministic monitoring bands; breaches become intent for triage | 11 (thresholds first, bands later) |
 | 13 | One source of truth per artifact | F07, 15.2 |

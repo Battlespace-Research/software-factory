@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-labelledby="review-panel-dark-title review-panel-dark-desc">
+        <title id="review-panel-dark-title">Review panel with four lenses</title>
+        <desc id="review-panel-dark-desc">A change is reviewed in parallel for correctness, security, maintainability and spec compliance, the findings are combined into one verdict, and the result goes to the tester, back for fixes, or into follow-up tickets.</desc>
+  <style>
+  .bg { fill: #2d3142; }
+  .mask { fill: #2d3142; }
+  .node { fill: #353a4d; stroke: rgba(245,245,245,0.26); stroke-width: 1; }
+  .node-light { fill: #2d3142; stroke: rgba(245,245,245,0.26); stroke-width: 1; stroke-dasharray: 4 3; }
+  .focal { fill: rgba(240,138,89,0.12); stroke: #f08a59; stroke-width: 1.2; }
+  .sec { fill: rgba(240,138,89,0.06); stroke: rgba(240,138,89,0.6); stroke-width: 1; stroke-dasharray: 4 4; }
+  .tag { fill: none; stroke: rgba(245,245,245,0.26); stroke-width: 0.8; }
+  .tag-accent { fill: none; stroke: #f08a59; stroke-width: 0.8; }
+  .edge { fill: none; stroke: #bfc0c0; stroke-width: 1; }
+  .edge-dash { fill: none; stroke: #bfc0c0; stroke-width: 1; stroke-dasharray: 5 4; }
+  .hair { stroke: rgba(245,245,245,0.12); stroke-width: 0.8; }
+  .mk { fill: #bfc0c0; }
+  .t-name { fill: #f5f5f5; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  .t-head { fill: #f5f5f5; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 14px; }
+  .t-sub { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-code { fill: #f5f5f5; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-eyebrow { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; font-weight: 500; letter-spacing: 0.18em; }
+  .t-tag { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-tag-accent { fill: #f08a59; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-label { fill: #a3acbf; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; letter-spacing: 0.06em; }
+  .t-legend { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; }
+  .t-callout { fill: #bfc0c0; font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-style: italic; font-size: 14px; }
+  .t-skip { fill: #a3acbf; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  </style>
+        <defs>
+          <marker id="pn-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+        </defs>
+        <rect class="bg" width="1280" height="420"/>
+
+        <!-- Column eyebrows -->
+        <text class="t-eyebrow" x="120" y="28" text-anchor="middle">INPUT</text>
+        <text class="t-eyebrow" x="404" y="28" text-anchor="middle">LENSES, IN PARALLEL</text>
+        <text class="t-eyebrow" x="680" y="28" text-anchor="middle">COMBINE</text>
+        <text class="t-eyebrow" x="970" y="28" text-anchor="middle">OUTCOME</text>
+
+        <!-- Fan-out -->
+        <path class="edge" d="M200,176 H224 Q232,176 232,168 V84 Q232,76 240,76 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,188 H240 Q248,188 248,180 V164 Q248,156 256,156 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,204 H240 Q248,204 248,212 V228 Q248,236 256,236 H304" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M200,216 H224 Q232,216 232,224 V308 Q232,316 240,316 H304" marker-end="url(#pn-arrow)"/>
+        <!-- Fan-in -->
+        <path class="edge" d="M504,76 H560 Q568,76 568,84 V168 Q568,176 576,176 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,156 H544 Q552,156 552,164 V180 Q552,188 560,188 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,236 H544 Q552,236 552,228 V212 Q552,204 560,204 H600" marker-end="url(#pn-arrow)"/>
+        <path class="edge" d="M504,316 H560 Q568,316 568,308 V224 Q568,216 576,216 H600" marker-end="url(#pn-arrow)"/>
+        <!-- Outcomes -->
+        <path class="edge" d="M760,180 H800 Q808,180 808,172 V124 Q808,116 816,116 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="834" y="98" width="28" height="12" rx="2"/>
+        <text class="t-label" x="848" y="107" text-anchor="middle">PASS</text>
+        <path class="edge" d="M760,196 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="818" y="178" width="44" height="12" rx="2"/>
+        <text class="t-label" x="840" y="187" text-anchor="middle">CHANGES</text>
+        <path class="edge-dash" d="M760,212 H800 Q808,212 808,220 V268 Q808,276 816,276 H880" marker-end="url(#pn-arrow)"/>
+        <rect class="mask" x="820" y="258" width="56" height="12" rx="2"/>
+        <text class="t-label" x="848" y="267" text-anchor="middle">FOLLOW-UP</text>
+
+        <!-- Input -->
+        <rect class="node" x="40" y="164" width="160" height="64" rx="6"/>
+        <text class="t-name" x="120" y="198" text-anchor="middle">Task under review</text>
+        <text class="t-sub" x="120" y="214" text-anchor="middle">diff · spec · plan task</text>
+
+        <!-- Lenses -->
+        <rect class="node" x="304" y="48" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="54" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="63" text-anchor="middle">OTHER</text>
+        <text class="t-name" x="404" y="80" text-anchor="middle">Correctness</text>
+        <text class="t-sub" x="404" y="95" text-anchor="middle">GPT-6.1-Sol · logic, edge cases</text>
+
+        <rect class="node" x="304" y="128" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="134" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="143" text-anchor="middle">OTHER</text>
+        <text class="t-name" x="404" y="160" text-anchor="middle">Security</text>
+        <text class="t-sub" x="404" y="175" text-anchor="middle">GPT-6.1-Sol · auth · secrets</text>
+
+        <rect class="node" x="304" y="208" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="214" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="223" text-anchor="middle">SAME</text>
+        <text class="t-name" x="404" y="240" text-anchor="middle">Maintainability</text>
+        <text class="t-sub" x="404" y="255" text-anchor="middle">Sonnet 5.5 · design, duplication</text>
+
+        <rect class="node" x="304" y="288" width="200" height="56" rx="6"/>
+        <rect class="tag" x="312" y="294" width="32" height="12" rx="2"/><text class="t-tag" x="328" y="303" text-anchor="middle">SAME</text>
+        <text class="t-name" x="404" y="320" text-anchor="middle">Spec compliance</text>
+        <text class="t-sub" x="404" y="335" text-anchor="middle">Opus 5.5 · does what spec says</text>
+
+        <!-- Combine (focal) -->
+        <rect class="mask" x="600" y="164" width="160" height="64" rx="6"/>
+        <rect class="focal" x="600" y="164" width="160" height="64" rx="6"/>
+        <text class="t-name" x="680" y="198" text-anchor="middle">Combine findings</text>
+        <text class="t-sub" x="680" y="214" text-anchor="middle">wait for all · dedupe</text>
+
+        <!-- Outcomes -->
+        <rect class="node" x="880" y="88" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="114" text-anchor="middle">Independent tester</text>
+        <text class="t-sub" x="970" y="130" text-anchor="middle">next step in Figure 3</text>
+        <rect class="node" x="880" y="168" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="194" text-anchor="middle">Disposition + fix</text>
+        <text class="t-sub" x="970" y="210" text-anchor="middle">same lenses re-review</text>
+        <rect class="node" x="880" y="248" width="180" height="56" rx="6"/>
+        <text class="t-name" x="970" y="274" text-anchor="middle">Follow-up tickets</text>
+        <text class="t-sub" x="970" y="290" text-anchor="middle">maintainability minors</text>
+
+        <!-- Legend -->
+        <line class="hair" x1="24" y1="376" x2="1256" y2="376"/>
+        <text class="t-eyebrow" x="24" y="400">LEGEND</text>
+        <rect class="tag" x="96" y="391" width="32" height="12" rx="2"/><text class="t-tag" x="112" y="400" text-anchor="middle">OTHER</text>
+        <text class="t-legend" x="136" y="400">Other vendor than the author</text>
+        <rect class="tag" x="300" y="391" width="32" height="12" rx="2"/><text class="t-tag" x="316" y="400" text-anchor="middle">SAME</text>
+        <text class="t-legend" x="340" y="400">Same vendor</text>
+        <rect class="mask" x="428" y="390" width="20" height="14" rx="3"/>
+        <rect class="focal" x="428" y="390" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="456" y="400">One verdict per round</text>
+        <path class="edge-dash" d="M584,397 H616" marker-end="url(#pn-arrow)"/>
+        <text class="t-legend" x="624" y="400">Does not block the merge</text>
+      </svg>

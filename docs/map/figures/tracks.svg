@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 412" width="1280" height="412" role="img" aria-labelledby="tracks-title tracks-desc">
+        <title id="tracks-title">Factory tracks by size of work</title>
+        <desc id="tracks-desc">Triage routes work to the Program, Feature, or Fix track; Program runs every stage in full, Feature lightens planning and design, and Fix skips design and starts from a failing test.</desc>
+  <style>
+  .bg { fill: #f5f5f5; }
+  .mask { fill: #f5f5f5; }
+  .node { fill: #ffffff; stroke: rgba(45,49,66,0.28); stroke-width: 1; }
+  .node-light { fill: #f5f5f5; stroke: rgba(45,49,66,0.28); stroke-width: 1; stroke-dasharray: 4 3; }
+  .focal { fill: rgba(191,69,32,0.08); stroke: #bf4520; stroke-width: 1.2; }
+  .sec { fill: rgba(191,69,32,0.05); stroke: rgba(191,69,32,0.55); stroke-width: 1; stroke-dasharray: 4 4; }
+  .tag { fill: none; stroke: rgba(45,49,66,0.28); stroke-width: 0.8; }
+  .tag-accent { fill: none; stroke: #bf4520; stroke-width: 0.8; }
+  .edge { fill: none; stroke: #4f5d75; stroke-width: 1; }
+  .edge-dash { fill: none; stroke: #4f5d75; stroke-width: 1; stroke-dasharray: 5 4; }
+  .hair { stroke: rgba(45,49,66,0.12); stroke-width: 0.8; }
+  .mk { fill: #4f5d75; }
+  .t-name { fill: #2d3142; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  .t-head { fill: #2d3142; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 14px; }
+  .t-sub { fill: #4f5d75; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-code { fill: #2d3142; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-eyebrow { fill: #4f5d75; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; font-weight: 500; letter-spacing: 0.18em; }
+  .t-tag { fill: #4f5d75; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-tag-accent { fill: #bf4520; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-label { fill: #5a6580; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; letter-spacing: 0.06em; }
+  .t-legend { fill: #4f5d75; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; }
+  .t-callout { fill: #4f5d75; font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-style: italic; font-size: 14px; }
+  .t-skip { fill: #5a6580; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  </style>
+        <defs>
+          <marker id="tr-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+        </defs>
+        <rect class="bg" width="1280" height="412"/>
+
+        <!-- Connectors -->
+        <path class="edge" d="M120,158 H132 Q140,158 140,150 V116 Q140,108 148,108 H160" marker-end="url(#tr-arrow)"/>
+        <path class="edge" d="M120,188 H160" marker-end="url(#tr-arrow)"/>
+        <path class="edge" d="M120,218 H132 Q140,218 140,226 V260 Q140,268 148,268 H160" marker-end="url(#tr-arrow)"/>
+        <path class="edge" d="M280,108 H312" marker-end="url(#tr-arrow)"/>
+        <path class="edge" d="M280,188 H312" marker-end="url(#tr-arrow)"/>
+        <path class="edge" d="M280,268 H312" marker-end="url(#tr-arrow)"/>
+
+        <!-- Column headers -->
+        <text class="t-eyebrow" x="72" y="56" text-anchor="middle">ENTRY</text>
+        <text class="t-eyebrow" x="220" y="56" text-anchor="middle">TRACK</text>
+        <text class="t-eyebrow" x="382" y="56" text-anchor="middle">01 · PLAN</text>
+        <text class="t-eyebrow" x="542" y="56" text-anchor="middle">02 · DESIGN</text>
+        <text class="t-eyebrow" x="702" y="56" text-anchor="middle">03 · BUILD</text>
+        <text class="t-eyebrow" x="862" y="56" text-anchor="middle">04 · TEST</text>
+        <text class="t-eyebrow" x="1022" y="56" text-anchor="middle">05 · DEPLOY</text>
+        <text class="t-eyebrow" x="1182" y="56" text-anchor="middle">06 · MAINTAIN</text>
+
+        <!-- Triage (focal) -->
+        <rect class="mask" x="24" y="128" width="96" height="120" rx="6"/>
+        <rect class="focal" x="24" y="128" width="96" height="120" rx="6"/>
+        <text class="t-name" x="72" y="184" text-anchor="middle">Triage</text>
+        <text class="t-sub" x="72" y="200" text-anchor="middle">size + risk</text>
+        <text class="t-sub" x="72" y="214" text-anchor="middle">picks a track</text>
+
+        <!-- Track boxes -->
+        <rect class="node" x="160" y="80" width="120" height="56" rx="6"/>
+        <text class="t-name" x="220" y="106" text-anchor="middle">Program</text>
+        <text class="t-sub" x="220" y="122" text-anchor="middle">multi-session</text>
+        <rect class="node" x="160" y="160" width="120" height="56" rx="6"/>
+        <text class="t-name" x="220" y="186" text-anchor="middle">Feature</text>
+        <text class="t-sub" x="220" y="202" text-anchor="middle">a few sessions</text>
+        <rect class="node" x="160" y="240" width="120" height="56" rx="6"/>
+        <text class="t-name" x="220" y="266" text-anchor="middle">Fix</text>
+        <text class="t-sub" x="220" y="282" text-anchor="middle">one session</text>
+
+        <!-- Program row (y 80): all full -->
+        <rect class="node" x="312" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="382" y="106" text-anchor="middle">Grill + research</text>
+        <text class="t-sub" x="382" y="122" text-anchor="middle">decision rows</text>
+        <rect class="node" x="472" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="542" y="106" text-anchor="middle">Spec + 2 reviews</text>
+        <text class="t-sub" x="542" y="122" text-anchor="middle">Claude + Codex</text>
+        <rect class="node" x="632" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="702" y="106" text-anchor="middle">Plan + task loop</text>
+        <text class="t-sub" x="702" y="122" text-anchor="middle">milestones · tasks</text>
+        <rect class="node" x="792" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="862" y="106" text-anchor="middle">Milestone demos</text>
+        <text class="t-sub" x="862" y="122" text-anchor="middle">tester subagent</text>
+        <rect class="node" x="952" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1022" y="106" text-anchor="middle">Milestone merge</text>
+        <text class="t-sub" x="1022" y="122" text-anchor="middle">release gate</text>
+        <rect class="node" x="1112" y="80" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1182" y="106" text-anchor="middle">Monitor + retro</text>
+        <text class="t-sub" x="1182" y="122" text-anchor="middle">lessons → factory</text>
+
+        <!-- Feature row (y 160) -->
+        <rect class="node-light" x="312" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="382" y="186" text-anchor="middle">Short grill</text>
+        <text class="t-sub" x="382" y="202" text-anchor="middle">intent in ticket</text>
+        <rect class="node-light" x="472" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="542" y="186" text-anchor="middle">Mini-spec</text>
+        <text class="t-sub" x="542" y="202" text-anchor="middle">1 cross-vendor review</text>
+        <rect class="node" x="632" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="702" y="186" text-anchor="middle">Plan mode + TDD</text>
+        <text class="t-sub" x="702" y="202" text-anchor="middle">1–5 tasks</text>
+        <rect class="node" x="792" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="862" y="186" text-anchor="middle">Verify command</text>
+        <text class="t-sub" x="862" y="202" text-anchor="middle">vs. baseline</text>
+        <rect class="node" x="952" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1022" y="186" text-anchor="middle">Reviewed merge</text>
+        <text class="t-sub" x="1022" y="202" text-anchor="middle">human merge</text>
+        <rect class="node-light" x="1112" y="160" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1182" y="186" text-anchor="middle">Retro note</text>
+        <text class="t-sub" x="1182" y="202" text-anchor="middle">if a lesson emerged</text>
+
+        <!-- Fix row (y 240) -->
+        <rect class="node-light" x="312" y="240" width="140" height="56" rx="6"/>
+        <text class="t-name" x="382" y="266" text-anchor="middle">Triage ticket</text>
+        <text class="t-sub" x="382" y="282" text-anchor="middle">repro + criteria</text>
+        <text class="t-skip" x="542" y="266" text-anchor="middle">—</text>
+        <text class="t-sub" x="542" y="282" text-anchor="middle">skipped</text>
+        <rect class="node" x="632" y="240" width="140" height="56" rx="6"/>
+        <text class="t-name" x="702" y="266" text-anchor="middle">Test-first fix</text>
+        <text class="t-sub" x="702" y="282" text-anchor="middle">red → green</text>
+        <rect class="node" x="792" y="240" width="140" height="56" rx="6"/>
+        <text class="t-name" x="862" y="266" text-anchor="middle">Verify command</text>
+        <text class="t-sub" x="862" y="282" text-anchor="middle">vs. baseline</text>
+        <rect class="node" x="952" y="240" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1022" y="266" text-anchor="middle">Reviewed merge</text>
+        <text class="t-sub" x="1022" y="282" text-anchor="middle">human merge</text>
+        <rect class="node-light" x="1112" y="240" width="140" height="56" rx="6"/>
+        <text class="t-name" x="1182" y="266" text-anchor="middle">Lesson if new</text>
+        <text class="t-sub" x="1182" y="282" text-anchor="middle">→ CLAUDE.md or skill</text>
+
+        <text class="t-callout" x="312" y="336">A Fix that grows steps up to Feature. A Feature that outgrows a few sessions steps up to Program.</text>
+
+        <!-- Legend -->
+        <line class="hair" x1="24" y1="364" x2="1256" y2="364"/>
+        <text class="t-eyebrow" x="24" y="388">LEGEND</text>
+        <rect class="node" x="96" y="378" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="124" y="388">Full step</text>
+        <rect class="node-light" x="200" y="378" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="228" y="388">Lighter step</text>
+        <text class="t-skip" x="320" y="390">—</text>
+        <text class="t-legend" x="336" y="388">Skipped</text>
+        <rect class="mask" x="408" y="378" width="20" height="14" rx="3"/>
+        <rect class="focal" x="408" y="378" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="436" y="388">Triage decides the track</text>
+      </svg>

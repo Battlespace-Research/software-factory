@@ -738,8 +738,9 @@
       <h2>Still to decide</h2>
     </div>
     <ol class="questions">
-      <li><div><strong>Track names and the line between them.</strong><p>When does a Fix become a Feature, and a Feature a Program?</p></div></li>
-      <li><div><strong>Packaging.</strong><p>One repo that installs as a plugin in both Claude Code and Codex.</p></div></li>
+      <li><div><strong>Track thresholds.</strong><p>Proposed in the design (section 8.3): a Fix is one session and one task; a Feature is up to about five tasks; anything with milestones or crossing repos is a Program. Awaiting your review.</p></div></li>
+      <li><div><strong>Packaging.</strong><p>Proposed in the design (section 6.1): one plugin with a Claude Code manifest and a Codex manifest sharing one skills folder, as BSI's codex-plugin repo already does.</p></div></li>
+      <li><div><strong>Pilot project (deferred).</strong><p>Likely a new MACE plugin. Version 1 is set up and documented first.</p></div></li>
       <li><div><strong>Hooks that enforce rules (parked).</strong><p>Which rules block outright and which ask you; Codex hooks cannot ask yet.</p></div></li>
     </ol>
   </section>
@@ -767,6 +768,8 @@
           <tr><td class="mono">F10</td><td>The factory keeps a dashboard that is updated throughout the work (template under review).</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F11</td><td>Agent review on GitHub PRs is optional per project and off by default. No GitHub Action for it yet.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F12</td><td>Project setup produces a <code>REVIEW.md</code> (lenses, severities, per-track lens sets, always-flag rules) that the review panel reads; PR review would read the same file.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F13</td><td>Approvals happen in chat; the factory records your exact words, the time and the commit approved, and never writes one without your message.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F14</td><td>The pilot project is deferred; likely a new MACE plugin. The repo README gives a full overview with diagrams.</td><td class="mono">2026-10-20</td></tr>
         </tbody>
       </table>
     </div>

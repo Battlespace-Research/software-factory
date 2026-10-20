@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 404" width="1280" height="404" role="img" aria-labelledby="task-loop-dark-title task-loop-dark-desc">
+        <title id="task-loop-dark-title">Per-task build and review loop</title>
+        <desc id="task-loop-dark-desc">A task is implemented test-first, verified, reviewed by a panel of reviewers, fixed and re-reviewed up to three rounds, checked by an independent tester, and closed, with a hard stop to the owner after a third failed round.</desc>
+  <style>
+  .bg { fill: #2d3142; }
+  .mask { fill: #2d3142; }
+  .node { fill: #353a4d; stroke: rgba(245,245,245,0.26); stroke-width: 1; }
+  .node-light { fill: #2d3142; stroke: rgba(245,245,245,0.26); stroke-width: 1; stroke-dasharray: 4 3; }
+  .focal { fill: rgba(240,138,89,0.12); stroke: #f08a59; stroke-width: 1.2; }
+  .sec { fill: rgba(240,138,89,0.06); stroke: rgba(240,138,89,0.6); stroke-width: 1; stroke-dasharray: 4 4; }
+  .tag { fill: none; stroke: rgba(245,245,245,0.26); stroke-width: 0.8; }
+  .tag-accent { fill: none; stroke: #f08a59; stroke-width: 0.8; }
+  .edge { fill: none; stroke: #bfc0c0; stroke-width: 1; }
+  .edge-dash { fill: none; stroke: #bfc0c0; stroke-width: 1; stroke-dasharray: 5 4; }
+  .hair { stroke: rgba(245,245,245,0.12); stroke-width: 0.8; }
+  .mk { fill: #bfc0c0; }
+  .t-name { fill: #f5f5f5; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  .t-head { fill: #f5f5f5; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 14px; }
+  .t-sub { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-code { fill: #f5f5f5; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 9px; }
+  .t-eyebrow { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; font-weight: 500; letter-spacing: 0.18em; }
+  .t-tag { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-tag-accent { fill: #f08a59; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 7px; letter-spacing: 0.08em; }
+  .t-label { fill: #a3acbf; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; letter-spacing: 0.06em; }
+  .t-legend { fill: #bfc0c0; font-family: 'Geist Mono', 'Cascadia Mono', Consolas, Menlo, monospace; font-size: 8px; }
+  .t-callout { fill: #bfc0c0; font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif; font-style: italic; font-size: 14px; }
+  .t-skip { fill: #a3acbf; font-family: 'Geist', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 600; font-size: 12px; }
+  </style>
+        <defs>
+          <marker id="lp-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
+        </defs>
+        <rect class="bg" width="1280" height="404"/>
+
+        <!-- Connectors first -->
+        <path class="edge-dash" d="M1136,96 V48 Q1136,40 1128,40 H104 Q96,40 96,48 V96" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="588" y="22" width="56" height="12" rx="2"/>
+        <text class="t-label" x="616" y="31" text-anchor="middle">NEXT TASK</text>
+
+        <path class="edge" d="M160,120 H192" marker-end="url(#lp-arrow)"/>
+        <path class="edge" d="M336,120 H376" marker-end="url(#lp-arrow)"/>
+        <path class="edge" d="M520,120 H560" marker-end="url(#lp-arrow)"/>
+        <path class="edge" d="M720,120 H760" marker-end="url(#lp-arrow)"/>
+        <path class="edge" d="M832,120 H872" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="838" y="102" width="28" height="12" rx="2"/>
+        <text class="t-label" x="852" y="111" text-anchor="middle">PASS</text>
+        <path class="edge" d="M1032,120 H1072" marker-end="url(#lp-arrow)"/>
+
+        <path class="edge" d="M796,156 V240 Q796,248 788,248 H760" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="804" y="192" width="44" height="12" rx="2"/>
+        <text class="t-label" x="826" y="201" text-anchor="middle">CHANGES</text>
+
+        <path class="edge" d="M680,216 V152" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="616" y="178" width="56" height="12" rx="2"/>
+        <text class="t-label" x="644" y="187" text-anchor="middle">RE-REVIEW</text>
+
+        <path class="edge" d="M600,248 H544" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="550" y="230" width="44" height="12" rx="2"/>
+        <text class="t-label" x="572" y="239" text-anchor="middle">3RD FAIL</text>
+
+        <path class="edge-dash" d="M952,152 V320 Q952,328 944,328 H272 Q264,328 264,320 V152" marker-end="url(#lp-arrow)"/>
+        <rect class="mask" x="584" y="308" width="32" height="12" rx="2"/>
+        <text class="t-label" x="600" y="317" text-anchor="middle">FAILS</text>
+
+        <!-- Nodes -->
+        <rect class="node" x="32" y="96" width="128" height="48" rx="24"/>
+        <text class="t-name" x="96" y="118" text-anchor="middle">Next task</text>
+        <text class="t-sub" x="96" y="132" text-anchor="middle">from plan.md</text>
+
+        <rect class="node" x="192" y="88" width="144" height="64" rx="6"/>
+        <rect class="tag" x="200" y="94" width="28" height="12" rx="2"/><text class="t-tag" x="214" y="103" text-anchor="middle">IMPL</text>
+        <text class="t-name" x="264" y="122" text-anchor="middle">Implement</text>
+        <text class="t-sub" x="264" y="138" text-anchor="middle">test-first · Opus 5.5</text>
+
+        <rect class="node" x="376" y="88" width="144" height="64" rx="6"/>
+        <rect class="tag" x="384" y="94" width="28" height="12" rx="2"/><text class="t-tag" x="398" y="103" text-anchor="middle">CMD</text>
+        <text class="t-name" x="448" y="122" text-anchor="middle">Verify</text>
+        <text class="t-sub" x="448" y="138" text-anchor="middle">one command · baseline</text>
+
+        <rect class="mask" x="560" y="88" width="160" height="64" rx="6"/>
+        <rect class="focal" x="560" y="88" width="160" height="64" rx="6"/>
+        <rect class="tag-accent" x="568" y="94" width="28" height="12" rx="2"/><text class="t-tag-accent" x="582" y="103" text-anchor="middle">REV</text>
+        <text class="t-name" x="640" y="122" text-anchor="middle">Review panel</text>
+        <text class="t-sub" x="640" y="138" text-anchor="middle">4 lenses · see Figure 4</text>
+
+        <polygon class="node" points="796,84 832,120 796,156 760,120"/>
+        <text class="t-name" x="796" y="124" text-anchor="middle">Verdict</text>
+
+        <rect class="node" x="872" y="88" width="160" height="64" rx="6"/>
+        <rect class="tag" x="880" y="94" width="28" height="12" rx="2"/><text class="t-tag" x="894" y="103" text-anchor="middle">TEST</text>
+        <text class="t-name" x="952" y="122" text-anchor="middle">Independent tester</text>
+        <text class="t-sub" x="952" y="138" text-anchor="middle">Sonnet 5.5 · reports only</text>
+
+        <rect class="node" x="1072" y="96" width="128" height="48" rx="24"/>
+        <text class="t-name" x="1136" y="118" text-anchor="middle">Close task</text>
+        <text class="t-sub" x="1136" y="132" text-anchor="middle">tick + progress.md</text>
+
+        <rect class="node" x="600" y="216" width="160" height="64" rx="6"/>
+        <rect class="tag" x="608" y="222" width="28" height="12" rx="2"/><text class="t-tag" x="622" y="231" text-anchor="middle">IMPL</text>
+        <text class="t-name" x="680" y="250" text-anchor="middle">Disposition + fix</text>
+        <text class="t-sub" x="680" y="266" text-anchor="middle">logged · max 3 rounds</text>
+
+        <rect class="mask" x="384" y="216" width="160" height="64" rx="6"/>
+        <rect class="sec" x="384" y="216" width="160" height="64" rx="6"/>
+        <rect class="tag" x="392" y="222" width="28" height="12" rx="2"/><text class="t-tag" x="406" y="231" text-anchor="middle">STOP</text>
+        <text class="t-name" x="464" y="250" text-anchor="middle">Owner decides</text>
+        <text class="t-sub" x="464" y="266" text-anchor="middle">hard stop · gate list</text>
+
+        <!-- Legend -->
+        <line class="hair" x1="24" y1="356" x2="1256" y2="356"/>
+        <text class="t-eyebrow" x="24" y="380">LEGEND</text>
+        <rect class="mask" x="96" y="370" width="20" height="14" rx="3"/>
+        <rect class="focal" x="96" y="370" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="124" y="380">Review panel, Figure 4</text>
+        <rect class="mask" x="300" y="370" width="20" height="14" rx="3"/>
+        <rect class="sec" x="300" y="370" width="20" height="14" rx="3"/>
+        <text class="t-legend" x="328" y="380">Hard stop: a person decides</text>
+        <path class="edge-dash" d="M508,377 H540" marker-end="url(#lp-arrow)"/>
+        <text class="t-legend" x="548" y="380">Loop-back</text>
+        <rect class="tag" x="636" y="371" width="28" height="12" rx="2"/><text class="t-tag" x="650" y="380" text-anchor="middle">ROLE</text>
+        <text class="t-legend" x="672" y="380">Role tag; the model comes from the role table</text>
+      </svg>
