@@ -176,6 +176,7 @@
       <a href="#roles">Roles &amp; models</a>
       <a href="#skills">Skills</a>
       <a href="#open">Open questions</a>
+      <a href="#decisions">Decisions</a>
     </nav>
   </header>
 
@@ -634,9 +635,30 @@
       <li><div><strong>Track names and the line between them.</strong><p>When does a Fix become a Feature, and a Feature a Program?</p></div></li>
       <li><div><strong>How much runs unattended after the plan is approved.</strong><p>NGC2 moved to "only stop for hard stops". Is that the default for teammates too?</p></div></li>
       <li><div><strong>Where work state lives.</strong><p>Files in the project repo, GitHub issues, or both.</p></div></li>
-      <li><div><strong>First Deploy and Maintain targets.</strong><p>Desktop installer, Kubernetes with Helm, or web services first.</p></div></li>
       <li><div><strong>Packaging.</strong><p>One repo that installs as a plugin in both Claude Code and Codex.</p></div></li>
     </ol>
+  </section>
+
+  <!-- ============ DECISIONS ============ -->
+  <section id="decisions">
+    <div class="figure-head">
+      <span class="fig-num">Decisions</span>
+      <h2>Settled so far</h2>
+      <p class="caption">The full log, with reasons, is <code>docs/decisions.md</code> in the factory repo.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Id</th><th>Decision</th><th>Date</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">F01</td><td>The factory lives in its own repo under BSRI (Battlespace-Research). MACE and NGC2 are read-only references.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F02</td><td>It runs in Claude Code and in Codex, and either one can drive the other. Models are bound to roles in one table.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F03</td><td>Stages follow the six stages of the Claude Academy AI-native SDLC playbook.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F04</td><td>Users are BSI teammates first, possibly others later.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F05</td><td>Deploy and Maintain treat the desktop installer (today) and Kubernetes with Helm (target) as equal priorities, with separate paths where they differ. Start light, mature with use.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F06</td><td>The diagrams stay current and are published as a private web page.</td><td class="mono">2026-10-20</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <footer>

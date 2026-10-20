@@ -1,0 +1,12 @@
+# Decisions
+
+Append-only log of decisions about the software factory. Change a decision by adding a new row that supersedes it; never edit or delete an old row.
+
+| Id | Date | Decision | Why | Source |
+|---|---|---|---|---|
+| F01 | 2026-10-20 | The factory lives in its own git repo under BSRI (GitHub org `Battlespace-Research`, local `E:\BSRI\GitHub\software-factory`). MACE and NGC2 are read-only references. | The factory is meant for other projects and for sharing, and work on NGC2 continues in other sessions and must not be disturbed. | Owner |
+| F02 | 2026-10-20 | The factory runs in Claude Code and in the Codex/ChatGPT app, and one model can drive another. Each role is bound to a vendor, model and effort in one table. | The owner uses both vendors together on NGC2 and expects models to change; swapping a model must be one edit. | Owner |
+| F03 | 2026-10-20 | Stages follow the six stages of the Claude Academy AI-native SDLC playbook: Plan, Design, Build, Test, Deploy, Maintain. | Alignment with the playbook is a requirement. | Owner |
+| F04 | 2026-10-20 | Users are BSI teammates first, possibly others later. | Sets the bar for documentation and generality. | Owner |
+| F05 | 2026-10-20 | Deploy and Maintain treat the desktop installer (today's only deployment) and Kubernetes with Helm (the target) as equal priorities, with separate paths where they differ. Start light and mature from experience, following best practice. | Desktop is what ships now; Kubernetes with Helm is where the work is heading (NGC2 Mission Manager onboarding). | Owner |
+| F06 | 2026-10-20 | The factory's diagrams are kept current and published as a private web page (`docs/map/factory-map.html`). | The owner wants to see the framework at every step, including after model or skill changes. | Owner |
