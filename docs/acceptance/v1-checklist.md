@@ -12,7 +12,7 @@ Write what happened in `docs/acceptance/<date>-v1-results.md`, using the record 
 
 These change your machine's host configuration, so they are yours to do.
 
-1. **The `factory` command.** `factory --version` prints `0.1.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). Put `<factory clone>\.venv\Scripts` on your user PATH and restart both hosts if it does not.
+1. **The `factory` command.** `factory --version` prints `0.1.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). Put `<factory clone>\.venv\Scripts` on your user PATH and restart both hosts if it does not. Then check that `where python` lists your own Python **before** the factory's `.venv`: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
 2. **The plugin, from this checkout.** Until `feature/core-v1` is merged into `main`, the GitHub marketplace serves no plugin, so add this checkout (with `feature/core-v1` checked out) as a local marketplace:
 
    ```text
@@ -98,7 +98,12 @@ Expected: `retro.md` (what happened, what was learned, what to change), with any
 
 ```text
 GATE: PASS
-base-merged ok, reviewed-commit ok, size-cap ok, id-unused-on-base ok, verify-full ok, spot-check ok
+- base-merged: ok — HEAD contains main
+- reviewed-commit: ok — …
+- size-cap: ok — … lines (cap 400)
+- id-unused-on-base: ok — …
+- verify-full: ok — (the output of python verify.py)
+- spot-check: ok — (the spot check)
 ```
 
 It commits `merge-gate.md`, then gives you the **merge** checkpoint: the diff stat, the panel results with any declined findings, the verify output, the risks, the follow-ups, and the merge commands.
@@ -122,7 +127,7 @@ Tell the factory "Merged." Expected: it checks with `git merge-base --is-ancesto
 | `main` | the setup merge and the FIX-1 merge; `format_range(2500, "km")` returns `2.5 km` |
 | `factory/work/FIX-1-km-label/` | `ticket.md` (criteria ticked), `progress.md` (Status line and a log, newest first), `decisions.md`, `retro.md`, `merge-gate.md` with `GATE: PASS`, `approvals/ticket-rev1.md` quoting you |
 | `…/reviews/` | `T1-r1-correctness.md`, `T1-r1-security.md`, `T1-r1-panel.md` (and `disposition-T1-r1.md` plus `T1-r2-*` if round 1 asked for changes); the lens files' stamps name an OpenAI model |
-| `git log` | every factory commit carries `Factory-Work`, `Factory-Role` and `Factory-Model` trailers |
+| `git log` | every commit the skills make carries `Factory-Work`, `Factory-Role` and `Factory-Model` trailers (the commit `factory work new` makes by itself carries only `Factory-Work`) |
 
 ### Record (pass A)
 
@@ -145,7 +150,8 @@ Run A1 to A5 again with the same messages and answers. The differences to check:
 | Step | Expected on a Codex host |
 |---|---|
 | A1 | the skills checks run for both hosts; the Codex check may report `writing-plans` and `verification-before-completion` missing (superpowers not installed in Codex). Record it. |
-| A1, A2 | rendered prompts and quote files go to `~/.factory/staging/rangering/FIX-1/`, outside the project: record whether Codex asked for permission to write there, or refused |
+| A1 | setup creates `CLAUDE.md` only (the sample has neither `CLAUDE.md` nor `AGENTS.md`), and Codex reads `AGENTS.md`, so later Codex sessions do not see the factory section (rehearsal finding D2). Record whether that mattered. |
+| A1, A2, A3 | the setup commit message, rendered prompts and quote files go to `~/.factory/staging/rangering/…`, outside the project. The rehearsal showed Codex's `workspace-write` sandbox denies writes there (finding D1): expect Codex to ask to run those commands with more permissions, or to fail. Allow only those writes, and record each prompt or failure. |
 | A2 | `approvals/ticket-rev1.md` names the host `codex` |
 | A3 | the implementer is the OpenAI binding (`factory role resolve implementer --host openai`); the lenses resolve with `--host openai --author openai` to **command** invocations of `claude -p`, read-only, started together as background jobs in one shell command; each lens file's stamp names a **Claude** model (`vendor=claude model=claude-…`) |
 | A3 | Codex may cap how long one shell command runs: record whether both lens runs finished, and how long each took |
@@ -159,7 +165,7 @@ A Fix never runs the independent tester or the maintainability lens. To see them
 
 > Triage this for the factory: add statute miles (`mi`) as a fourth unit, with tests for `nmi` and `mi`.
 
-Expected: the **Feature** track (`FEA-2`), an intent checkpoint, a mini-spec reviewed by `doc-reviewer-b` (Codex) and the spec checkpoint, a plan checkpoint, the task loop with three lenses (maintainability as a Claude subagent, never blocking), and after each passing task a tester report `reviews/T<n>-tester-1.md` starting `RESULT: PASS`. Record it like pass A.
+Expected: the **Feature** track (`FEA-1`; each track is numbered separately), an intent checkpoint, a mini-spec reviewed by `doc-reviewer-b` (Codex) and the spec checkpoint, a plan checkpoint, the task loop with three lenses (maintainability as a Claude subagent, never blocking), and after each passing task a tester report `reviews/T<n>-tester-1.md` starting `RESULT: PASS`. Record it like pass A.
 
 ## v1 is accepted when
 

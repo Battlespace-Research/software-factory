@@ -217,8 +217,10 @@ schemas/           the JSON schema of a review
 config/            roles.yaml (the role table, the one file that names models) and skills.yaml (third-party skills)
 templates/         project/ (what setup creates in a project) and work/ (a new work item's files, per track)
 tools/             the factory command (Python package swfactory) and its tests
+examples/          sample-app, the small project with a planted bug that the acceptance run works on
 docs/
   guide/           the install guide and the walkthrough for teammates
+  acceptance/      the v1 acceptance checklist and the results of each run
   specs/           the design
   plans/           the implementation plan
   decisions.md     the decision log (F-rows, append-only)
@@ -232,7 +234,7 @@ Not built yet, per the design: the dashboard and map generators, the Deploy, Mai
 
 1. Owner approves the design. **Done** (F15).
 2. Implementation plan. **Done:** [plan 1 of 4](docs/plans/2026-10-20-factory-core-v1.md), the core, is written.
-3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **In progress:** built and under review; the end-to-end run on a sample repo is next.
+3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **In progress:** built and under review; a command-line rehearsal on the sample repo is done ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)), and the owner-attended run in both hosts ([checklist](docs/acceptance/v1-checklist.md)) is next.
 4. Pilot on a real project, likely a new MACE plugin.
 5. The Program track and the dashboard generator.
 6. Deploy paths (desktop installer and Helm) and Maintain.
