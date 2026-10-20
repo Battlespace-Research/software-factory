@@ -401,12 +401,15 @@ def test_interrupt_kills_the_cli_and_leaves_no_file_even_when_it_would_write_lat
     def interrupted(self, input=None, timeout=None):
         if input is None:
             return real_communicate(self, input, timeout)
+        # Send the prompt exactly once (a second call with input raises ValueError), then poll for the
+        # partial file the fake writes as soon as it has read the prompt.
+        try:
+            real_communicate(self, input, timeout=0.1)
+        except subprocess.TimeoutExpired:
+            pass
         deadline = time.monotonic() + 15
-        while not partial_of(out).exists() and time.monotonic() < deadline:   # let the fake start writing
-            try:
-                real_communicate(self, input, timeout=0.1)
-            except subprocess.TimeoutExpired:
-                pass
+        while not partial_of(out).exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
         assert partial_of(out).exists()
         raise interruption
 
