@@ -71,6 +71,7 @@ def test_setup_creates_files(repo):
         "factory/lessons.md",
         ".gitignore",
         "CLAUDE.md",
+        "AGENTS.md",
     ]
     assert res.updated == [] and res.conflicts == []
 
@@ -517,11 +518,20 @@ def test_section_goes_into_both_files_when_both_exist(repo):
     assert not any(p.name in ("CLAUDE.md", "AGENTS.md") for p in res.created)
 
 
-def test_creates_claude_md_when_neither_exists(repo):
-    setup_project(repo, make_answers())
-    text = (repo / "CLAUDE.md").read_text(encoding="utf-8")
-    assert text.startswith(BEGIN + "\n") and text.endswith(END + "\n") and text.count(BEGIN) == 1
-    assert not (repo / "AGENTS.md").exists()
+def test_creates_claude_md_and_agents_md_when_neither_exists(repo):
+    # Claude Code reads CLAUDE.md and Codex reads AGENTS.md: a session on either host must see the section.
+    res = setup_project(repo, make_answers())
+    claude = (repo / "CLAUDE.md").read_text(encoding="utf-8")
+    assert claude.startswith(BEGIN + "\n") and claude.endswith(END + "\n") and claude.count(BEGIN) == 1
+    assert (repo / "AGENTS.md").read_text(encoding="utf-8") == claude
+    assert {"CLAUDE.md", "AGENTS.md"} <= set(relative(repo, res.created)) and res.updated == []
+
+
+def test_only_the_existing_file_gets_the_section_when_one_exists(repo):
+    put(repo / "CLAUDE.md", "# C\n")
+    res = setup_project(repo, make_answers())
+    assert (repo / "CLAUDE.md").read_text(encoding="utf-8").count(BEGIN) == 1
+    assert not (repo / "AGENTS.md").exists() and relative(repo, res.updated) == ["CLAUDE.md"]
 
 
 def test_section_says_where_work_lives_how_to_resume_and_how_to_verify(repo):

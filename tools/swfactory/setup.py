@@ -214,7 +214,8 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
     Creates ``factory.yaml``, ``REVIEW.md``, ``factory/work/``, ``factory/baseline/expected-failures.md`` and
     ``factory/lessons.md``; adds ``factory/dashboard/`` to ``.gitignore`` unless it is already ignored; and puts the
     factory section between ``<!-- factory:begin -->`` and ``<!-- factory:end -->`` in ``CLAUDE.md`` and ``AGENTS.md``
-    wherever they exist (a new ``CLAUDE.md`` when neither does), replacing a section already there.
+    wherever they exist (both, new, when neither does: Claude Code reads ``CLAUDE.md`` and Codex reads
+    ``AGENTS.md``), replacing a section already there.
 
     Raises ``SetupError``, having written nothing, when ``factory.yaml`` already exists ("already set up"), when
     another file setup would create exists, when ``factory`` (or a folder in it) exists as a file, when a file setup
@@ -268,8 +269,9 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
         after = _with_section(path.name, before, section)
         if after != before:
             edits.append((path, before, after))
-    if not holders:
-        edits.append((repo / "CLAUDE.md", None, _with_section("CLAUDE.md", b"", section)))
+    if not holders:  # a new file for each host: Claude Code reads CLAUDE.md, Codex reads AGENTS.md
+        for name in _SECTION_FILES:
+            edits.append((repo / name, None, _with_section(name, b"", section)))
     for path, before, _ in edits:
         if before is not None and not os.access(path, os.W_OK):
             raise SetupError(f"{path} is read-only, so setup cannot add to it (make it writable, then run setup again)")
