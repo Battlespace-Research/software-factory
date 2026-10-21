@@ -185,7 +185,7 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 
 ## Upgrading from 0.3.0
 
-Version 0.4.0 gives three review lenses a reference skill to read (decision F18 in `docs/decisions.md`): correctness reads `tdd`, maintainability `codebase-design`, and spec compliance `domain-modeling` in projects with a `CONTEXT.md` or ADRs. Projects need no change.
+Version 0.4.0 inlines a reference skill's text into three review lenses' prompts (decision F18 in `docs/decisions.md`): correctness gets `tdd`, maintainability `codebase-design`, and spec compliance `domain-modeling` in projects with a `CONTEXT.md` or ADRs. Projects need no change; the skills must be installed for your user (a project's own copy is never used).
 
 1. **Update** the command and the plugin as [Updating](#updating) says; `sw-factory --version` then prints `0.4.0`.
 2. **Install `codebase-design`** if you do not have it: it is now required. Run the Matt Pocock skills command of step 4 again and pick it (and `domain-modeling`, if your projects keep a `CONTEXT.md` or ADRs).

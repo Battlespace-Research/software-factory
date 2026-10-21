@@ -87,7 +87,7 @@ Expected, in order, each step ending in a commit with `Factory-Work: FIX-1/T1`, 
 1. A log entry `T1 started at <sha>`.
 2. A failing test for the km label, run, with the failure output shown (`AssertionError: '2.5 m' != '2.5 km'` or similar).
 3. The smallest fix in `rangering/__init__.py`, the test passing, and `python verify.py --quick` with its totals pasted (`Ran 4 tests` or more, `OK`).
-4. **Review round 1.** Two lenses, correctness and security, each resolved with `sw-factory role resolve lens-<lens> --host claude --author claude` to a **command** invocation (`codex exec`), rendered with `sw-factory prompt render`, and started **at the same time** in the background. Each writes `reviews/T1-r1-<lens>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES`, last line a provenance stamp `<!-- factory: role=lens-<lens> vendor=openai model=… -->` (plus `extra="-c windows.sandbox=…"` if you set step 0.5). Then `sw-factory panel combine` writes `reviews/T1-r1-panel.md`.
+4. **Review round 1.** Two lenses, correctness and security, each resolved with `sw-factory role resolve lens-<lens> --host claude --author claude` to a **command** invocation (`codex exec`), rendered with `sw-factory prompt render` (correctness with `--reference-skill tdd --host claude`, which prints `reference: tdd sha256:…`; security with no reference skill), and started **at the same time** in the background. Each writes `reviews/T1-r1-<lens>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES`, last line a provenance stamp `<!-- factory: role=lens-<lens> vendor=openai model=… -->` (plus `extra="-c windows.sandbox=…"` if you set step 0.5). The correctness stamp shows `reference=tdd sha256:…` (or `reference=test-driven-development sha256:…` when only the fallback is installed), the same value the render printed; the security stamp has no `reference=`. A `reference=none` on correctness means the reviewer got no reference skill: record it. Then `sw-factory panel combine` writes `reviews/T1-r1-panel.md`.
 5. On CHANGES: `reviews/disposition-T1-r1.md` answers every finding (accepted, modified or declined, each with a reason), the fixes come test-first, and round 2 runs the same way. At most three rounds; a third CHANGES is the `third-failed-round` hard stop.
 6. On PASS: minor findings go to `follow-ups.md`; the acceptance criteria in `ticket.md` are ticked; the state is `T1 done`. **No tester runs for a Fix** (design section 8.3): the merge gate's full verify takes its place.
 
@@ -127,7 +127,7 @@ Tell the factory "Merged." Expected: it checks with `git merge-base --is-ancesto
 |---|---|
 | `main` | the setup merge and the FIX-1 merge; `format_range(2500, "km")` returns `2.5 km` |
 | `sw-factory/work/FIX-1-km-label/` | `ticket.md` (criteria ticked), `progress.md` (Status line and a log, newest first), `decisions.md`, `retro.md`, `merge-gate.md` with `GATE: PASS`, `approvals/ticket-rev1.md` quoting you |
-| `…/reviews/` | `T1-r1-correctness.md`, `T1-r1-security.md`, `T1-r1-panel.md` (and `disposition-T1-r1.md` plus `T1-r2-*` if round 1 asked for changes); the lens files' stamps name an OpenAI model |
+| `…/reviews/` | `T1-r1-correctness.md`, `T1-r1-security.md`, `T1-r1-panel.md` (and `disposition-T1-r1.md` plus `T1-r2-*` if round 1 asked for changes); the lens files' stamps name an OpenAI model, and the correctness stamps of every round show `reference=tdd sha256:…` (or the fallback's), never `reference=none` while `tdd` is installed |
 | `git log` | every commit the skills make carries `Factory-Work`, `Factory-Role` and `Factory-Model` trailers (the commit `sw-factory work new` makes by itself carries only `Factory-Work`) |
 
 ### Record (pass A)
@@ -155,7 +155,7 @@ Run A1 to A5 again with the same messages and answers. The differences to check:
 | A1 | setup creates both `CLAUDE.md` and `AGENTS.md` with the same factory section (the sample has neither; rehearsal finding D2, fixed). Check that a later Codex session, for example at A2, knows where the work lives and how to resume without being pointed at `CLAUDE.md`. |
 | A1, A2, A3 | the setup commit message, rendered prompts and quote files go to `~/.sw-factory/staging/rangering/…`, outside the project. With `~/.sw-factory` in Codex's writable roots (step 0.4) these writes should need no extra permission (the rehearsal's finding D1 was without it). If Codex still asks to run those commands with more permissions, or they fail with `Access to the path … is denied.`, allow only those writes, and record each prompt or failure. |
 | A2 | `approvals/ticket-rev1.md` names the host `codex` |
-| A3 | the implementer is the OpenAI binding (`sw-factory role resolve implementer --host openai`); the lenses resolve with `--host openai --author openai` to **command** invocations of `claude -p`, read-only, started together as background jobs in one shell command; each lens file's stamp names a **Claude** model (`vendor=claude model=claude-…`) |
+| A3 | the implementer is the OpenAI binding (`sw-factory role resolve implementer --host openai`); the lenses resolve with `--host openai --author openai` to **command** invocations of `claude -p`, read-only, started together as background jobs in one shell command; each lens file's stamp names a **Claude** model (`vendor=claude model=claude-…`), and the correctness stamp shows `reference=tdd sha256:…` (rendered with `--host codex`), the security stamp no `reference=` |
 | A3 | Codex may cap how long one shell command runs: record whether both lens runs finished, and how long each took |
 | A4 | the gate runs `python verify.py` inside Codex's sandbox: record whether it ran |
 
@@ -167,11 +167,12 @@ A Fix never runs the independent tester or the maintainability lens. To see them
 
 > Triage this for the factory: add statute miles (`mi`) as a fourth unit, with tests for `nmi` and `mi`.
 
-Expected: the **Feature** track (`FEA-1`; each track is numbered separately), an intent checkpoint, a mini-spec reviewed by `doc-reviewer-b` (Codex) and the spec checkpoint, a plan checkpoint, the task loop with three lenses (maintainability as a Claude subagent, never blocking), and after each passing task a tester report `reviews/T<n>-tester-1.md` starting `RESULT: PASS`. Record it like pass A.
+Expected: the **Feature** track (`FEA-1`; each track is numbered separately), an intent checkpoint, a mini-spec reviewed by `doc-reviewer-b` (Codex) and the spec checkpoint, a plan checkpoint, the task loop with three lenses (maintainability as a Claude subagent, never blocking; its review stamp, which the review-panel skill writes, shows `reference=codebase-design sha256:…`), and after each passing task a tester report `reviews/T<n>-tester-1.md` starting `RESULT: PASS`. Record it like pass A.
 
 ## v1 is accepted when
 
 - [ ] Pass A ended in your merge of `FIX-1`, with every expected artifact.
 - [ ] Pass B ended the same way, with the lens stamps naming Claude models.
+- [ ] In both passes every correctness review's stamp showed the expected `reference=` value (`tdd sha256:…`, or the fallback's), and none showed `reference=none` while the skill was installed.
 - [ ] Neither pass wrote an approval you did not give, pushed, or merged into `main` by itself.
 - [ ] Every manual intervention and deviation is recorded, and each defect is a `FIX-` item for plan 2 or fixed before v1 closes.

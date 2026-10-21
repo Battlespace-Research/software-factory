@@ -17,7 +17,7 @@ In Claude Code, type `/` and pick `bsri-sw-factory:<skill>`. In Codex, type `$` 
 | `intake` | Sizes new work, proposes a track (or takes the one you name), opens the work item, and writes and confirms a Fix ticket | Each new bug, change or idea: *"Triage this for the factory: …"*, or *"Triage this as a Feature: …"* |
 | `orchestrate` | Moves a work item through its track's stages, stops at checkpoints, records your approvals, writes the retro, and hands each task and the merge to the skills below | To start or resume a work item: *"Continue FEA-7."* |
 | `task-loop` | Runs one task: failing test, fix, quick verify, review panel, fix rounds, tester, close | Called by `orchestrate`; you don't need to call it |
-| `review-panel` | Runs the review lenses at the same time, at least one from the other vendor, and combines their verdicts. Three lenses read a reference skill as guidance: correctness `tdd`, maintainability `codebase-design`, spec `domain-modeling` (when the project has a `CONTEXT.md` or ADRs) | Called by the task loop |
+| `review-panel` | Runs the review lenses at the same time, at least one from the other vendor, and combines their verdicts. Three lenses get a reference skill's text inlined in their prompt as guidance: correctness `tdd`, maintainability `codebase-design`, spec `domain-modeling` (when the project has a `CONTEXT.md` or ADRs) | Called by the task loop |
 | `merge-gate` | Brings the branch up to date, spot-checks an acceptance criterion, runs the gate, and gives you the merge | Called by `orchestrate` at the end |
 
 ## The `sw-factory` command
@@ -59,8 +59,8 @@ Every command takes `--help` for its full options. Commands that work on a proje
 |---|---|
 | `sw-factory role resolve <role> --host claude --author claude` | Shows which vendor, model and effort a role uses, and how it will run: in the main session, as a subagent, or as a headless command. `--host` and `--author` name a **vendor** here: `claude` or `openai`. `--fallback` shows the fallback binding. |
 | `sw-factory role run <role> --host claude --author claude --prompt FILE --out FILE` | Runs a headless reviewer through `codex exec` or `claude -p` and writes its review, with a provenance line, to `--out`. Exit 0 written, 1 failed (try again with `--fallback`), 3 the role runs in the session or as a subagent instead. `--schema FILE` asks Codex for JSON. |
-| `sw-factory prompt render TEMPLATE --set NAME=VALUE --out FILE` | Fills in a prompt template. `--from-review-md REVIEW.md --lens security` adds that lens's checklist and the nit cap. Refuses missing or unused values. The correctness, maintainability and spec prompts also take `--set reference_skill=PATH`, the lens's reference skill (or `none`). |
-| `sw-factory skills path codebase-design --host claude` | Prints the absolute path of an installed skill's `SKILL.md`, found where that app loads skills from (exit 0), or `none` when it is not installed (exit 1). `--host` is the app, `claude` or `codex`; `--project PATH` searches the project's own skill folders too, `--home PATH` another home folder. The review panel uses it to give each lens its reference skill. |
+| `sw-factory prompt render TEMPLATE --set NAME=VALUE --out FILE` | Fills in a prompt template. `--from-review-md REVIEW.md --lens security` adds that lens's checklist and the nit cap. Refuses missing or unused values. The correctness, maintainability and spec prompts also need `--reference-skill NAME --host claude` (or `--host codex`, the app): it inlines the installed skill NAME that `config/skills.yaml` registers for the lens (its `SKILL.md` and listed files, or its fallback's `SKILL.md`), searching only your user's skill folders, and prints `reference: NAME sha256:…`; when the skill is not installed, or with `--reference-skill none`, the prompt says none was available and it prints `reference: none`. The spec prompt also takes `--set domain_files=…`. |
+| `sw-factory skills path codebase-design --host claude` | Prints the absolute path of an installed skill's `SKILL.md`, found where that app loads skills from (exit 0), or `none` when it is not installed (exit 1). `--host` is the app, `claude` or `codex`; `--project PATH` searches the project's own skill folders too, `--home PATH` another home folder. Handy to see which copy of a skill a host would use; the review panel inlines reference skills with `prompt render --reference-skill`. |
 | `sw-factory panel combine WORK_DIR --task T1 --round 1` | Reads the round's lens reviews and writes the panel summary `reviews/<task>-r<round>-panel.md`. Exit 0 PASS, 1 CHANGES, 2 INCOMPLETE (a lens is missing or unreadable). `--commit` names the reviewed commit (default HEAD). |
 
 ### Merging
@@ -71,7 +71,7 @@ Every command takes `--help` for its full options. Commands that work on a proje
 
 ## Two meanings of `--host`
 
-`sw-factory skills check --host` and `sw-factory skills path --host` name the **app** you run: `claude` (Claude Code) or `codex`. For `sw-factory role resolve` and `sw-factory role run`, `--host` and `--author` name the **vendor**: `claude` or `openai`. In a Codex session, that means `skills check --host codex` but `role resolve --host openai`.
+`sw-factory skills check --host`, `sw-factory skills path --host` and `sw-factory prompt render --host` name the **app** you run: `claude` (Claude Code) or `codex`. For `sw-factory role resolve` and `sw-factory role run`, `--host` and `--author` name the **vendor**: `claude` or `openai`. In a Codex session, that means `skills check --host codex` but `role resolve --host openai`.
 
 ## Environment variables
 
