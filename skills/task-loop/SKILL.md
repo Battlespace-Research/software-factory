@@ -15,7 +15,7 @@ Names such as `<ID>`, `<work>`, `<branch>`, `<vendor>`, `<factory>` and `<stagin
 
 | Name | Meaning |
 |---|---|
-| `<task>` | the task id: `T1` in a Fix or Feature, `M1-T2` in a Program |
+| `<task>` | the task id: `T1` in a Fix or Feature, `M1-T2` in an Epic |
 | `<N>` | the review round, from 1 |
 | `<start>` | the full SHA of HEAD when the task started, recorded in `progress.md` |
 | `<head>` | the full SHA of the commit a review round reviews |
@@ -78,7 +78,7 @@ Never start a round numbered above `review.max_rounds`. If one is needed for ano
 3. Fix the `accepted` and `modified` findings test-first (section 2): a finding about behaviour gets a test that fails before the fix.
 4. Run section 3 for round `<N+1>` (it commits the disposition with the fixes), then section 4 for that round. Each lens gets its own round-`<N>` review as its earlier review, and `<start>` stays the same.
 
-## 6. The independent tester (PASS; Feature and Program)
+## 6. The independent tester (PASS; Feature and Epic)
 
 1. If `builds` is `ask`, ask the owner before the tester runs the full verify command, and wait for a yes; on any other answer, ask the owner how the task should be tested.
 2. Run `sw-factory work set-status <ID> --stage build --state "<task> tester running" --next "<task>: read the tester's report reviews/<task>-tester-<try>.md" --note "<task>: tester try <try> started"` and commit it. The tracked tree is now clean, and HEAD is the commit to test.
@@ -103,6 +103,6 @@ Never start a round numbered above `review.max_rounds`. If one is needed for ano
 ## 7. Close the task
 
 1. **Tick it:** in `plan.md`, every `- [ ]` under the task's heading becomes `- [x]`; a task without boxes gets the line `- [x] Done` under its heading. For a Fix, tick each acceptance criterion in `ticket.md` the same way (a criterion without a box gets `- [x] ` in front of it).
-2. `sw-factory work set-status <ID> --stage build --state "<task> done" --next "<next>" --note "<task> closed: panel PASS in round <N>; tester PASS (reviews/<task>-tester-<try>.md)"` (a Fix: `no tester (Fix)` in place of the tester part). `<next>` is the next open task in plan order (`<next task>: start (task-loop)`); after the last task of a Program milestone, that milestone's demo; after the item's last task, `write retro.md (orchestrate, Deploy and close)`.
+2. `sw-factory work set-status <ID> --stage build --state "<task> done" --next "<next>" --note "<task> closed: panel PASS in round <N>; tester PASS (reviews/<task>-tester-<try>.md)"` (a Fix: `no tester (Fix)` in place of the tester part). `<next>` is the next open task in plan order (`<next task>: start (task-loop)`); after the last task of an Epic milestone, that milestone's demo; after the item's last task, `write retro.md (orchestrate, Deploy and close)`.
 3. Commit `plan.md` (or `ticket.md`) and `progress.md`, and push `<branch>` under the push rule (orchestrate section 8).
 4. Hand back to orchestrate, which re-reads the Status line and goes on.

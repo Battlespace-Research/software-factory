@@ -96,7 +96,7 @@ def test_next_id_empty_repo_is_1(git_repo_no_remote_master):
 def test_next_id_in_a_repo_without_commits_is_1(tmp_path, isolated_git_config):
     run_git(tmp_path, "init", "-q", "-b", "main")
     assert ids_in_use(tmp_path, "main") == set()
-    assert next_id(tmp_path, "program", "main") == "PRG-1"
+    assert next_id(tmp_path, "epic", "main") == "EPIC-1"
 
 
 def test_next_id_sees_remote_branch(git_repo):
@@ -139,7 +139,7 @@ def test_next_id_numbers_each_track_separately(git_repo):
     run_git(git_repo, "branch", "sw-factory/FIX-2-b")
     assert next_id(git_repo, "fix", "main") == "FIX-3"
     assert next_id(git_repo, "feature", "main") == "FEA-1"
-    assert next_id(git_repo, "program", "main") == "PRG-1"
+    assert next_id(git_repo, "epic", "main") == "EPIC-1"
 
 
 def test_next_id_counts_a_lettered_id_by_its_number(git_repo):
@@ -148,8 +148,15 @@ def test_next_id_counts_a_lettered_id_by_its_number(git_repo):
     assert next_id(git_repo, "feature", "main") == "FEA-13"
 
 
+def test_next_id_reads_the_four_letter_epic_prefix(git_repo):
+    commit_work_folder(git_repo, "EPIC-12b-x")
+    run_git(git_repo, "branch", "sw-factory/EPIC-3-y")
+    assert ids_in_use(git_repo, "main") == {"EPIC-12b", "EPIC-3"}
+    assert next_id(git_repo, "epic", "main") == "EPIC-13"
+
+
 def test_ids_in_use_ignores_unrelated_branches(git_repo):
-    for name in ("feature/FIX-99-x", "fix/FEA-50", "sw-factory/notes", "release/PRG-7", "other/sw-factory/FEA-77-x"):
+    for name in ("feature/FIX-99-x", "fix/FEA-50", "sw-factory/notes", "release/EPIC-7", "other/sw-factory/FEA-77-x"):
         run_git(git_repo, "branch", name)
     run_git(git_repo, "push", "-q", "origin", "other/sw-factory/FEA-77-x")
     run_git(git_repo, "branch", "sw-factory/FIX-5-real")
@@ -169,8 +176,8 @@ def test_ids_in_use_with_an_unknown_base_branch_still_reads_the_factory_branches
 
 
 def test_next_id_unknown_track_is_a_value_error(git_repo):
-    with pytest.raises(ValueError, match="epic"):
-        next_id(git_repo, "epic", "main")
+    with pytest.raises(ValueError, match="program"):  # the old name of the epic track (F17)
+        next_id(git_repo, "program", "main")
 
 
 def test_letter_suffix():
@@ -197,7 +204,7 @@ def test_letter_suffix_rejects_a_bad_id():
 
 
 def test_track_prefix_is_the_one_from_tracks():
-    assert TRACK_PREFIX == {"program": "PRG", "feature": "FEA", "fix": "FIX"}
+    assert TRACK_PREFIX == {"epic": "EPIC", "feature": "FEA", "fix": "FIX"}
 
 
 # --------------------------------------------------------------------------- create_work_item
@@ -223,9 +230,9 @@ def test_create_feature_item_files(git_repo, cfg):
     assert not (w.path / "ticket.md").exists()
 
 
-def test_create_program_item_files(git_repo, cfg):
-    w = create_work_item(git_repo, cfg, "program", "ngc2", "Next-gen command and control")
-    assert w.id == "PRG-1"
+def test_create_epic_item_files(git_repo, cfg):
+    w = create_work_item(git_repo, cfg, "epic", "ngc2", "Next-gen command and control")
+    assert w.id == "EPIC-1" and w.branch == "sw-factory/EPIC-1-ngc2"
     assert {p.name for p in w.path.iterdir()} == {
         "intent.md", "spec.md", "plan.md", "progress.md", "decisions.md", "retro.md",
         "reviews", "approvals", "research", "demo",
@@ -234,7 +241,7 @@ def test_create_program_item_files(git_repo, cfg):
 
 def test_created_empty_folders_survive_a_checkout(git_repo, cfg):
     """git does not track empty folders, so each carries a .gitkeep; a fresh clone then has all of them."""
-    w = create_work_item(git_repo, cfg, "program", "p", "A program")
+    w = create_work_item(git_repo, cfg, "epic", "p", "An epic")
     tracked = set(run_git(git_repo, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
     for folder in ("reviews", "approvals", "research", "demo"):
         assert f"sw-factory/work/{w.path.name}/{folder}/.gitkeep" in tracked
@@ -332,8 +339,8 @@ def test_good_slugs_are_accepted(git_repo, cfg, slug):
 
 
 def test_unknown_track_rejected(git_repo, cfg):
-    with pytest.raises(ValueError, match="epic"):
-        create_work_item(git_repo, cfg, "epic", "a", "A thing")
+    with pytest.raises(ValueError, match="program"):  # the old name of the epic track (F17)
+        create_work_item(git_repo, cfg, "program", "a", "A thing")
 
 
 @pytest.mark.parametrize("title", ["", "   ", "two\nlines"])
@@ -696,7 +703,7 @@ def test_cli_work_new_without_a_project(tmp_path, capsys, monkeypatch):
 
 def test_cli_work_new_rejects_an_unknown_track():
     with pytest.raises(SystemExit) as caught:
-        cli.main(["work", "new", "--track", "epic", "--slug", "a", "--title", "T"])
+        cli.main(["work", "new", "--track", "program", "--slug", "a", "--title", "T"])
     assert caught.value.code == 2
 
 

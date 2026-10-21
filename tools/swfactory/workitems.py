@@ -1,6 +1,6 @@
 """Work items: ids, branches, folders and the Status line of ``progress.md`` (design section 8).
 
-A piece of work gets an id (``FIX-1``, ``FEA-12``, ``PRG-3``), numbered per track and never reused, a branch
+A piece of work gets an id (``FIX-1``, ``FEA-12``, ``EPIC-3``), numbered per track and never reused, a branch
 ``sw-factory/<ID>-<slug>`` and a folder ``sw-factory/work/<ID>-<slug>/`` of template files. The Status line on the
 first line of its ``progress.md`` is the resume point for any session that picks the work up.
 """

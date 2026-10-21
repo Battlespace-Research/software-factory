@@ -505,7 +505,7 @@ LENSES = ("correctness", "security", "maintainability", "spec")
 PANEL_TRACKS = {
     "fix": ["correctness", "security"],
     "feature": ["correctness", "security", "maintainability"],
-    "program": ["correctness", "security", "maintainability", "spec"],
+    "epic": ["correctness", "security", "maintainability", "spec"],
 }
 
 
@@ -598,7 +598,7 @@ def test_check_config_collects_problems_from_every_file(monkeypatch, tmp_path):
 
 def test_cli_version(capsys):
     assert cli.main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == "0.2.0" == __version__
+    assert capsys.readouterr().out.strip() == "0.3.0" == __version__
 
 
 def test_cli_without_command_prints_usage(capsys):
@@ -664,4 +664,4 @@ def test_cli_config_check_project_with_review_md_ok(tmp_path, capsys):
 
 def test_python_dash_m_runs_the_cli():
     done = subprocess.run([sys.executable, "-m", "swfactory", "--version"], capture_output=True, text=True, timeout=60)
-    assert done.returncode == 0 and done.stdout.strip() == "0.2.0"
+    assert done.returncode == 0 and done.stdout.strip() == "0.3.0"

@@ -8,7 +8,7 @@ Track: {{track}} · opened {{date}}
 
 ## Outcome
 
-<!-- What is true when the whole program is done, in terms the owner can check. Milestones come later, in plan.md. -->
+<!-- What is true when the whole epic is done, in terms the owner can check. Milestones come later, in plan.md. -->
 
 ## Users and systems affected
 
@@ -16,7 +16,7 @@ Track: {{track}} · opened {{date}}
 
 ## Constraints
 
-<!-- Rules, deadlines, compatibility, licensing and security limits the program must respect. -->
+<!-- Rules, deadlines, compatibility, licensing and security limits the epic must respect. -->
 
 ## Open questions
 

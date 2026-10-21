@@ -1,6 +1,6 @@
 ---
 name: merge-gate
-description: "BSRI software factory: The software factory's last check before the owner merges a work item, or a Program milestone, into the base branch. Brings the work branch up to date with the base (re-reviewing when that changed it), commits everything, spot-checks one acceptance criterion, runs sw-factory gate, and hands the owner a summary with the merge command; the owner merges. Use when orchestrate reaches the merge, or the owner asks whether a work branch is ready to merge."
+description: "BSRI software factory: The software factory's last check before the owner merges a work item, or an Epic milestone, into the base branch. Brings the work branch up to date with the base (re-reviewing when that changed it), commits everything, spot-checks one acceptance criterion, runs sw-factory gate, and hands the owner a summary with the merge command; the owner merges. Use when orchestrate reaches the merge, or the owner asks whether a work branch is ready to merge."
 ---
 
 # Merge gate
@@ -17,14 +17,14 @@ Names such as `<ID>`, `<work>`, `<branch>` and `<vendor>` mean what the table at
 |---|---|
 | `<base>` | `base_branch` in `sw-factory.yaml` |
 | `<base ref>` | `origin/<base>` when that ref exists, otherwise the local `<base>`: the ref the gate compares with |
-| `<last task>` | the last task in plan order that this merge carries (a Fix's `T1`; for a Program milestone, its last task) |
+| `<last task>` | the last task in plan order that this merge carries (a Fix's `T1`; for an Epic milestone, its last task) |
 
 Run every command from the repository root. Commits follow orchestrate section 8, as the implementer: `Factory-Work: <ID>`, `Factory-Role: implementer`, and the model and effort from `sw-factory role resolve implementer --host <vendor> --project .`; a review round's commits name its task instead (`Factory-Work: <ID>/<task>`).
 
 ## 1. Check the work is ready
 
 1. You are on `<branch>`. Read `sw-factory work status <ID>` and note its `stage` and `next`. If `next` contains `then the merge gate`, a re-review (section 2, step 4) was interrupted: finish it first with the task-loop skill, which resumes it and sends a PASS back here, then start this section again.
-2. Every task this merge carries is ticked in `plan.md` (a Fix: the criteria in `ticket.md`), and each has a passing panel summary (`<work>/reviews/<task>-r<N>-panel.md`, first line `VERDICT: PASS`) and, except in a Fix, a tester report `<work>/reviews/<task>-tester-<try>.md` that starts `RESULT: PASS`. For a Program milestone, its demo checkpoint is passed (approved, or noted in auto mode). If anything is missing, go back to orchestrate.
+2. Every task this merge carries is ticked in `plan.md` (a Fix: the criteria in `ticket.md`), and each has a passing panel summary (`<work>/reviews/<task>-r<N>-panel.md`, first line `VERDICT: PASS`) and, except in a Fix, a tester report `<work>/reviews/<task>-tester-<try>.md` that starts `RESULT: PASS`. For an Epic milestone, its demo checkpoint is passed (approved, or noted in auto mode). If anything is missing, go back to orchestrate.
 
 ## 2. Bring the branch up to date with the base
 
@@ -60,7 +60,7 @@ It prints the path of `<work>/merge-gate.md` and `GATE: PASS` or `GATE: FAIL`, a
 
 ## 7. Record the result
 
-1. On PASS: `sw-factory work set-status <ID> --stage <the stage from section 1> --state "merge pending" --next "<next>" --note "Merge gate PASS (merge-gate.md)"`. `<next>` is `owner merges <branch> into <base>`, followed by what comes after the merge: after the item's last merge, `then apply the approved lessons and queue the follow-ups (orchestrate, Deploy and close, steps 6 and 7)`; after a Program milestone, `then bring <branch> up to date with <base> and start M<n+1>`.
+1. On PASS: `sw-factory work set-status <ID> --stage <the stage from section 1> --state "merge pending" --next "<next>" --note "Merge gate PASS (merge-gate.md)"`. `<next>` is `owner merges <branch> into <base>`, followed by what comes after the merge: after the item's last merge, `then apply the approved lessons and queue the follow-ups (orchestrate, Deploy and close, steps 6 and 7)`; after an Epic milestone, `then bring <branch> up to date with <base> and start M<n+1>`.
 2. On FAIL: the same command with `--state "gate failed"`, the next step `fix <the failed checks>, then run the merge gate again` and the note `Merge gate FAIL: <the failed checks>`.
 3. Commit `merge-gate.md` with `progress.md`, whatever the result, and push `<branch>` under the push rule (orchestrate section 8).
 
@@ -90,7 +90,7 @@ Show the owner each failed check, with its detail from `merge-gate.md`, and what
 
 - **`base-merged`:** the base moved again; go back to section 2.
 - **`reviewed-commit`:** commit the uncommitted changes it names (section 3); if product files changed after the review, run another review round (section 2, step 4).
-- **`size-cap`:** the change is bigger than `merge.size_cap` lines (the work folder and `merge.generated` files do not count). Propose a split: list the changed lines per file with `git diff --numstat <base ref>...HEAD -- . ":(exclude)sw-factory/work"`, then group the files by task or module into parts that each stay under the cap and build, pass the verify and make sense on their own; say which tasks go in each part and in what order the parts merge. For a Feature, that usually means stepping up to a Program with one milestone per part (the intake skill, "Stepping up"). Splitting changes the plan and the scope, so the owner decides.
+- **`size-cap`:** the change is bigger than `merge.size_cap` lines (the work folder and `merge.generated` files do not count). Propose a split: list the changed lines per file with `git diff --numstat <base ref>...HEAD -- . ":(exclude)sw-factory/work"`, then group the files by task or module into parts that each stay under the cap and build, pass the verify and make sense on their own; say which tasks go in each part and in what order the parts merge. For a Feature, that usually means stepping up to an Epic with one milestone per part (the intake skill, "Stepping up"). Splitting changes the plan and the scope, so the owner decides.
 - **`id-unused-on-base`:** another work item on the base has this id. Its detail names the next free id; renaming the item is the owner's decision.
 - **`verify-full`:** "ask the owner before the full build" means section 4 was skipped. Otherwise it is a defect: find the cause and fix it through the task loop as a new task in `plan.md` (an amendment), then run the gate again.
 - **`spot-check`:** the text was empty; do section 5.

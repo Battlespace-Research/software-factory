@@ -1,6 +1,6 @@
 {
   "name": "bsri-sw-factory",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "The BSRI software factory: sets up a project, triages work by size, and runs each task test-first through a cross-vendor review panel, an independent tester and a merge gate, with approvals in chat and a person merging. Needs the sw-factory CLI (docs/guide/install.md).",
   "author": {
     "name": "Battlespace Research"

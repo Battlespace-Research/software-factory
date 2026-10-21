@@ -6,7 +6,7 @@ lenses: [correctness, security, maintainability, spec]
 tracks:
   fix: [correctness, security]
   feature: [correctness, security, maintainability]
-  program: [correctness, security, maintainability, spec]
+  epic: [correctness, security, maintainability, spec]
 # The most nit-level findings one review may report.
 nit_cap: 5
 # Glob patterns of files reviewers leave alone, such as generated code.

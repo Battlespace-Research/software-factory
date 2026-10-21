@@ -1,11 +1,11 @@
 ---
 name: intake
-description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner asks to triage work for the factory, brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Picks the Fix, Feature or Program track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
+description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner asks to triage work for the factory, brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Picks the Fix, Feature or Epic track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
 ---
 
 # Intake
 
-Puts incoming work in the smallest track that fits, records why, and opens its work item: an id (`FIX-<n>`, `FEA-<n>`, `PRG-<n>`), a branch and a folder under `sw-factory/work/`. A Fix leaves triage with a confirmed ticket; every item then goes to the `orchestrate` skill.
+Puts incoming work in the smallest track that fits, records why, and opens its work item: an id (`FIX-<n>`, `FEA-<n>`, `EPIC-<n>`), a branch and a folder under `sw-factory/work/`. A Fix leaves triage with a confirmed ticket; every item then goes to the `orchestrate` skill.
 
 Uses skills: grilling, research
 
@@ -27,9 +27,9 @@ Put the work in the **smallest track that fits** (design section 8.3):
 |---|---|
 | **Fix** | one session, one task, and touches no shared contract, schema or file format |
 | **Feature** | up to about five tasks, with no milestones, in one repository |
-| **Program** | anything bigger: needs milestones, more than about five tasks, or more than one repository |
+| **Epic** | anything bigger: needs milestones, more than about five tasks, or more than one repository |
 
-A Fix that needs more than one session, more than one task, or a change to a shared contract, schema or file format is a Feature. A Feature that needs milestones, crosses repositories or outgrows about five tasks is a Program. Touching a git submodule does not by itself make work a Program.
+A Fix that needs more than one session, more than one task, or a change to a shared contract, schema or file format is a Feature. A Feature that needs milestones, crosses repositories or outgrows about five tasks is an Epic. Touching a git submodule does not by itself make work an Epic.
 
 Tell the owner the track and the reason in a sentence or two. The owner may choose another track; their choice, and why, becomes the recorded reason.
 
@@ -45,8 +45,8 @@ Tell the owner the track and the reason in a sentence or two. The owner may choo
 3. **Branching** (`branching` in `sw-factory.yaml`):
    - `per-item`: the new branch is cut from the local base branch (`base_branch`). If that is behind its remote copy (`git rev-list --count <base>..origin/<base>` prints more than 0), tell the owner and ask whether they want it updated first; only the owner moves the base branch.
    - `single`: switch to the work branch named in `sw-factory.yaml` first. It holds one work item at a time: if an item there is not closed, ask the owner before opening another.
-4. **Open it:** `sw-factory work new --track <fix|feature|program> --slug <slug> --title "<title>"`. It allocates the id, creates (with `per-item`, switches to) the branch, copies the track's template files and commits them; it prints JSON with `id`, `branch` and `folder`.
-5. **Record the reason:** `sw-factory work set-status <ID> --stage plan --state open --next "<next step>" --note "Triage: <track>, because <reason>"`. The next step is "write ticket.md" for a Fix, "short grill, then write intent.md" for a Feature, and "research and grill, then write intent.md and decisions.md" for a Program.
+4. **Open it:** `sw-factory work new --track <fix|feature|epic> --slug <slug> --title "<title>"`. It allocates the id, creates (with `per-item`, switches to) the branch, copies the track's template files and commits them; it prints JSON with `id`, `branch` and `folder`.
+5. **Record the reason:** `sw-factory work set-status <ID> --stage plan --state open --next "<next step>" --note "Triage: <track>, because <reason>"`. The next step is "write ticket.md" for a Fix, "short grill, then write intent.md" for a Feature, and "research and grill, then write intent.md and decisions.md" for an Epic.
 6. **Commit it:** `sw-factory role resolve interviewer --host <vendor> --project .` gives `resolved.model` and `resolved.effort`; then `git add -- <folder>/progress.md` and `git commit -m "<ID>: triage as <track>" --trailer "Factory-Work: <ID>" --trailer "Factory-Role: interviewer" --trailer "Factory-Model: <model> (<effort>)"`. Keep your host's own co-author line if it adds one.
 7. **Claim the id** by pushing the item's branch, under the factory's one push rule (section 8 of `../orchestrate/SKILL.md`): push only the work item's branch (or its lessons branch, after the merge), only when a remote exists, only if the project's rules and `hard_stops` allow it, and never the base branch. First read `hard_stops` in `sw-factory.yaml` and `../orchestrate/references/hard-stops.md`; if a stop covers pushing (such as a project `no-push` id), do not push, and tell the owner. Otherwise: `git push -u origin <branch>` (with `per-item` branching `sw-factory/<ID>-<slug>`; with `single`, the work branch).
 
@@ -65,7 +65,7 @@ If writing the ticket shows the work is bigger than a Fix, stop and step it up (
 
 ## 6. Hand over
 
-Give the item to the `orchestrate` skill with its id: a Fix once its ticket is confirmed, a Feature or Program straight after step 4.
+Give the item to the `orchestrate` skill with its id: a Fix once its ticket is confirmed, a Feature or Epic straight after step 4.
 
 If the owner wants the item queued rather than started (a Fix after its ticket is confirmed, while the owner is here), switch back to the branch you were on (`git switch <previous branch>`) and stop. With `per-item` branching the item's branch is its place in the queue.
 

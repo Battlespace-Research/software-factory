@@ -524,7 +524,7 @@ def test_id_in_use_on_the_base_fails_and_suggests_the_next_free_id(work, gate_cf
 
 
 def test_the_items_own_folder_already_on_the_base_is_not_a_collision(work, gate_cfg):
-    """A Program merges once per milestone: from milestone 2 the base holds this item's own folder."""
+    """An Epic merges once per milestone: from milestone 2 the base holds this item's own folder."""
     advance_base(work.repo, "sw-factory/work/FEA-1-demo/progress.md")  # exactly <ID>-<slug>
     result = check(gate(work, gate_cfg), "id-unused-on-base")
     assert result.ok, result.detail

@@ -189,7 +189,7 @@ def test_review_md_template_loads_with_the_default_lenses(repo):
     assert cfg.tracks == {
         "fix": ["correctness", "security"],
         "feature": ["correctness", "security", "maintainability"],
-        "program": ["correctness", "security", "maintainability", "spec"],
+        "epic": ["correctness", "security", "maintainability", "spec"],
     }
     assert (cfg.nit_cap, cfg.ignore, cfg.always_flag) == (5, [], [])
     assert check_panel_vendor_mix(cfg, load_role_table(factory_home() / "config/roles.yaml")) == []

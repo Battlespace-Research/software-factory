@@ -6,13 +6,13 @@ from pathlib import Path
 
 from swfactory.config import PROJECT_CONFIG
 
-TRACK_PREFIX = {"program": "PRG", "feature": "FEA", "fix": "FIX"}
+TRACK_PREFIX = {"epic": "EPIC", "feature": "FEA", "fix": "FIX"}
 
 _TRACK_FOR_PREFIX = {prefix: track for track, prefix in TRACK_PREFIX.items()}
 
 # An id is ``<PREFIX>-<number>`` with an optional single-letter suffix for a collision (``FEA-12b``); a work
-# folder name continues with ``-<slug>``.
-_WORK_ID = re.compile(r"(?P<prefix>[A-Z]{3})-\d+[a-z]?(?:-.+)?")
+# folder name continues with ``-<slug>``. Prefixes differ in length (``EPIC``, ``FEA``), so the pattern lists them.
+_WORK_ID = re.compile(rf"(?P<prefix>{'|'.join(sorted(TRACK_PREFIX.values()))})-\d+[a-z]?(?:-.+)?")
 
 
 def track_for_id(id_: str) -> str:

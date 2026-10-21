@@ -12,7 +12,7 @@ lenses: [correctness, security, maintainability, spec]
 tracks:
   fix: [correctness, security]
   feature: [correctness, security, maintainability]
-  program: [correctness, security, maintainability, spec]
+  epic: [correctness, security, maintainability, spec]
 nit_cap: 4
 ignore: [generated/**]
 always_flag:
@@ -51,7 +51,7 @@ def test_load_review_md_tracks(tmp_path):
     cfg = load_review_md(write(tmp_path / "REVIEW.md", REVIEW_MD))
     assert cfg.tracks["fix"] == ["correctness", "security"] and "## Lens" not in cfg.lenses["security"]
     assert list(cfg.lenses) == ["correctness", "security", "maintainability", "spec"]
-    assert cfg.tracks["program"] == ["correctness", "security", "maintainability", "spec"]
+    assert cfg.tracks["epic"] == ["correctness", "security", "maintainability", "spec"]
 
 
 def test_load_review_md_reads_settings_and_checklists(tmp_path):
@@ -144,6 +144,12 @@ colour: blue
         assert expected in joined, expected
 
 
+def test_the_old_program_track_is_unknown(tmp_path):
+    """A REVIEW.md from before F17 names the epic track by its old name: the check says which tracks it expects."""
+    joined = "\n".join(problems_of(tmp_path, REVIEW_MD.replace("  epic:", "  program:")))
+    assert "unknown track 'program' (expected epic, feature, fix)" in joined
+
+
 def test_load_review_md_requires_lenses_and_tracks(tmp_path):
     joined = "\n".join(problems_of(tmp_path, "---\nnit_cap: 3\n---\n"))
     assert "lenses is required" in joined and "tracks is required" in joined
@@ -172,10 +178,10 @@ def test_default_lens_sets_all_have_an_other_vendor_lens(table, tmp_path):
 
 
 def test_one_problem_per_offending_track_in_file_order(table):
-    cfg = cfg_with({"program": ["spec"], "fix": ["correctness"], "feature": ["maintainability", "spec"]})
+    cfg = cfg_with({"epic": ["spec"], "fix": ["correctness"], "feature": ["maintainability", "spec"]})
     problems = check_panel_vendor_mix(cfg, table)
     assert len(problems) == 2
-    assert "program" in problems[0] and "feature" in problems[1]
+    assert "epic" in problems[0] and "feature" in problems[1]
 
 
 def test_a_lens_without_a_role_does_not_count(table):

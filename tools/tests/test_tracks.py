@@ -7,14 +7,15 @@ from swfactory.tracks import TRACK_PREFIX, find_project_root, track_for_id
 
 
 def test_track_prefixes():
-    assert TRACK_PREFIX == {"program": "PRG", "feature": "FEA", "fix": "FIX"}
+    assert TRACK_PREFIX == {"epic": "EPIC", "feature": "FEA", "fix": "FIX"}
 
 
 @pytest.mark.parametrize(
     "name, track",
     [
-        ("PRG-1", "program"),
-        ("PRG-10-big-program", "program"),
+        ("EPIC-1", "epic"),
+        ("EPIC-10-big-epic", "epic"),
+        ("EPIC-12b", "epic"),
         ("FEA-7", "feature"),
         ("FEA-12b", "feature"),
         ("FEA-12b-new-thing", "feature"),
@@ -36,6 +37,8 @@ def test_track_for_id_maps_ids_and_work_folder_names(name, track):
         "FIX-x",
         "FIX3",
         "FOO-1",
+        "PRG-1",  # the old prefix of the epic track (F17)
+        "EPICS-1",  # not a prefix
         "FIX-3_x",
         "FIX-3 licence",
         "FIX-3b2",  # a letter suffix is one letter, and only after the number

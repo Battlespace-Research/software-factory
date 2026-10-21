@@ -8,7 +8,7 @@
 3. ``size-cap``: the change is under the project's line cap. Generated files, binaries and everything under
    ``sw-factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
 4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id). The
-   item's own folder, ``<ID>-<slug>`` exactly, is not counted: a Program merges once per milestone.
+   item's own folder, ``<ID>-<slug>`` exactly, is not counted: an Epic merges once per milestone.
 5. ``verify-full``: the project's full verify command passes.
 6. ``spot-check``: someone checked one acceptance criterion by hand and said so.
 
@@ -251,7 +251,7 @@ def _id_unused(repo: Path, cfg: ProjectConfig, item: WorkItem, refs: list[_BaseR
     if not refs:
         return _missing_base(cfg.base_branch)
     prefix = f"{item.id}-"  # the dash keeps FEA-1 apart from FEA-12 and FEA-1b
-    # This item's own folder, already merged by an earlier merge of the same item (a Program merges once per
+    # This item's own folder, already merged by an earlier merge of the same item (an Epic merges once per
     # milestone), is not a clash; any other folder with the id is, whatever its slug.
     own = f"{item.id}-{item.slug}"
     found: dict[str, str] = {}  # folder name -> the first base ref it was seen on

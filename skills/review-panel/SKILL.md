@@ -27,7 +27,7 @@ Run every command from the repository root.
 ## 1. Check the starting point
 
 1. `git status --porcelain --untracked-files=no` prints nothing and `git rev-parse HEAD` prints `<head>`. Otherwise go back to the caller: the panel reviews committed work only.
-2. **The lenses.** The track comes from the id's prefix (`FIX-` fix, `FEA-` feature, `PRG-` program); its lenses are the list under `tracks:` for that track in the front matter of `REVIEW.md`. If the list names any lens other than `correctness`, `security`, `maintainability` and `spec`, stop and tell the owner: this version of the factory has review prompts for those four only, and project lenses come in a later version. The owner removes the lens from the track or waits. Never run part of a panel.
+2. **The lenses.** The track comes from the id's prefix (`FIX-` fix, `FEA-` feature, `EPIC-` epic); its lenses are the list under `tracks:` for that track in the front matter of `REVIEW.md`. If the list names any lens other than `correctness`, `security`, `maintainability` and `spec`, stop and tell the owner: this version of the factory has review prompts for those four only, and project lenses come in a later version. The owner removes the lens from the track or waits. Never run part of a panel.
 3. **The spec path** is `<work>/ticket.md` for a Fix and `<work>/spec.md` otherwise.
 4. **Resuming:** a lens whose review file for this round, `<work>/reviews/<task>-r<N>-<lens>.md`, already exists (a session stopped in the middle of the round) is not run again; the combine step says whether that file is valid.
 

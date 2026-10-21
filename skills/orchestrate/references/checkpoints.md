@@ -13,8 +13,8 @@ Approvals happen in chat (decision F13). The record of an approval holds the own
 | ticket (Fix) | `ticket.md` is written (in triage) | `ticket` | 1 | problem, repro steps, acceptance criteria, out of scope |
 | intent | `intent.md` is written | `intent` | 1 | problem, outcome, constraints, open questions, decisions so far |
 | spec | its document review has passed | `spec` | from its Status line | requirements, review rounds and verdicts, declined findings with reasons, open questions (none may remain) |
-| plan | its review has passed (Program), or it is written (Feature) | `plan` | from its Status line | tasks or milestones, which requirements each covers, review outcome |
-| demo (Program) | the tester's demo report for milestone `<n>` says `RESULT: PASS` | `demo-m<n>` | 1 | the report's checks and evidence |
+| plan | its review has passed (Epic), or it is written (Feature) | `plan` | from its Status line | tasks or milestones, which requirements each covers, review outcome |
+| demo (Epic) | the tester's demo report for milestone `<n>` says `RESULT: PASS` | `demo-m<n>` | 1 | the report's checks and evidence |
 | merge | the merge gate has passed | none | none | the `merge-gate` summary; the owner merges |
 
 **Revisions** are canonical numbers: `1`, `2`, `2.1`; never `01`, `2.0` or `v2`. A spec or plan takes its revision from its own Status line. A ticket, intent or demo is revision 1 until its first approval; changed and approved again, it takes the next whole number (2, then 3), because an approval record is never overwritten.
