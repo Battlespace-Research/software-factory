@@ -23,7 +23,7 @@ You drive the factory by talking to Claude Code or Codex in your project. Open a
 4. **Let it run.** It writes a failing test first, fixes, runs your verify command, has reviewers from the other vendor check the change (Claude Code calls Codex; Codex calls Claude), and runs the merge gate. It stops for you at every hard stop, such as anything that touches the main branch, credentials or new dependencies.
 5. **You merge.** When the gate passes it gives you what changed, the review results, the verify output and the merge commands. A person always merges.
 
-To see where any piece of work stands, ask the agent, or run `factory work status <ID>`. [Using the factory](docs/guide/using-the-factory.md) walks through all of this in detail, including Features, review and auto modes, and where every file lives.
+To see where any piece of work stands, ask the agent, or run `factory work status <ID>`. [Using the factory](docs/guide/using-the-factory.md) walks through all of this in detail, including Features, review and auto modes, and where every file lives. The [command reference](docs/guide/reference.md) lists every skill and every `factory` command.
 
 ## Why it exists
 
@@ -229,7 +229,7 @@ templates/         project/ (what setup creates in a project) and work/ (a new w
 tools/             the factory command (Python package swfactory) and its tests
 examples/          sample-app, the small project with a planted bug that the acceptance run works on
 docs/
-  guide/           the install guide and the walkthrough for teammates
+  guide/           the install guide, the walkthrough and the command reference
   acceptance/      the v1 acceptance checklist and the results of each run
   specs/           the design
   plans/           the implementation plan

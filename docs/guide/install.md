@@ -2,7 +2,7 @@
 
 This guide sets up the factory on your machine, for Claude Code, for Codex, or for both. Once it is done, go on to [Using the factory](using-the-factory.md).
 
-> **Version 0.1.0, being reviewed.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
+> **Version 0.1.0.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
 
 ## What you install
 
