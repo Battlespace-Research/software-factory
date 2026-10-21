@@ -43,7 +43,7 @@ Every command takes `--help` for its full options. Commands that work on a proje
 
 | Command | What it does |
 |---|---|
-| `sw-factory work new --track fix --slug km-label --title "Range ring label shows m for km"` | Opens a work item: takes the next free id for the track (`FIX-`, `FEA-`, `PRG-`), creates and switches to its branch, copies the track's files into `sw-factory/work/<ID>-<slug>/`, and commits. `--track` is `fix`, `feature` or `program`. |
+| `sw-factory work new --track fix --slug km-label --title "Range ring label shows m for km"` | Opens a work item: takes the next free id for the track (`FIX-`, `FEA-`, `EPIC-`), creates and switches to its branch, copies the track's files into `sw-factory/work/<ID>-<slug>/`, and commits. `--track` is `fix`, `feature` or `epic`. |
 | `sw-factory work status <ID>` | Prints the work item's Status line as JSON. |
 | `sw-factory work set-status <ID> --stage S --state S --next TEXT --note TEXT` | Rewrites the Status line and adds a note at the top of the log in `progress.md`. Doesn't commit. |
 

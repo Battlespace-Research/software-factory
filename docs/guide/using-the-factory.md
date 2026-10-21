@@ -4,15 +4,15 @@ A walkthrough for a teammate's first weeks with the factory: setting up a projec
 
 The factory is driven by talking to Claude Code or Codex in your project. You describe what you want in plain words, the factory's skills do the work step by step, and they stop for you whenever a person has to decide. Behind the skills, the `sw-factory` command does the exact bookkeeping: work items, Status lines, approval records and the merge gate.
 
-Version 1 is built for the **Fix** and **Feature** tracks, which this guide walks through. A **Program** works the same way at a larger scale (research, two document reviewers, milestones with demos), but the tooling for its milestone demos comes in a later version, as do the dashboard and the Deploy and Maintain stages. Version 1 has not yet been piloted on a real project: expect rough edges, and tell the factory's maintainers what you find.
+Version 1 is built for the **Fix** and **Feature** tracks, which this guide walks through. An **Epic** works the same way at a larger scale (research, two document reviewers, milestones with demos), but the tooling for its milestone demos comes in a later version, as do the dashboard and the Deploy and Maintain stages. Version 1 has not yet been piloted on a real project: expect rough edges, and tell the factory's maintainers what you find.
 
 ## Words used here
 
 | Word | Meaning |
 |---|---|
 | **Owner** | The person who decides about the work, usually you. Only the people listed under `approvers` in the project's `sw-factory.yaml` may approve a checkpoint |
-| **Work item** | One piece of work, with an id (`FIX-3`, `FEA-7`, `PRG-2`), a branch `sw-factory/<ID>-<slug>` and a folder `sw-factory/work/<ID>-<slug>/` |
-| **Track** | Fix, Feature or Program: how much process a work item gets |
+| **Work item** | One piece of work, with an id (`FIX-3`, `FEA-7`, `EPIC-2`), a branch `sw-factory/<ID>-<slug>` and a folder `sw-factory/work/<ID>-<slug>/` |
+| **Track** | Fix, Feature or Epic: how much process a work item gets |
 | **Checkpoint** | A point where the factory shows you an artifact and waits for your approval |
 | **Hard stop** | An action the factory never takes without your answer, in any mode |
 | **Role** | A job in the process (interviewer, implementer, lens reviewer, tester, …). Which model fills each role comes from the factory's role table, `config/roles.yaml`, and a project can override a role in its `sw-factory.yaml` |
@@ -58,7 +58,7 @@ The intake skill asks questions one at a time until it knows what is wrong or wa
 |---|---|
 | **Fix** | one session and one task, touching no shared contract, schema or file format |
 | **Feature** | up to about five tasks, without milestones, in one repository |
-| **Program** | anything bigger: milestones, more than about five tasks, or more than one repository |
+| **Epic** | anything bigger: milestones, more than about five tasks, or more than one repository |
 
 You can choose another track; your choice and reason are recorded. The factory then opens the work item with `sw-factory work new`: it takes the next free id, creates the branch and the folder, and commits. If the project has a remote and its rules allow pushing, it pushes the new branch, which claims the id for the team.
 

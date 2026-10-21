@@ -12,7 +12,7 @@ Write what happened in `docs/acceptance/<date>-v1-results.md`, using the record 
 
 These change your machine's host configuration, so they are yours to do.
 
-1. **The `sw-factory` command.** `sw-factory --version` prints `0.2.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory clone>/tools` or by putting only `sw-factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
+1. **The `sw-factory` command.** `sw-factory --version` prints `0.3.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory clone>/tools` or by putting only `sw-factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
 2. **The plugin, from this checkout.** Check out `main` here (`git switch main && git pull`), then add this checkout as a local marketplace, so the run uses exactly the plugin you have:
 
    ```text

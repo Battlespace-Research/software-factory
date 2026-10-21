@@ -1,6 +1,6 @@
 # Software Factory
 
-A reusable way for BSI teams to take work from an idea to running software with AI agents. It runs in **Claude Code** and in **Codex** (CLI and the ChatGPT desktop app), lets one model drive another, and scales from a one-session bug fix to a multi-week program.
+A reusable way for BSI teams to take work from an idea to running software with AI agents. It runs in **Claude Code** and in **Codex** (CLI and the ChatGPT desktop app), lets one model drive another, and scales from a one-session bug fix to a multi-week epic.
 
 > **Status: version 1 core built and merged; not yet piloted.** Built: the `sw-factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. Its tests pass on Windows and Linux, and a rehearsal on a sample app ran a Fix from setup to a passing merge gate with real Codex reviews ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). Next come the owner-attended runs in each host ([checklist](docs/acceptance/v1-checklist.md)) and a first real project. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
 
@@ -18,7 +18,7 @@ The short version; the [install guide](docs/guide/install.md) has the prerequisi
 You drive the factory by talking to Claude Code or Codex in your project. Open a session at the root of the project's repository, with no uncommitted changes, then:
 
 1. **Set up the project, once.** Say *"Set up this repository for the software factory."* Or pick the skill: in Claude Code, type `/` and choose `bsri-sw-factory:setup-project`; in Codex, type `$` and choose `bsri-sw-factory:setup-project`. It asks you one question at a time (verify commands, approvers, branching), shows every file it made, and commits on a `sw-factory/setup` branch once you approve. You merge that branch.
-2. **Bring it work.** Say *"Triage this for the factory: the range-ring label shows m for values in km."* It proposes a track (Fix, Feature or Program) with its reason, opens a work item, and writes the ticket or intent for you to approve.
+2. **Bring it work.** Say *"Triage this for the factory: the range-ring label shows m for values in km."* It proposes a track (Fix, Feature or Epic) with its reason, opens a work item, and writes the ticket or intent for you to approve.
 3. **Approve in chat.** At each checkpoint it asks one question. Reply *"Approved"* and your exact words are recorded with the commit you approved; or say what to change, and it changes it and asks again.
 4. **Let it run.** It writes a failing test first, fixes, runs your verify command, has reviewers from the other vendor check the change (Claude Code calls Codex; Codex calls Claude), and runs the merge gate. It stops for you at every hard stop, such as anything that touches the main branch, credentials or new dependencies.
 5. **You merge.** When the gate passes it gives you what changed, the review results, the verify output and the merge commands. A person always merges.
@@ -43,7 +43,7 @@ It also plans for change. Models get replaced often, so every model is named in 
 - **A person signs off at every stage.** An agent never approves or merges its own work.
 - **Work state is plain files in the project's own repo.** GitHub issues are an optional mirror.
 - **Models are bound to roles in one table,** never hard-coded in skills, prompts or scripts.
-- **The right amount of process for the size of the work.** A fix is not a program.
+- **The right amount of process for the size of the work.** A fix is not an epic.
 - **You can always see where things stand,** through a map of the factory and a dashboard of the work.
 
 ## The lifecycle
@@ -66,13 +66,13 @@ It also plans for change. Models get replaced often, so every model is named in 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/map/figures/tracks-dark.svg">
-  <img alt="Triage routes work to the Program, Feature or Fix track. Program runs every stage in full, Feature lightens planning and design, and Fix skips design and starts from a failing test." src="docs/map/figures/tracks.svg">
+  <img alt="Triage routes work to the Epic, Feature or Fix track. Epic runs every stage in full, Feature lightens planning and design, and Fix skips design and starts from a failing test." src="docs/map/figures/tracks.svg">
 </picture>
 
 Triage puts each piece of work in the smallest track that fits:
 - **Fix:** one session, one task. Write a failing test first, then fix it, review it and merge it.
 - **Feature:** up to about five tasks. It gets a short grill, a mini-spec and plan mode.
-- **Program:** milestones, many sessions and the full process.
+- **Epic:** milestones, many sessions and the full process.
 
 When work outgrows its track, it steps up and keeps its history.
 
@@ -246,7 +246,7 @@ Not built yet, per the design: the dashboard and map generators, the Deploy, Mai
 2. Implementation plan. **Done:** [plan 1 of 4](docs/plans/2026-10-20-factory-core-v1.md), the core, is written.
 3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **Built and merged:** reviewed task by task and as a whole, tested on Windows and Linux, and rehearsed from the command line on the sample repo ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). The owner-attended run in both hosts ([checklist](docs/acceptance/v1-checklist.md)) is next.
 4. Pilot on a real project, likely a new MACE plugin.
-5. The Program track and the dashboard generator.
+5. The Epic track and the dashboard generator.
 6. Deploy paths (desktop installer and Helm) and Maintain.
 7. Factory evals in CI, then hooks that enforce the rules.
 

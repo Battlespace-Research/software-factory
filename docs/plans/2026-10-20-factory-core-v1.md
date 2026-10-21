@@ -1,6 +1,6 @@
 # Factory Core v1 Implementation Plan
 
-> Names in this record are the pre-rename v1 names; see F16 in docs/decisions.md for the current names.
+> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

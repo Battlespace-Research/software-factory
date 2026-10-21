@@ -2,7 +2,7 @@
 
 This guide sets up the factory on your machine, for Claude Code, for Codex, or for both. Once it is done, go on to [Using the factory](using-the-factory.md).
 
-> **Version 0.2.0.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
+> **Version 0.3.0.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
 
 ## What you install
 
@@ -61,7 +61,7 @@ sw-factory --version
 where python        # PowerShell: where.exe python; Linux or macOS: which -a python
 ```
 
-`sw-factory --version` prints `0.2.0`. The first `python` listed must be your own, the one your projects use, not one inside the factory's clone or pipx's folders. If it is the factory's, take that folder off the PATH and install the command as above.
+`sw-factory --version` prints `0.3.0`. The first `python` listed must be your own, the one your projects use, not one inside the factory's clone or pipx's folders. If it is the factory's, take that folder off the PATH and install the command as above.
 
 **Keep the clone where it is.** The editable install runs the command from the clone, and the command reads the factory's role table, skills list, prompts and project templates (`config/`, `prompts/`, `templates/`) from it. Moving or deleting the clone breaks the command.
 
@@ -183,6 +183,13 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 - **Claude Code:** `claude plugin marketplace update bsri-factory`, then `claude plugin update bsri-sw-factory@bsri-factory`, then restart Claude Code.
 - **Codex:** `codex plugin marketplace upgrade bsri-factory`, then check the version with `codex plugin list --marketplace bsri-factory`. If it still shows the old version, remove and add the plugin again: `codex plugin remove bsri-sw-factory@bsri-factory`, then `codex plugin add bsri-sw-factory@bsri-factory`.
 
+## Upgrading from 0.2.0
+
+Version 0.3.0 renamed the largest track from Program to Epic (decision F17 in `docs/decisions.md`): the track is `epic`, its work ids are `EPIC-<n>` and its templates are in `templates/work/epic/`. The command, the plugin and the skills keep their names, so update them as [Updating](#updating) says; `sw-factory --version` then prints `0.3.0`. In each project set up with 0.2.0:
+
+1. **`REVIEW.md`.** Under `tracks:`, rename the `program:` key to `epic:` and keep its lenses. Until you do, `sw-factory config check --project .` reports `unknown track 'program'`.
+2. **Open `PRG-<n>` work items.** 0.3.0 does not read them: finish them with 0.2.0 first, or open each again as an Epic (`sw-factory work new --track epic …`) and carry its files over by hand. Fix and Feature items carry on as they are.
+
 ## Upgrading from 0.1.0
 
 Version 0.2.0 renamed the factory (decision F16 in `docs/decisions.md`): the command `factory` is now `sw-factory`, the plugin `software-factory` is now `bsri-sw-factory`, its skills and subagents lost their `factory-` prefix, and what it creates in a project is `sw-factory.yaml` and `sw-factory/`. If you installed 0.1.0:
@@ -191,7 +198,7 @@ Version 0.2.0 renamed the factory (decision F16 in `docs/decisions.md`): the com
    - with pipx: `pipx install --force -e <clone>/tools`;
    - without pipx: in the clone, `.venv/Scripts/python -m pip install -e tools` (Linux or macOS: `.venv/bin/python -m pip install -e tools`), then on Windows replace the copied `factory.exe` in your command folder with `<clone>\.venv\Scripts\sw-factory.exe`, and on Linux or macOS replace the old link with `ln -s <clone>/.venv/bin/sw-factory ~/.local/bin/sw-factory` (and delete `~/.local/bin/factory`).
 
-   `sw-factory --version` prints `0.2.0`. If an old `factory` command is still on the PATH, delete it.
+   `sw-factory --version` prints the current version, `0.3.0`. If an old `factory` command is still on the PATH, delete it.
 2. **Claude Code.** Remove the old plugin, refresh the marketplace and install the new one, then restart Claude Code:
 
    ```bash
@@ -207,7 +214,7 @@ Version 0.2.0 renamed the factory (decision F16 in `docs/decisions.md`): the com
    codex plugin add bsri-sw-factory@bsri-factory
    ```
 4. **The staging folder.** Move `~/.factory` to `~/.sw-factory` (`mv ~/.factory ~/.sw-factory`; PowerShell: `Move-Item "$HOME\.factory" "$HOME\.sw-factory"`), and change the `writable_roots` entry in `~/.codex/config.toml` to the new folder (see Step 3 above).
-5. **Projects set up with 0.1.0 are not supported.** They hold `factory.yaml`, a `factory/` folder, `factory/<ID>-<slug>` branches and `<!-- factory:begin -->` sections, none of which 0.2.0 reads: `sw-factory` finds no project there, and setup would not notice the old `factory.yaml` or the old markers. Set the project up again on a fresh copy of it, and carry any open work over by hand.
+5. **Projects set up with 0.1.0 are not supported.** They hold `factory.yaml`, a `factory/` folder, `factory/<ID>-<slug>` branches and `<!-- factory:begin -->` sections, none of which 0.2.0 or later reads: `sw-factory` finds no project there, and setup would not notice the old `factory.yaml` or the old markers. Set the project up again on a fresh copy of it, and carry any open work over by hand.
 
 ## Troubleshooting
 

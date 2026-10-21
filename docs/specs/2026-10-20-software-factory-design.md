@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: rev 2.1 · names updated per F16 (2026-10-20) · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
-Decisions: `docs/decisions.md` (F01–F16) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: rev 2.2 · track Program renamed Epic per F17 (2026-10-21) · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
+Decisions: `docs/decisions.md` (F01–F17) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
@@ -11,7 +11,7 @@ Items marked **[Claude's call]** were not discussed with the owner; they are pro
 
 BSI builds software with AI agents. On the NGC2 prototype the owner ran a disciplined, multi-model process: grilling interviews that produce numbered decisions, a reviewed spec and plan, and a per-task loop in which Claude implements, a GPT model reviews through Codex, and a Claude tester verifies. It worked, but it lives in one project's runbook, in uncommitted scripts under `C:\Users\cordc\ngc2-staging`, and in one person's agent memory.
 
-The **software factory** turns that process into a reusable, shareable kit any BSI project can install. A teammate opens Claude Code or the Codex/ChatGPT app in a repo, and the factory takes a piece of work from idea to running software, sized from a one-session bug fix to a multi-week program. The process stays visible at every step: a map of the factory, and a dashboard of the work in flight.
+The **software factory** turns that process into a reusable, shareable kit any BSI project can install. A teammate opens Claude Code or the Codex/ChatGPT app in a repo, and the factory takes a piece of work from idea to running software, sized from a one-session bug fix to a multi-week epic. The process stays visible at every step: a map of the factory, and a dashboard of the work in flight.
 
 Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and models keep changing. The factory has to make a model swap a one-line change that can be checked, not a rewrite of prompts scattered across scripts.
 
@@ -21,7 +21,7 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 2. **Two hosts, either can drive.** Runs in Claude Code and in Codex (CLI and the ChatGPT desktop app). Either host can run the work and call the other vendor's model for reviews [F02].
 3. **Models and skills swap in one place.** Each role is bound to a vendor, model, effort and fallback in one role table. Changing a binding updates the map, the dashboard and the runs [F02, F06].
 4. **Aligned with the Claude Academy AI-Native SDLC Playbook.** Six stages — Plan, Design, Build, Test, Deploy, Maintain — with committed artifacts, human gates, review against a checklist, and measured outcomes [F03]. Appendix A maps each playbook requirement to this design.
-5. **Scales down.** Three tracks — Program, Feature, Fix — so a bug fix does not pay for a program's ceremony, yet still lands reviewed and verified.
+5. **Scales down.** Three tracks — Epic, Feature, Fix — so a bug fix does not pay for an epic's ceremony, yet still lands reviewed and verified.
 6. **Deploy and Maintain are first-class.** Both the desktop installer (what BSI ships today) and Kubernetes with Helm (where NGC2 is heading) get a path. Start light, mature with use, follow best practice [F05].
 7. **Visible.** The map stays current and is published as a private web page [F06]; a dashboard is regenerated throughout the work [F10].
 
@@ -33,7 +33,7 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 - Agent review on GitHub pull requests. Optional per project, off by default, no GitHub Action yet [F11].
 - Organization-wide managed settings, telemetry export (OpenTelemetry) and org dashboards. Revisit when several teams use the factory.
 - Automatic vendor fallback when one vendor's usage runs low. Interesting (super-board does it); later.
-- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it; the pilot is deferred and will likely be a new MACE plugin in its own repo [F14]. Touching a submodule does not by itself make work a Program. **[Claude's call]**
+- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it; the pilot is deferred and will likely be a new MACE plugin in its own repo [F14]. Touching a submodule does not by itself make work an Epic. **[Claude's call]**
 
 ## 4. Anti-goals — failure even if it technically works
 
@@ -161,9 +161,9 @@ The builder verifies the exact CLI flags of the installed versions; the design f
 sw-factory/work/<ID>-<slug>/
   intent.md          problem, outcome, users and systems affected, constraints, open questions, status
   decisions.md       append-only decision rows (D01…), changed only by superseding rows
-  research/          numbered read-only investigation notes (Program)
+  research/          numbered read-only investigation notes (Epic)
   spec.md            numbered requirements, design, constraint map, acceptance checks, risks, open questions
-  plan.md            milestones and tasks with stable ids (Program, Feature)
+  plan.md            milestones and tasks with stable ids (Epic, Feature)
   progress.md        newest-first log; Status line at the top is the resume point
   reviews/           <artifact-or-task>-r<N>-<lens>.md, plus disposition-<…>-r<N>.md
   approvals/         one file per owner approval (section 8.4)
@@ -175,8 +175,8 @@ A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of int
 
 ### 8.2 Ids and revisions [Claude's call, from NGC2 lessons]
 
-- Work ids: `PRG-nn`, `FEA-nn`, `FIX-nn`, sequential per project, never reused.
-- Task ids: `M1-T1` in a Program, `T1` in a Feature or Fix. A split task gets a letter suffix (`M1-T2a`). **Ids are never renumbered** — NGC2 renumbered after reviews and broke references.
+- Work ids: `EPIC-nn`, `FEA-nn`, `FIX-nn`, sequential per project, never reused.
+- Task ids: `M1-T1` in an Epic, `T1` in a Feature or Fix. A split task gets a letter suffix (`M1-T2a`). **Ids are never renumbered** — NGC2 renumbered after reviews and broke references.
 - Every spec and plan starts with a Status line: revision, review rounds, approval state. The major revision goes up once per review round; a decimal marks a correction or an amendment after approval.
 - A document is **frozen while a review round is open**: the author waits for every reviewer before editing (NGC2: a reviewer read a plan while it was being rewritten).
 
@@ -189,7 +189,7 @@ A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of int
 
 ### 8.3 Tracks and triage [Claude's call on the thresholds]
 
-| | Program | Feature | Fix |
+| | Epic | Feature | Fix |
 |---|---|---|---|
 | Typical size | several milestones, many sessions | up to ~5 tasks, a few sessions | one session |
 | Plan | research + grilling → `intent.md` + `decisions.md` | short grill → `intent.md` | `ticket.md` with repro and criteria |
@@ -200,7 +200,7 @@ A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of int
 | Deploy | merge per milestone; release gate | reviewed merge | reviewed merge |
 | Maintain | monitor + retro | retro note if a lesson emerged | lesson only if new |
 
-Triage puts work in the **smallest track that fits** and records why. A Fix becomes a Feature when it needs more than one session, touches a shared contract, schema or file format, or needs more than one task. A Feature becomes a Program when it needs milestones, crosses repos, or outgrows about five tasks. Stepping up keeps the id's history: the new item links the old one.
+Triage puts work in the **smallest track that fits** and records why. A Fix becomes a Feature when it needs more than one session, touches a shared contract, schema or file format, or needs more than one task. A Feature becomes an Epic when it needs milestones, crosses repos, or outgrows about five tasks. Stepping up keeps the id's history: the new item links the old one.
 
 ### 8.4 Checkpoints, modes and approvals [F08]
 
@@ -357,7 +357,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 - Prompt wording for lenses, tester, authors and triage.
 - Which five tasks seed the evals, picked with the owner.
 - The pilot project, deferred by the owner; likely a new MACE plugin in its own repo [F14]. Version 1 is built and tested without a pilot first (on a small sample repo the builder creates), then piloted.
-- Phasing and order of work, in the implementation plan. A sensible order: core (setup, triage, Fix and Feature tracks, review panel, role table, adapters) on a pilot project; then the Program track and dashboard generator; then the two Deploy paths and Maintain; then evals; hooks when unparked.
+- Phasing and order of work, in the implementation plan. A sensible order: core (setup, triage, Fix and Feature tracks, review panel, role table, adapters) on a pilot project; then the Epic track and dashboard generator; then the two Deploy paths and Maintain; then evals; hooks when unparked.
 
 ---
 
