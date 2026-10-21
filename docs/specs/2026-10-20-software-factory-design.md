@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: rev 2 · 2026-10-20 · builder check done · **approved by the owner 2026-10-20** ("Approved, create the repo and push it") [F15]
-Decisions: `docs/decisions.md` (F01–F15) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: rev 2.1 · names updated per F16 (2026-10-20)
+Decisions: `docs/decisions.md` (F01–F16) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
@@ -49,7 +49,7 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 ## 5. Constraints
 
 - **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Factory work never writes to the NGC2 checkout (`E:\BSI\GitHub\MACE-NGC2-Prototype`), where other sessions are working; MACE and NGC2 are read-only references for the design.
-- **Project rules win.** Where a project's own rules (its `AGENTS.md`, `CLAUDE.md`, contribution rules) conflict with a factory default, the project's rule wins. Setup lists each conflict and the owner settles it in `factory.yaml`; the owner approving `factory.yaml` counts as the explicit request such rules ask for. **[Claude's call]**
+- **Project rules win.** Where a project's own rules (its `AGENTS.md`, `CLAUDE.md`, contribution rules) conflict with a factory default, the project's rule wins. Setup lists each conflict and the owner settles it in `sw-factory.yaml`; the owner approving `sw-factory.yaml` counts as the explicit request such rules ask for. **[Claude's call]**
 - **Work state is files in the project's own repo**, the source of truth; GitHub issues are an optional mirror [F07].
 - **Platforms.** BSI develops on Windows (PowerShell 7, Git Bash, Visual Studio); CI and Kubernetes work run on Linux. Factory scripts must run on both. Python 3 is available on both and is already used for the NGC2 dashboard.
 - **Licensing of prior art.** zazencodes' factory has no license: reuse ideas, never text. super-board is MIT: code or text borrowed from it keeps its notice. Third-party skills are referenced, not copied into the factory (section 13).
@@ -69,7 +69,7 @@ software-factory/
   skills/                             factory skills (section 6.3), host-neutral SKILL.md files
   agents/                             Claude Code subagent definitions (lens reviewers, tester, researcher)
   prompts/                            host-neutral prompt templates (review lenses, tester brief, author briefs)
-  schemas/                            JSON schemas: verdict, review findings, dashboard data, factory.yaml, roles.yaml
+  schemas/                            JSON schemas: verdict, review findings, dashboard data, sw-factory.yaml, roles.yaml
   config/roles.yaml                   default role table (section 7)
   config/skills.yaml                  skills registry: required/optional per role and host, with fallbacks
   templates/project/                  files created by project setup (section 6.2)
@@ -80,14 +80,14 @@ software-factory/
 
 ### 6.2 What project setup creates in a project
 
-`factory-setup` runs once per project, on a branch, and the owner reviews the result before it merges.
+`setup-project` runs once per project, on a branch, and the owner reviews the result before it merges.
 
 ```
 <project>/
-  factory.yaml           project config: verify command, tracks, mode, hard stops, deploy paths, signals, role overrides
+  sw-factory.yaml        project config: verify command, tracks, mode, hard stops, deploy paths, signals, role overrides
   REVIEW.md              review checklist [F12]
   CLAUDE.md / AGENTS.md  a short factory section added (how to resume, where work lives, the verify command)
-  factory/
+  sw-factory/
     work/                one folder per piece of work (section 8)
     baseline/            expected-failures list for the verify command
     lessons.md           index of lessons promoted into CLAUDE.md, REVIEW.md or skills
@@ -102,18 +102,18 @@ Each factory skill orchestrates; the craft comes from third-party skills it call
 
 | Skill | Does |
 |---|---|
-| `factory-setup` | Creates the project files in 6.2; checks skills readiness for both hosts |
-| `factory-triage` | Sizes incoming work, picks the track, creates the work folder |
-| `factory-run` | The orchestrator: moves a work item through its track's stages, honours mode and checkpoints, writes `progress.md` |
-| `factory-task-loop` | One task: implement, verify, review panel, disposition, tester, close |
-| `factory-review-panel` | Runs the lenses in parallel through the role adapters and combines findings |
-| `factory-merge-gate` | Pre-merge checks (section 9.6) and the hand-off to the human |
+| `setup-project` | Creates the project files in 6.2; checks skills readiness for both hosts |
+| `intake` | Sizes incoming work, picks the track, creates the work folder |
+| `orchestrate` | The orchestrator: moves a work item through its track's stages, honours mode and checkpoints, writes `progress.md` |
+| `task-loop` | One task: implement, verify, review panel, disposition, tester, close |
+| `review-panel` | Runs the lenses in parallel through the role adapters and combines findings |
+| `merge-gate` | Pre-merge checks (section 9.6) and the hand-off to the human |
 | `factory-deploy` | Runs the project's deploy path(s): desktop installer and/or Helm (section 10) |
 | `factory-maintain` | Reads signals, drafts new intent for triage, runs retros (section 11) |
 | `factory-dashboard` | Regenerates the dashboard (section 15) |
 | `factory-evals` | Runs the factory's own evals (section 12) |
 
-The orchestrator (`factory-run`) keeps state only in files and holds no per-task context, so any session on either host can pick up from `progress.md` (an idea from super-board).
+The orchestrator (`orchestrate`) keeps state only in files and holds no per-task context, so any session on either host can pick up from `progress.md` (an idea from super-board).
 
 ## 7. Roles and the role table
 
@@ -137,7 +137,7 @@ The orchestrator (`factory-run`) keeps state only in files and holds no per-task
 
 ### 7.2 Binding rules
 
-- **One file.** `config/roles.yaml` in the factory holds defaults; a project may override any role in `factory.yaml` (for example a project limited to one vendor). Nothing else names a model. Skills and prompts refer to roles only.
+- **One file.** `config/roles.yaml` in the factory holds defaults; a project may override any role in `sw-factory.yaml` (for example a project limited to one vendor). Nothing else names a model. Skills and prompts refer to roles only.
 - **Relative vendor.** A binding may say `vendor: other` or `vendor: same`, resolved against the vendor of the author of the work under review. When Codex is the host and GPT implements, the "other vendor" lens reviewers become Claude models automatically. Each role lists one binding per vendor so the swap is defined, not improvised.
 - **Fallback.** Each role names a fallback binding used when the primary is unavailable; using a fallback is logged in `progress.md` and shown on the dashboard.
 - **Provenance.** Every artifact and commit records which role, model, effort and skill versions produced it (section 9.7).
@@ -158,7 +158,7 @@ The builder verifies the exact CLI flags of the installed versions; the design f
 ### 8.1 Folder and files
 
 ```
-factory/work/<ID>-<slug>/
+sw-factory/work/<ID>-<slug>/
   intent.md          problem, outcome, users and systems affected, constraints, open questions, status
   decisions.md       append-only decision rows (D01…), changed only by superseding rows
   research/          numbered read-only investigation notes (Program)
@@ -182,9 +182,9 @@ A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of int
 
 ### 8.2a Branches, ids and where in-flight work lives [Claude's call]
 
-- Triage creates a branch per work item, `factory/<ID>-<slug>`, and the work folder lives on it until merge. A queued item's branch is its place in the queue.
-- A project whose rules forbid extra branches sets `branching: single` in `factory.yaml`; the factory then works on one local branch the owner names, one work item at a time.
-- **Ids:** triage scans the base branch and all local and remote `factory/*` branches for ids in use and takes the next number. The merge gate checks the id is still unused on the base; on a rare collision the later item takes a letter suffix (`FEA-12b`). Ids never change once given. With the GitHub mirror on, the issue number can be the id.
+- Triage creates a branch per work item, `sw-factory/<ID>-<slug>`, and the work folder lives on it until merge. A queued item's branch is its place in the queue.
+- A project whose rules forbid extra branches sets `branching: single` in `sw-factory.yaml`; the factory then works on one local branch the owner names, one work item at a time.
+- **Ids:** triage scans the base branch and all local and remote `sw-factory/*` branches for ids in use and takes the next number. The merge gate checks the id is still unused on the base; on a rare collision the later item takes a letter suffix (`FEA-12b`). Ids never change once given. With the GitHub mirror on, the issue number can be the id.
 - The dashboard reads work folders across branches with git (`git show <branch>:<path>`), without checking anything out, so it shows queued, in-flight and merged work from one place.
 
 ### 8.3 Tracks and triage [Claude's call on the thresholds]
@@ -206,8 +206,8 @@ Triage puts work in the **smallest track that fits** and records why. A Fix beco
 
 - **Review mode (default):** the factory pauses for the owner at the intent, the spec, the plan, each milestone demo, and the merge. Between checkpoints it runs the task loop on its own.
 - **Auto mode (opt-in per project or per work item):** at a checkpoint the factory writes a short note in `progress.md` and continues. Only hard stops halt it. A person still merges.
-- **Approvals happen in chat [F13].** When the owner approves a checkpoint in the session, the factory writes `approvals/<artifact>-rev<N>.md` with the owner's exact words, the time, the session and host, and the commit approved, and commits it. It never writes an approval without such a message. `factory.yaml` lists who may approve (`approvers:`), defaulting to the person who set up the project. When hooks are unparked (section 14), a hook writes the record straight from the owner's typed message.
-- **Hard stops** (halt in both modes; each project keeps its list in `factory.yaml`, starting from these defaults): any push or merge to the main branch; deleting data or files outside the work's scope; credentials, licences, secrets; installers or admin/UAC prompts; purchases; changes to authentication, money handling or database schemas; new third-party dependencies; production data; a third failed review round on one task; an assumption that is really a business decision.
+- **Approvals happen in chat [F13].** When the owner approves a checkpoint in the session, the factory writes `approvals/<artifact>-rev<N>.md` with the owner's exact words, the time, the session and host, and the commit approved, and commits it. It never writes an approval without such a message. `sw-factory.yaml` lists who may approve (`approvers:`), defaulting to the person who set up the project. When hooks are unparked (section 14), a hook writes the record straight from the owner's typed message.
+- **Hard stops** (halt in both modes; each project keeps its list in `sw-factory.yaml`, starting from these defaults): any push or merge to the main branch; deleting data or files outside the work's scope; credentials, licences, secrets; installers or admin/UAC prompts; purchases; changes to authentication, money handling or database schemas; new third-party dependencies; production data; a third failed review round on one task; an assumption that is really a business decision.
 
 ## 9. Build and Test: the task loop
 
@@ -217,11 +217,11 @@ Triage puts work in the **smallest track that fits** and records why. A Fix beco
 
 ### 9.2 Verify command
 
-Each project declares **one** verify command in `factory.yaml`, with two modes **[Claude's call]**:
+Each project declares **one** verify command in `sw-factory.yaml`, with two modes **[Claude's call]**:
 - `quick`: builds and tests what the task touched; run at every task's Verify step. Must fit a Fix inside one session.
 - `full`: the whole build and suite; run by the tester when the plan says so, at milestone demos, and at the merge gate.
 
-Both exit non-zero on failure and print totals. "Done" requires the pasted output. Full results are compared with `factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (NGC2 lesson). A project whose rules restrict builds (MACE builds only when instructed) sets `builds: ask`, and the factory asks before each full run.
+Both exit non-zero on failure and print totals. "Done" requires the pasted output. Full results are compared with `sw-factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (NGC2 lesson). A project whose rules restrict builds (MACE builds only when instructed) sets `builds: ask`, and the factory asks before each full run.
 
 ### 9.3 Review panel [F09]
 
@@ -245,7 +245,7 @@ When the factory must choose without the owner (auto mode, or between checkpoint
 Before handing a merge to the owner:
 1. Bring the work branch up to date with the base and re-run the verify command.
 2. Confirm the commit being merged is the commit that was reviewed.
-3. Check the size cap (default 400 changed lines, excluding generated files, set in `factory.yaml`); over the cap, propose a split instead.
+3. Check the size cap (default 400 changed lines, excluding generated files, set in `sw-factory.yaml`); over the cap, propose a split instead.
 4. Spot-check one acceptance criterion with evidence.
 5. Summarize for the owner: what changed, review outcome, verify output, risks, follow-ups.
 
@@ -257,13 +257,13 @@ Commit trailers: `Factory-Work: FEA-07/T3`, `Factory-Role: implementer`, `Factor
 
 - `progress.md` Status line is the single resume point; every step commits.
 - At about 95% of a session's token budget: finish the loop step, commit, point `progress.md` at the resume point, hand off (`handoff` skill).
-- Staging (patch scripts, briefs) lives outside the project tree in a per-user folder (`~/.factory/staging/<project>/<work-id>/`) **[Claude's call]**, never in the session scratchpad, which is not durable.
+- Staging (patch scripts, briefs) lives outside the project tree in a per-user folder (`~/.sw-factory/staging/<project>/<work-id>/`) **[Claude's call]**, never in the session scratchpad, which is not durable.
 - Parallel sessions use separate worktrees; one build per tree; parallelism is capped at what review keeps up with (start at two or three).
 - Pushes go only to the work item's branch.
 
 ## 10. Deploy [F05]
 
-Two paths, configured per project in `factory.yaml`; a project may have one or both. Both follow the same autonomy ladder: CI jobs start read-only, then write only through branches or merges, and never hold standing production credentials. Rollback is rehearsed every release.
+Two paths, configured per project in `sw-factory.yaml`; a project may have one or both. Both follow the same autonomy ladder: CI jobs start read-only, then write only through branches or merges, and never hold standing production credentials. Rollback is rehearsed every release.
 
 ### 10.1 Desktop installer path
 
@@ -288,9 +288,9 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 
 ## 11. Maintain
 
-- **Signals** are listed per project in `factory.yaml`: desktop — crash reports and user-reported issues; Kubernetes — restarts, readiness failures, error rate, latency. Each signal has a normal range.
+- **Signals** are listed per project in `sw-factory.yaml`: desktop — crash reports and user-reported issues; Kubernetes — restarts, readiness failures, error rate, latency. Each signal has a normal range.
 - `factory-maintain` (run on demand or on a schedule) reads signals; anything outside its range becomes a draft `intent.md` with status "triage" for the owner, or a `FIX-` ticket. Version 1 uses simple thresholds; control bands come later.
-- **Retro at close:** every work item ends with `retro.md`. Repeat mistakes become proposed additions to the project's `CLAUDE.md`/`AGENTS.md`, `REVIEW.md` or a skill — shared files, not private agent memory. The owner approves each addition; `factory/lessons.md` indexes them.
+- **Retro at close:** every work item ends with `retro.md`. Repeat mistakes become proposed additions to the project's `CLAUDE.md`/`AGENTS.md`, `REVIEW.md` or a skill — shared files, not private agent memory. The owner approves each addition; `sw-factory/lessons.md` indexes them.
 
 ## 12. Factory evals [Claude's call, from the Academy playbook and super-board]
 
@@ -303,7 +303,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 ## 13. Third-party skills
 
 - The factory **references** installed skills; it does not copy them. `config/skills.yaml` lists, per role and host, the skills it requires or can use, each with a fallback.
-- `factory-setup` and `factory-run` check readiness before a run and report missing skills; interactive skills (grilling) are never used inside unattended roles.
+- `setup-project` and `orchestrate` check readiness before a run and report missing skills; interactive skills (grilling) are never used inside unattended roles.
 
 | Stage | Skills | Source |
 |---|---|---|
@@ -332,7 +332,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 
 ### 15.2 The dashboard [F10]
 
-- `tools/dashboard` (Python 3) reads `factory.yaml`, `factory/work/**`, git history, the verify baseline, CI runs (`gh`) and release records, writes `factory/dashboard/data.json`, and renders `factory/dashboard/index.html` from the template in `docs/dashboard/`.
+- `tools/dashboard` (Python 3) reads `sw-factory.yaml`, `sw-factory/work/**`, git history, the verify baseline, CI runs (`gh`) and release records, writes `sw-factory/dashboard/data.json`, and renders `sw-factory/dashboard/index.html` from the template in `docs/dashboard/`.
 - Data contract: `schemas/dashboard.schema.json`, starting from the template's `factory-dashboard/0.1` block.
 - Panels: needs you; key numbers; work by stage; selected item (stage gates, milestones, current task loop, per-lens review results, files); quality (tests vs baseline, CI); delivery (desktop channels, Helm environments, DORA metrics); factory health (playbook indicators); roles, models and skills readiness; activity.
 - Regenerated at every checkpoint, task close and on demand. When running in Claude Code it can also republish a private claude.ai page for phone viewing; the local file always works for either host. **[Claude's call]**

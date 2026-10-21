@@ -2,7 +2,7 @@
 
 A walkthrough for a teammate's first weeks with the factory: setting up a project, bringing it work, approving its checkpoints in chat, and finding out where things stand. It assumes the factory is installed ([Installing the software factory](install.md)).
 
-The factory is driven by talking to Claude Code or Codex in your project. You describe what you want in plain words, the factory's skills do the work step by step, and they stop for you whenever a person has to decide. Behind the skills, the `factory` command does the exact bookkeeping: work items, Status lines, approval records and the merge gate.
+The factory is driven by talking to Claude Code or Codex in your project. You describe what you want in plain words, the factory's skills do the work step by step, and they stop for you whenever a person has to decide. Behind the skills, the `sw-factory` command does the exact bookkeeping: work items, Status lines, approval records and the merge gate.
 
 Version 1 is built for the **Fix** and **Feature** tracks, which this guide walks through. A **Program** works the same way at a larger scale (research, two document reviewers, milestones with demos), but the tooling for its milestone demos comes in a later version, as do the dashboard and the Deploy and Maintain stages. Version 1 has not yet been piloted on a real project: expect rough edges, and tell the factory's maintainers what you find.
 
@@ -10,12 +10,12 @@ Version 1 is built for the **Fix** and **Feature** tracks, which this guide walk
 
 | Word | Meaning |
 |---|---|
-| **Owner** | The person who decides about the work, usually you. Only the people listed under `approvers` in the project's `factory.yaml` may approve a checkpoint |
-| **Work item** | One piece of work, with an id (`FIX-3`, `FEA-7`, `PRG-2`), a branch `factory/<ID>-<slug>` and a folder `factory/work/<ID>-<slug>/` |
+| **Owner** | The person who decides about the work, usually you. Only the people listed under `approvers` in the project's `sw-factory.yaml` may approve a checkpoint |
+| **Work item** | One piece of work, with an id (`FIX-3`, `FEA-7`, `PRG-2`), a branch `sw-factory/<ID>-<slug>` and a folder `sw-factory/work/<ID>-<slug>/` |
 | **Track** | Fix, Feature or Program: how much process a work item gets |
 | **Checkpoint** | A point where the factory shows you an artifact and waits for your approval |
 | **Hard stop** | An action the factory never takes without your answer, in any mode |
-| **Role** | A job in the process (interviewer, implementer, lens reviewer, tester, …). Which model fills each role comes from the factory's role table, `config/roles.yaml`, and a project can override a role in its `factory.yaml` |
+| **Role** | A job in the process (interviewer, implementer, lens reviewer, tester, …). Which model fills each role comes from the factory's role table, `config/roles.yaml`, and a project can override a role in its `sw-factory.yaml` |
 
 ## 1. Set up a project (once per project)
 
@@ -23,28 +23,28 @@ Open a session at the root of the project's repository, with no uncommitted chan
 
 > Set up this repository for the software factory.
 
-You can also name the skill: in Claude Code it is `software-factory:factory-setup` (type `/` to see the factory's skills); in Codex, type `$` and pick `factory-setup`.
+You can also name the skill: in Claude Code it is `bsri-sw-factory:setup-project` (type `/` to see the factory's skills); in Codex, type `$` and pick `bsri-sw-factory:setup-project`.
 
-The factory-setup skill then:
+The setup-project skill then:
 
-1. Checks that `factory --version` works and that the project is not set up already.
+1. Checks that `sw-factory --version` works and that the project is not set up already.
 2. Reads the project's own rules: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, the README's build and test sections and the CI files.
 3. Interviews you, **one question per message**, each with a proposed answer you can simply confirm:
    - the **quick verify command**, which builds and tests what one task touched and runs at every task;
-   - the **full verify command**, the whole build and test suite, which runs for the tester and at the merge gate. If the suite already fails on the base branch, the known failures go into `factory/baseline/expected-failures.md`, and the command must exit 0 when only those fail;
+   - the **full verify command**, the whole build and test suite, which runs for the tester and at the merge gate. If the suite already fails on the base branch, the known failures go into `sw-factory/baseline/expected-failures.md`, and the command must exit 0 when only those fail;
    - the **approvers**, who may approve checkpoints;
    - **branching**: one branch per work item (the default), or all work on one branch you name, for projects whose rules forbid extra branches;
    - **builds**: run the full build when needed, or ask you first each time;
    - the project's name, the base branch, and the **mode** (review or auto, see section 5).
-4. Creates a branch `factory/setup` (or uses the branch you name) and runs `factory setup`.
-5. Shows you each place where your project's rules conflict with a factory default (for example "never push") and settles it with you in `factory.yaml`. **Your project's rules win.**
+4. Creates a branch `sw-factory/setup` (or uses the branch you name) and runs `sw-factory setup`.
+5. Shows you each place where your project's rules conflict with a factory default (for example "never push") and settles it with you in `sw-factory.yaml`. **Your project's rules win.**
 6. Drafts the review rules in `REVIEW.md` and the project's own hard stops with you.
-7. Runs `factory config check --project .` and the skills check for both hosts, and tells you what is missing.
+7. Runs `sw-factory config check --project .` and the skills check for both hosts, and tells you what is missing.
 8. Shows you every file and asks: "Do you approve this setup for commit?" Answer with a plain yes (section 4). It commits on the setup branch.
 
-**You merge the setup branch into the base branch.** The factory never merges into the base branch. With one branch per work item, merge it before you triage the first piece of work: work-item branches are cut from the base branch and need `factory.yaml` there.
+**You merge the setup branch into the base branch.** The factory never merges into the base branch. With one branch per work item, merge it before you triage the first piece of work: work-item branches are cut from the base branch and need `sw-factory.yaml` there.
 
-Setup creates `factory.yaml`, `REVIEW.md`, `factory/work/`, `factory/baseline/expected-failures.md` and `factory/lessons.md`, adds `factory/dashboard/` to `.gitignore`, and adds a short factory section to `CLAUDE.md` and `AGENTS.md` (if the project has neither, it creates both with the same section: Claude Code reads `CLAUDE.md` and Codex reads `AGENTS.md`). It changes no other file. To change a setting later, edit `factory.yaml` with the agent's help; never run setup twice.
+Setup creates `sw-factory.yaml`, `REVIEW.md`, `sw-factory/work/`, `sw-factory/baseline/expected-failures.md` and `sw-factory/lessons.md`, adds `sw-factory/dashboard/` to `.gitignore`, and adds a short factory section to `CLAUDE.md` and `AGENTS.md` (if the project has neither, it creates both with the same section: Claude Code reads `CLAUDE.md` and Codex reads `AGENTS.md`). It changes no other file. To change a setting later, edit `sw-factory.yaml` with the agent's help; never run setup twice.
 
 ## 2. Bring it work: triage
 
@@ -52,7 +52,7 @@ Describe the bug, change or idea:
 
 > Triage this for the factory: the range-ring label shows "m" for values in km.
 
-The factory-triage skill asks questions one at a time until it knows what is wrong or wanted, for whom, what "done" looks like and what it touches. It looks facts up in the repository itself rather than asking you for them. Then it proposes the **smallest track that fits**, with its reason:
+The intake skill asks questions one at a time until it knows what is wrong or wanted, for whom, what "done" looks like and what it touches. It looks facts up in the repository itself rather than asking you for them. Then it proposes the **smallest track that fits**, with its reason:
 
 | Track | Fits when the work is |
 |---|---|
@@ -60,7 +60,7 @@ The factory-triage skill asks questions one at a time until it knows what is wro
 | **Feature** | up to about five tasks, without milestones, in one repository |
 | **Program** | anything bigger: milestones, more than about five tasks, or more than one repository |
 
-You can choose another track; your choice and reason are recorded. The factory then opens the work item with `factory work new`: it takes the next free id, creates the branch and the folder, and commits. If the project has a remote and its rules allow pushing, it pushes the new branch, which claims the id for the team.
+You can choose another track; your choice and reason are recorded. The factory then opens the work item with `sw-factory work new`: it takes the next free id, creates the branch and the folder, and commits. If the project has a remote and its rules allow pushing, it pushes the new branch, which claims the id for the team.
 
 If you want the work queued rather than started, say so: the work item's branch is its place in the queue.
 
@@ -69,14 +69,14 @@ If you want the work queued rather than started, say so: the work item's branch 
 A Fix is one task, `T1`, and skips design. Here is what happens and where you come in.
 
 1. **The ticket.** Triage writes `ticket.md`: the problem, numbered repro steps, acceptance criteria and what is out of scope. It asks you to approve the ticket, in auto mode too, because wrong criteria give a wrong fix. This is your first checkpoint.
-2. **A failing test first.** The factory-run skill hands `T1` to the task loop. The implementer writes a test from the repro steps and shows it failing for the expected reason, then makes the smallest change that passes it.
+2. **A failing test first.** The orchestrate skill hands `T1` to the task loop. The implementer writes a test from the repro steps and shows it failing for the expected reason, then makes the smallest change that passes it.
 3. **Verify.** It runs your quick verify command and pastes the totals the command printed. "Done" always means real output, never a summary.
 4. **The review panel.** A Fix is reviewed through two lenses, **correctness** and **security**, each by a separate reviewer whose model comes from the other vendor: a Claude Code session runs them through `codex exec`, a Codex session through `claude -p`. They run at the same time, read only, and each writes `reviews/T1-r1-<lens>.md` with a first line `VERDICT: PASS` or `VERDICT: CHANGES`. The factory combines them into `reviews/T1-r1-panel.md`.
 5. **Fixes, if asked.** On CHANGES the implementer answers every finding in `reviews/disposition-T1-r1.md` (accepted, modified or declined, each with a reason), fixes test-first, and the panel reviews again. A task gets at most three rounds by default; a third failed round is a hard stop, and you decide what happens.
 6. **Close the task.** The factory ticks the acceptance criteria, commits and pushes the work branch. (A Fix has no separate tester: the merge gate runs the full verify command.)
 7. **Retro.** It writes `retro.md` and proposes any lesson worth keeping, one at a time, as an exact addition to `CLAUDE.md`/`AGENTS.md`, `REVIEW.md` or a project skill. Nothing is added without your approval.
-8. **The merge gate.** The factory-merge-gate skill brings the branch up to date with the base branch (a re-review follows if that changed the code), asks before the full build if your project says `builds: ask`, checks one acceptance criterion itself (by running the product, not only the tests), and runs `factory gate`. That writes `merge-gate.md` with six checks: the base is merged in, the commit is the reviewed one, the size is under the cap, the id is unused on the base branch, the full verify passes, and the hand check is recorded.
-9. **You merge.** On a pass, the factory gives you what changed, the review results, the verify output, the risks and follow-ups, and the exact merge commands. You run them, and when you say it is merged, the factory checks it. Lessons you approved then go in as a separate small change (a `factory/<ID>-<slug>-lessons` branch) for you to merge too, and review findings left for later are triaged into new work items with you.
+8. **The merge gate.** The merge-gate skill brings the branch up to date with the base branch (a re-review follows if that changed the code), asks before the full build if your project says `builds: ask`, checks one acceptance criterion itself (by running the product, not only the tests), and runs `sw-factory gate`. That writes `merge-gate.md` with six checks: the base is merged in, the commit is the reviewed one, the size is under the cap, the id is unused on the base branch, the full verify passes, and the hand check is recorded.
+9. **You merge.** On a pass, the factory gives you what changed, the review results, the verify output, the risks and follow-ups, and the exact merge commands. You run them, and when you say it is merged, the factory checks it. Lessons you approved then go in as a separate small change (a `sw-factory/<ID>-<slug>-lessons` branch) for you to merge too, and review findings left for later are triaged into new work items with you.
 
 ## 4. Approvals in chat
 
@@ -84,21 +84,21 @@ At a checkpoint the factory commits the artifact, pushes the work branch (when t
 
 | You type | What happens |
 |---|---|
-| "Approved", "Yes, go ahead", "Approved, carry on with the plan" | An approval. The factory records your exact words with `factory approve` in `approvals/<artifact>-rev<N>.md`, with the time, the host and the commit you approved, and goes on. |
+| "Approved", "Yes, go ahead", "Approved, carry on with the plan" | An approval. The factory records your exact words with `sw-factory approve` in `approvals/<artifact>-rev<N>.md`, with the time, the host and the commit you approved, and goes on. |
 | "Yes, but rename the option to `--unit`" | Not an approval: a change. It makes the change, commits it, and asks again. |
 | A question or a comment | It answers, then asks again. |
 | Something unclear, or nothing | It asks again. Silence, a reaction or a reply to a different question never counts. |
 
-Only people listed under `approvers` in `factory.yaml` can approve. What you type is what is recorded, word for word, so write what you mean. The factory never writes an approval from a summary, a file or another agent, only from your message in the session.
+Only people listed under `approvers` in `sw-factory.yaml` can approve. What you type is what is recorded, word for word, so write what you mean. The factory never writes an approval from a summary, a file or another agent, only from your message in the session.
 
 ## 5. Review mode and auto mode
 
-The `mode` in `factory.yaml` sets how often the factory stops for you.
+The `mode` in `sw-factory.yaml` sets how often the factory stops for you.
 
 - **Review mode** (the default): it stops at each checkpoint its track has: the intent, the spec, the plan, each milestone demo, and the merge. A Fix's ticket is approved during triage. Between checkpoints it runs on its own.
 - **Auto mode**: at a checkpoint it writes a note in `progress.md` and carries on, without an approval record. It still asks you to confirm a Fix's ticket, and it still stops for every hard stop. **A person always merges, in both modes.**
 
-To change the mode for one work item only, tell the factory and ask it to record your choice as a row in that item's `decisions.md`; the factory-run skill reads the mode from there.
+To change the mode for one work item only, tell the factory and ask it to record your choice as a row in that item's `decisions.md`; the orchestrate skill reads the mode from there.
 
 ## 6. Hard stops
 
@@ -136,13 +136,13 @@ A Feature runs the same task loop, with more planning before it and an independe
 
 | Where | What |
 |---|---|
-| `factory.yaml` | the project's settings: verify commands, approvers, branching, builds, mode, merge size cap, hard stops, role overrides |
+| `sw-factory.yaml` | the project's settings: verify commands, approvers, branching, builds, mode, merge size cap, hard stops, role overrides |
 | `REVIEW.md` | the review checklist: the lenses each track runs, the checklist per lens, the project rules every reviewer flags |
-| `CLAUDE.md` / `AGENTS.md` | a short factory section between `<!-- factory:begin -->` and `<!-- factory:end -->` |
-| `factory/work/<ID>-<slug>/` | everything about one work item, on its branch until it is merged (below) |
-| `factory/baseline/expected-failures.md` | the known failures of the full verify command, each traced to the base branch |
-| `factory/lessons.md` | the index of lessons you approved and where they went |
-| `<home>/.factory/staging/<project>/<ID>/` | the factory's scratch files for a work item, kept outside the project: rendered prompts, tester briefs, the text of your approvals before they are recorded |
+| `CLAUDE.md` / `AGENTS.md` | a short factory section between `<!-- sw-factory:begin -->` and `<!-- sw-factory:end -->` |
+| `sw-factory/work/<ID>-<slug>/` | everything about one work item, on its branch until it is merged (below) |
+| `sw-factory/baseline/expected-failures.md` | the known failures of the full verify command, each traced to the base branch |
+| `sw-factory/lessons.md` | the index of lessons you approved and where they went |
+| `<home>/.sw-factory/staging/<project>/<ID>/` | the factory's scratch files for a work item, kept outside the project: rendered prompts, tester briefs, the text of your approvals before they are recorded |
 
 Inside a work item's folder:
 
@@ -157,15 +157,15 @@ Inside a work item's folder:
 | `merge-gate.md` | the merge gate's report |
 | `retro.md` | what was learned, and the lessons you approved |
 
-The model behind each role is set in the factory's `config/roles.yaml` (and any `roles:` override in `factory.yaml`). To see what a role resolves to in a project, run `factory role resolve <role> --host claude --project .` (or `--host openai` for Codex), for example with the role `lens-security`.
+The model behind each role is set in the factory's `config/roles.yaml` (and any `roles:` override in `sw-factory.yaml`). To see what a role resolves to in a project, run `sw-factory role resolve <role> --host claude --project .` (or `--host openai` for Codex), for example with the role `lens-security`.
 
 ## 9. Resume, and see where things stand
 
 All state is in files, so any session on either host can pick a work item up.
 
-- **List the work items:** with one branch per item, `git branch --list "factory/*"`; with a single work branch, the folders in `factory/work/` on that branch.
-- **Read one item's state:** switch to its branch (`git switch factory/<ID>-<slug>`), then run `factory work status <ID>`. It prints the stage, the state and the exact next step. (Run on another branch, it tells you which branch to check out.)
-- **Carry on:** open a session in the project and say "Continue FIX-3". The factory-run skill reads the Status line and the newest log entries, checks the setup once per session, and does the next step.
+- **List the work items:** with one branch per item, `git branch --list "sw-factory/*"`; with a single work branch, the folders in `sw-factory/work/` on that branch.
+- **Read one item's state:** switch to its branch (`git switch sw-factory/<ID>-<slug>`), then run `sw-factory work status <ID>`. It prints the stage, the state and the exact next step. (Run on another branch, it tells you which branch to check out.)
+- **Carry on:** open a session in the project and say "Continue FIX-3". The orchestrate skill reads the Status line and the newest log entries, checks the setup once per session, and does the next step.
 - **Handing over:** near the end of a session's budget the factory finishes the current step, commits, sets the state to `handed off` with the next step, and pushes. The next session starts from there.
 
 If the state is `waiting for approval` or `hard stop`, the factory puts the open question to you again before anything else.
@@ -175,12 +175,12 @@ If the state is `waiting for approval` or `hard stop`, the factory puts the open
 From the project's root, in a terminal or by asking the agent:
 
 ```bash
-factory --version
-factory config check --project .
-factory skills check --host claude --project .
-factory skills check --host codex --project .
+sw-factory --version
+sw-factory config check --project .
+sw-factory skills check --host claude --project .
+sw-factory skills check --host codex --project .
 ```
 
-`factory config check --project .` prints `config ok` or lists every problem with the factory's settings and the project's `factory.yaml`. Each skills check ends with `skills ok` or `skills not ready`, naming each missing skill and its fallback. The factory-run skill runs the config check and the check for its own host once per session, and tells you about anything missing before it starts.
+`sw-factory config check --project .` prints `config ok` or lists every problem with the factory's settings and the project's `sw-factory.yaml`. Each skills check ends with `skills ok` or `skills not ready`, naming each missing skill and its fallback. The orchestrate skill runs the config check and the check for its own host once per session, and tells you about anything missing before it starts.
 
-If a check, a reviewer or the tester does not start, see Troubleshooting in the [install guide](install.md#troubleshooting): it covers a `factory` command the host cannot find, Codex denying writes to the staging folder, and subagent names when the factory is installed as a plugin.
+If a check, a reviewer or the tester does not start, see Troubleshooting in the [install guide](install.md#troubleshooting): it covers a `sw-factory` command the host cannot find, Codex denying writes to the staging folder, and subagent names when the factory is installed as a plugin.

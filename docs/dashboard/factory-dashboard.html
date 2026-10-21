@@ -289,7 +289,7 @@
 
   <footer>
     <span>Template for review. Every figure on this page is made-up sample data; the shape, not the numbers, is what's proposed.</span>
-    <span>A generator will rebuild the data block from the project's <code>factory/</code> files, git, CI and release records at each checkpoint and task close.</span>
+    <span>A generator will rebuild the data block from the project's <code>sw-factory/</code> files, git, CI and release records at each checkpoint and task close.</span>
   </footer>
 </div>
 
@@ -300,10 +300,10 @@
   "project": { "name": "Sample project", "repo": "example/sample-app", "branch": "main", "commit": "4f2c9a1", "generated": "2026-10-20 15:42", "mode": "review", "host": "Claude Code" },
   "stages": ["Plan", "Design", "Build", "Test", "Deploy", "Maintain"],
   "needs": [
-    { "kind": "hard-stop", "state": "block", "work": "FIX-13", "what": "Third review round failed", "detail": "Decide: split the task, accept as-is, or drop it.", "file": "factory/work/FIX-13/reviews/T1-r3.md", "since": "40 min" },
+    { "kind": "hard-stop", "state": "block", "work": "FIX-13", "what": "Third review round failed", "detail": "Decide: split the task, accept as-is, or drop it.", "file": "sw-factory/work/FIX-13/reviews/T1-r3.md", "since": "40 min" },
     { "kind": "merge", "state": "wait", "work": "FIX-12", "what": "Merge PR #412", "detail": "Review passed, tests green.", "file": "PR #412", "since": "2 h" },
-    { "kind": "checkpoint", "state": "wait", "work": "PRG-02", "what": "Approve spec rev 2", "detail": "Two reviews dispositioned, no open blockers.", "file": "factory/work/PRG-02/spec.md", "since": "5 h" },
-    { "kind": "checkpoint", "state": "wait", "work": "FEA-08", "what": "Accept intent", "detail": "Short grill finished; three open questions carried.", "file": "factory/work/FEA-08/intent.md", "since": "1 d" }
+    { "kind": "checkpoint", "state": "wait", "work": "PRG-02", "what": "Approve spec rev 2", "detail": "Two reviews dispositioned, no open blockers.", "file": "sw-factory/work/PRG-02/spec.md", "since": "5 h" },
+    { "kind": "checkpoint", "state": "wait", "work": "FEA-08", "what": "Accept intent", "detail": "Short grill finished; three open questions carried.", "file": "sw-factory/work/FEA-08/intent.md", "since": "1 d" }
   ],
   "work": [
     {

@@ -2,28 +2,28 @@
 
 A reusable way for BSI teams to take work from an idea to running software with AI agents. It runs in **Claude Code** and in **Codex** (CLI and the ChatGPT desktop app), lets one model drive another, and scales from a one-session bug fix to a multi-week program.
 
-> **Status: version 1 core built and merged; not yet piloted.** Built: the `factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. Its tests pass on Windows and Linux, and a rehearsal on a sample app ran a Fix from setup to a passing merge gate with real Codex reviews ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). Next come the owner-attended runs in each host ([checklist](docs/acceptance/v1-checklist.md)) and a first real project. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
+> **Status: version 1 core built and merged; not yet piloted.** Built: the `sw-factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. Its tests pass on Windows and Linux, and a rehearsal on a sample app ran a Fix from setup to a passing merge gate with real Codex reviews ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). Next come the owner-attended runs in each host ([checklist](docs/acceptance/v1-checklist.md)) and a first real project. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
 
 ## Install
 
 The short version; the [install guide](docs/guide/install.md) has the prerequisites, every command and the third-party skills to add.
 
-1. Clone this repository and install the `factory` command from it with `pipx install -e tools` (the install guide has other ways; don't put a virtual environment's folder on your PATH), then check `factory --version`.
-2. Claude Code: `claude plugin marketplace add Battlespace-Research/software-factory`, then `claude plugin install software-factory@bsri-factory`.
-3. Codex: `codex plugin marketplace add Battlespace-Research/software-factory`, then `codex plugin add software-factory@bsri-factory`.
-4. Install the third-party skills, then check both hosts with `factory skills check --host claude` and `factory skills check --host codex`.
+1. Clone this repository and install the `sw-factory` command from it with `pipx install -e tools` (the install guide has other ways; don't put a virtual environment's folder on your PATH), then check `sw-factory --version`.
+2. Claude Code: `claude plugin marketplace add Battlespace-Research/software-factory`, then `claude plugin install bsri-sw-factory@bsri-factory`.
+3. Codex: `codex plugin marketplace add Battlespace-Research/software-factory`, then `codex plugin add bsri-sw-factory@bsri-factory`.
+4. Install the third-party skills, then check both hosts with `sw-factory skills check --host claude` and `sw-factory skills check --host codex`.
 
 ## Quick start
 
 You drive the factory by talking to Claude Code or Codex in your project. Open a session at the root of the project's repository, with no uncommitted changes, then:
 
-1. **Set up the project, once.** Say *"Set up this repository for the software factory."* Or pick the skill: in Claude Code, type `/` and choose `software-factory:factory-setup`; in Codex, type `$` and choose `factory-setup`. It asks you one question at a time (verify commands, approvers, branching), shows every file it made, and commits on a `factory/setup` branch once you approve. You merge that branch.
+1. **Set up the project, once.** Say *"Set up this repository for the software factory."* Or pick the skill: in Claude Code, type `/` and choose `bsri-sw-factory:setup-project`; in Codex, type `$` and choose `bsri-sw-factory:setup-project`. It asks you one question at a time (verify commands, approvers, branching), shows every file it made, and commits on a `sw-factory/setup` branch once you approve. You merge that branch.
 2. **Bring it work.** Say *"Triage this for the factory: the range-ring label shows m for values in km."* It proposes a track (Fix, Feature or Program) with its reason, opens a work item, and writes the ticket or intent for you to approve.
 3. **Approve in chat.** At each checkpoint it asks one question. Reply *"Approved"* and your exact words are recorded with the commit you approved; or say what to change, and it changes it and asks again.
 4. **Let it run.** It writes a failing test first, fixes, runs your verify command, has reviewers from the other vendor check the change (Claude Code calls Codex; Codex calls Claude), and runs the merge gate. It stops for you at every hard stop, such as anything that touches the main branch, credentials or new dependencies.
 5. **You merge.** When the gate passes it gives you what changed, the review results, the verify output and the merge commands. A person always merges.
 
-To see where any piece of work stands, ask the agent, or run `factory work status <ID>`. [Using the factory](docs/guide/using-the-factory.md) walks through all of this in detail, including Features, review and auto modes, and where every file lives. The [command reference](docs/guide/reference.md) lists every skill and every `factory` command.
+To see where any piece of work stands, ask the agent, or run `sw-factory work status <ID>`. [Using the factory](docs/guide/using-the-factory.md) walks through all of this in detail, including Features, review and auto modes, and where every file lives. The [command reference](docs/guide/reference.md) lists every skill and every `sw-factory` command.
 
 ## Why it exists
 
@@ -154,10 +154,10 @@ A project set up for the factory gets:
 
 ```
 <project>/
-  factory.yaml        verify command, tracks, mode, hard stops, deploy paths, signals, role overrides
-  REVIEW.md           the review checklist
-  CLAUDE.md/AGENTS.md a short factory section
-  factory/work/<ID>/  intent, decisions, spec, plan, progress, reviews, approvals, demo, retro
+  sw-factory.yaml        verify command, tracks, mode, hard stops, deploy paths, signals, role overrides
+  REVIEW.md              the review checklist
+  CLAUDE.md/AGENTS.md    a short factory section
+  sw-factory/work/<ID>/  intent, decisions, spec, plan, progress, reviews, approvals, demo, retro
 ```
 
 ## Deploy and Maintain
@@ -214,19 +214,19 @@ The factory calls installed skills rather than copying them. It checks they are 
 
 ## Repository layout
 
-What exists today. The factory is one plugin, `software-factory`, with a Claude Code manifest and a Codex manifest that share one `skills/` folder:
+What exists today. The factory is one plugin, `bsri-sw-factory`, with a Claude Code manifest and a Codex manifest that share one `skills/` folder:
 
 ```
 .claude-plugin/    the Claude Code plugin manifest and its marketplace (bsri-factory)
 .codex-plugin/     the Codex plugin manifest
 .agents/plugins/   the Codex marketplace (bsri-factory)
-skills/            the factory skills: setup, triage, run, task loop, review panel, merge gate
-agents/            Claude Code subagents: lens reviewer, document reviewer, tester, researcher
+skills/            the factory skills: setup-project, intake, orchestrate, task-loop, review-panel, merge-gate
+agents/            Claude Code subagents: lens-reviewer, doc-reviewer, tester, researcher
 prompts/           the four review lenses, the document review and the tester brief
 schemas/           the JSON schema of a review
 config/            roles.yaml (the role table, the one file that names models) and skills.yaml (third-party skills)
 templates/         project/ (what setup creates in a project) and work/ (a new work item's files, per track)
-tools/             the factory command (Python package swfactory) and its tests
+tools/             the sw-factory command (Python package swfactory) and its tests
 examples/          sample-app, the small project with a planted bug that the acceptance run works on
 docs/
   guide/           the install guide, the walkthrough and the command reference

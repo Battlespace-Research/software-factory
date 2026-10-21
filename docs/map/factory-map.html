@@ -706,7 +706,7 @@
     <div class="figure-head">
       <span class="fig-num">Skills</span>
       <h2>Third-party skills by stage</h2>
-      <p class="caption">Most of these are already installed and shared by Claude Code and Codex through <code>~/.agents/skills</code>. The factory checks that each role's required skills are present, and names the fallback for any that is missing: <code>factory skills check</code>, which setup runs for both hosts and each work session runs once for its own.</p>
+      <p class="caption">Most of these are already installed and shared by Claude Code and Codex through <code>~/.agents/skills</code>. The factory checks that each role's required skills are present, and names the fallback for any that is missing: <code>sw-factory skills check</code>, which setup runs for both hosts and each work session runs once for its own.</p>
     </div>
     <div class="table-wrap">
       <table>
@@ -770,6 +770,7 @@
           <tr><td class="mono">F12</td><td>Project setup produces a <code>REVIEW.md</code> (lenses, severities, per-track lens sets, always-flag rules) that the review panel reads; PR review would read the same file.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F13</td><td>Approvals happen in chat; the factory records your exact words, the time and the commit approved, and never writes one without your message.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F14</td><td>The pilot project is deferred; likely a new MACE plugin. The repo README gives a full overview with diagrams.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F16</td><td>New names: the plugin <code>bsri-sw-factory</code>, with the skills setup-project, intake, orchestrate, task-loop, review-panel and merge-gate; the command <code>sw-factory</code>; and in a project <code>sw-factory.yaml</code>, the <code>sw-factory/</code> folder and <code>sw-factory/</code> branches.</td><td class="mono">2026-10-20</td></tr>
         </tbody>
       </table>
     </div>
