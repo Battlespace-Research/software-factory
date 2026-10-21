@@ -73,3 +73,5 @@ The ledger's other entries (dispatches, review outcomes, deferred minor findings
 - Final: Ruling: the `--yolo` gap was offered to the owner, who chose to fix it before merge (2026-10-20); the deny-list gains `--yolo`, and replacing it with an allow-list stays a plan-2 item.
 - Final: Fix: `REFUSED_CODEX_ARGS` gained `--yolo` (hidden alias of `--dangerously-bypass-approvals-and-sandbox`, confirmed on codex-cli 0.163.0) and `--add-dir` (adds writable folders to the sandbox), with test rows for both spellings and the Troubleshooting list updated (2026-10-20).
 - Final: Ruling: FACTORY_CODEX_ARGS also refuses `-c` overrides of sandbox_mode, approval_policy, sandbox_workspace_write.*, sandbox_permissions and shell_environment_policy (same purpose as the flag deny-list: reviewers always run read-only); the allow-list replacement stays a plan-2 item.
+
+- Linux check, 2026-10-20: after the owner installed python3.12-venv and pip in WSL, the suite ran on a fresh WSL clone of main (90be131): 1054 passed, 12 skipped (Windows-only .cmd shim tests). The BLOCKED ruling above is closed; Linux CI stays a plan-2 item.

@@ -230,3 +230,13 @@ python -m pip install -e "tools[dev]" && python -m pytest tools/tests -q
 ```
 
 Otherwise the check waits for CI in plan 2.
+
+**Update, 2026-10-20 (after the owner installed `python3.12-venv` and pip in WSL):** the check ran on a fresh clone of `main` at `90be131` in the WSL file system (`~/sf-check`), with a `python3 -m venv` virtual environment and `pip install -e "tools[dev]"`:
+
+```text
+Linux 6.18.33.2-microsoft-standard-WSL2 · Python 3.12.3 · git 2.43.0
+factory --version → 0.1.0
+1054 passed, 12 skipped in 43.89s
+```
+
+The 12 skips are the Windows-only tests of the `.cmd` batch-shim refusal (`test_adapters.py`); the POSIX code paths — process groups and `SIGKILL` in the adapter, the shebang shims in the test fakes, and setup's permission bits — now run and pass on Linux. CI on Linux remains a plan-2 item so this stays checked on every change.
