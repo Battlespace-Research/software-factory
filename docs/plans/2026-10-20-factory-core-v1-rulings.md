@@ -1,6 +1,6 @@
 # Factory core v1: the controller's rulings
 
-> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names.
+> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names, and F19 for why references to specific BSI products and projects are generalized.
 
 These are the decisions the controller took while building core v1 (plan [`2026-10-20-factory-core-v1.md`](2026-10-20-factory-core-v1.md), spec [`2026-10-20-software-factory-design.md`](../specs/2026-10-20-software-factory-design.md)), wherever the plan, the spec, a review or the machine left a choice open. Each is copied word for word from the controller's ledger, a session workspace that is not kept, in the order it was taken, and each ends with its cost if it proves wrong ("if wrong: …"). The pre-flight rulings are numbered R1 to R5; the later ones are named by the task during which they were taken.
 
@@ -70,7 +70,7 @@ The ledger's other entries (dispatches, review outcomes, deferred minor findings
 ## Final review
 
 - Ruling: final fix wave also commits the rulings record (docs/plans/2026-10-20-factory-core-v1-rulings.md, all `Ruling:` lines from this ledger with their costs) and refreshes the map captions (Skills, role table) to say what is built — the workspace is deleted at the end and the map must stay current (F06) — if wrong: two doc files.
-- Ruling: Linux check = one `pytest tools/tests` run inside WSL on a copy of the repo in the WSL filesystem, recorded in the rehearsal results; if WSL Python/pip is unavailable, record that and leave CI for plan 2 — the owner's WSL may be busy with NGC2 lanes, so one light run only, never a build — if wrong: POSIX paths stay unverified until CI.
+- Ruling: Linux check = one `pytest tools/tests` run inside WSL on a copy of the repo in the WSL filesystem, recorded in the rehearsal results; if WSL Python/pip is unavailable, record that and leave CI for plan 2 — the owner's WSL may be busy with another project's lanes, so one light run only, never a build — if wrong: POSIX paths stay unverified until CI.
 - Final: Ruling: Linux check stays BLOCKED until the owner installs python3-venv/pip in WSL (or approves a get-pip download); CI on Linux is the first plan-2 item — if wrong: POSIX code paths (killpg, shebang shim, atomic writes) remain unverified.
 - Final: Ruling: the `--yolo` gap was offered to the owner, who chose to fix it before merge (2026-10-20); the deny-list gains `--yolo`, and replacing it with an allow-list stays a plan-2 item.
 - Final: Fix: `REFUSED_CODEX_ARGS` gained `--yolo` (hidden alias of `--dangerously-bypass-approvals-and-sandbox`, confirmed on codex-cli 0.163.0) and `--add-dir` (adds writable folders to the sandbox), with test rows for both spellings and the Troubleshooting list updated (2026-10-20).

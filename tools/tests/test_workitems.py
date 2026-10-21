@@ -231,8 +231,8 @@ def test_create_feature_item_files(git_repo, cfg):
 
 
 def test_create_epic_item_files(git_repo, cfg):
-    w = create_work_item(git_repo, cfg, "epic", "ngc2", "Next-gen command and control")
-    assert w.id == "EPIC-1" and w.branch == "sw-factory/EPIC-1-ngc2"
+    w = create_work_item(git_repo, cfg, "epic", "big-epic", "A large multi-milestone feature set")
+    assert w.id == "EPIC-1" and w.branch == "sw-factory/EPIC-1-big-epic"
     assert {p.name for p in w.path.iterdir()} == {
         "intent.md", "spec.md", "plan.md", "progress.md", "decisions.md", "retro.md",
         "reviews", "approvals", "research", "demo",

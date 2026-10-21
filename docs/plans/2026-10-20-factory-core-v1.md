@@ -1,6 +1,6 @@
 # Factory Core v1 Implementation Plan
 
-> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names.
+> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names, and F19 for why references to specific BSI products and projects are generalized.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -20,7 +20,7 @@
 - Import package `swfactory` in `tools/swfactory/`; console script `factory`; install with `pip install -e tools`.
 - Factory home = env `FACTORY_HOME` if set, else the repo root two levels above `tools/swfactory/`.
 - **No model name anywhere except `config/roles.yaml`** (tests and docs may quote them). Skills, prompts, agents, templates and `swfactory` code refer to roles only.
-- Never write to `E:\BSI\GitHub\MACE-NGC2-Prototype`. Tests use temp directories only.
+- Never write to any other project's checkout. Tests use temp directories only.
 - Subprocesses use argv lists, never shell strings — except the project's own verify commands, which are user-supplied command strings run with `shell=True`.
 - Work ids: `PRG-<n>`, `FEA-<n>`, `FIX-<n>`, numbered per track per project, never renumbered; a collision gets a letter suffix (`FEA-12b`).
 - Work folder: `factory/work/<ID>-<slug>/`; branch `factory/<ID>-<slug>` when `branching: per-item`.

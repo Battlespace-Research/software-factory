@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: rev 2.3 · lens reference skills per F18 (2026-10-21) · rev 2.2 track Program renamed Epic per F17 · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
-Decisions: `docs/decisions.md` (F01–F18) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: rev 2.4 · project-generic wording per F19 (2026-10-21) · rev 2.3 · lens reference skills per F18 (2026-10-21) · rev 2.2 track Program renamed Epic per F17 · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
+Decisions: `docs/decisions.md` (F01–F19) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
@@ -9,20 +9,20 @@ Items marked **[Claude's call]** were not discussed with the owner; they are pro
 
 ## 1. Intent
 
-BSI builds software with AI agents. On the NGC2 prototype the owner ran a disciplined, multi-model process: grilling interviews that produce numbered decisions, a reviewed spec and plan, and a per-task loop in which Claude implements, a GPT model reviews through Codex, and a Claude tester verifies. It worked, but it lives in one project's runbook, in uncommitted scripts under `C:\Users\cordc\ngc2-staging`, and in one person's agent memory.
+BSI builds software with AI agents. On an earlier project the owner ran a disciplined, multi-model process: grilling interviews that produce numbered decisions, a reviewed spec and plan, and a per-task loop in which Claude implements, a GPT model reviews through Codex, and a Claude tester verifies. It worked, but it lives in one project's runbook, in uncommitted scripts on one machine, and in one person's agent memory.
 
 The **software factory** turns that process into a reusable, shareable kit any BSI project can install. A teammate opens Claude Code or the Codex/ChatGPT app in a repo, and the factory takes a piece of work from idea to running software, sized from a one-session bug fix to a multi-week epic. The process stays visible at every step: a map of the factory, and a dashboard of the work in flight.
 
-Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and models keep changing. The factory has to make a model swap a one-line change that can be checked, not a rewrite of prompts scattered across scripts.
+Why now: the earlier project's runbook has proved the approach, the lessons are fresh, and models keep changing. The factory has to make a model swap a one-line change that can be checked, not a rewrite of prompts scattered across scripts.
 
 ## 2. Goals
 
-1. **Reusable and shareable.** A BSI teammate installs the factory as a plugin and sets up a project without NGC2 knowledge [F01, F04].
+1. **Reusable and shareable.** A BSI teammate installs the factory as a plugin and sets up a project without knowledge of the earlier project [F01, F04].
 2. **Two hosts, either can drive.** Runs in Claude Code and in Codex (CLI and the ChatGPT desktop app). Either host can run the work and call the other vendor's model for reviews [F02].
 3. **Models and skills swap in one place.** Each role is bound to a vendor, model, effort and fallback in one role table. Changing a binding updates the map, the dashboard and the runs [F02, F06].
 4. **Aligned with the Claude Academy AI-Native SDLC Playbook.** Six stages — Plan, Design, Build, Test, Deploy, Maintain — with committed artifacts, human gates, review against a checklist, and measured outcomes [F03]. Appendix A maps each playbook requirement to this design.
 5. **Scales down.** Three tracks — Epic, Feature, Fix — so a bug fix does not pay for an epic's ceremony, yet still lands reviewed and verified.
-6. **Deploy and Maintain are first-class.** Both the desktop installer (what BSI ships today) and Kubernetes with Helm (where NGC2 is heading) get a path. Start light, mature with use, follow best practice [F05].
+6. **Deploy and Maintain are first-class.** Both the desktop installer (what BSI ships today) and Kubernetes with Helm (where BSI's work is heading) get a path. Start light, mature with use, follow best practice [F05].
 7. **Visible.** The map stays current and is published as a private web page [F06]; a dashboard is regenerated throughout the work [F10].
 
 ## 3. Non-goals (for this version)
@@ -33,27 +33,27 @@ Why now: the NGC2 runbook has proved the approach, the lessons are fresh, and mo
 - Agent review on GitHub pull requests. Optional per project, off by default, no GitHub Action yet [F11].
 - Organization-wide managed settings, telemetry export (OpenTelemetry) and org dashboards. Revisit when several teams use the factory.
 - Automatic vendor fallback when one vendor's usage runs low. Interesting (super-board does it); later.
-- Work that spans a repo and its git submodules (as in MACE): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it; the pilot is deferred and will likely be a new MACE plugin in its own repo [F14]. Touching a submodule does not by itself make work an Epic. **[Claude's call]**
+- Work that spans a repo and its git submodules (as in a repository with many submodules): branch mirroring, submodule-first pushes and cross-repo review diffs. In version 1 only if the pilot project needs it; the pilot is deferred and will be a first real project, chosen later [F14]. Touching a submodule does not by itself make work an Epic. **[Claude's call]**
 
 ## 4. Anti-goals — failure even if it technically works
 
-- The factory only works on NGC2, or only for its original author.
+- The factory only works on the project it came from, or only for its original author.
 - A one-line fix needs a spec, a plan and four reviewers.
 - Model names hard-coded in skills, prompts or scripts.
 - An agent approves or merges its own work, or records an approval the owner did not give.
 - The real state of a piece of work exists only in a chat transcript.
-- Installing or running the factory disturbs ongoing work in a project (for example the NGC2 sessions in the MACE checkout).
+- Installing or running the factory disturbs ongoing work in a project (for example other agent sessions working in a project's checkout).
 - The factory locks a project into one vendor.
 - Lessons stay in one person's private agent memory instead of the project's shared files.
 
 ## 5. Constraints
 
-- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Factory work never writes to the NGC2 checkout (`E:\BSI\GitHub\MACE-NGC2-Prototype`), where other sessions are working; MACE and NGC2 are read-only references for the design.
+- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Factory work never writes to the earlier project's checkout, where other sessions are working; it is a read-only reference for the design.
 - **Project rules win.** Where a project's own rules (its `AGENTS.md`, `CLAUDE.md`, contribution rules) conflict with a factory default, the project's rule wins. Setup lists each conflict and the owner settles it in `sw-factory.yaml`; the owner approving `sw-factory.yaml` counts as the explicit request such rules ask for. **[Claude's call]**
 - **Work state is files in the project's own repo**, the source of truth; GitHub issues are an optional mirror [F07].
-- **Platforms.** BSI develops on Windows (PowerShell 7, Git Bash, Visual Studio); CI and Kubernetes work run on Linux. Factory scripts must run on both. Python 3 is available on both and is already used for the NGC2 dashboard.
+- **Platforms.** BSI develops on Windows (PowerShell 7, Git Bash, Visual Studio); CI and Kubernetes work run on Linux. Factory scripts must run on both. Python 3 is available on both and is already used for the earlier project's dashboard.
 - **Licensing of prior art.** zazencodes' factory has no license: reuse ideas, never text. super-board is MIT: code or text borrowed from it keeps its notice. Third-party skills are referenced, not copied into the factory (section 13).
-- **Builds.** One build at a time per working tree; heavy test suites run alone (NGC2 lesson).
+- **Builds.** One build at a time per working tree; heavy test suites run alone (a lesson from an earlier project).
 - **Credentials.** Agents never enter credentials, licences or secrets; a person does.
 
 ## 6. Shape of the solution
@@ -94,7 +94,7 @@ software-factory/
     dashboard/           generated; git-ignored
 ```
 
-Setup drafts `REVIEW.md`, the always-flag rules and the hard-stop list from what the repo already says (for MACE: its `AGENTS.md` rules such as "never change XML serialization"). It also asks for, or discovers, the single verify command. Setup never edits existing project files beyond appending the factory section to `CLAUDE.md`/`AGENTS.md`.
+Setup drafts `REVIEW.md`, the always-flag rules and the hard-stop list from what the repo already says (for example, an `AGENTS.md` rule such as "never change the file format"). It also asks for, or discovers, the single verify command. Setup never edits existing project files beyond appending the factory section to `CLAUDE.md`/`AGENTS.md`.
 
 ### 6.3 Factory skills
 
@@ -149,7 +149,7 @@ The orchestrator (`orchestrate`) keeps state only in files and holds no per-task
 
 - From Claude Code: Claude roles run as subagents (`agents/`); other-vendor roles run `codex exec -m <model> -c model_reasoning_effort=<effort> -s read-only --output-schema <schema> -o <file>`.
 - From Codex: Codex roles run natively; other-vendor roles run `claude -p` headless with a read-only tool allowlist and JSON output.
-- Reviewers always run read-only. The adapter stamps the sandbox mode, model and effort into the result header (an NGC2 practice).
+- Reviewers always run read-only. The adapter stamps the sandbox mode, model and effort into the result header (a practice carried over from an earlier project).
 
 The builder verifies the exact CLI flags of the installed versions; the design fixes the contract (prompt in, schema-validated file out), not the flags.
 
@@ -173,12 +173,12 @@ sw-factory/work/<ID>-<slug>/
 
 A Fix uses `ticket.md` (intent, repro steps, acceptance criteria) instead of intent/spec/plan.
 
-### 8.2 Ids and revisions [Claude's call, from NGC2 lessons]
+### 8.2 Ids and revisions [Claude's call, from lessons of an earlier project]
 
 - Work ids: `EPIC-nn`, `FEA-nn`, `FIX-nn`, sequential per project, never reused.
-- Task ids: `M1-T1` in an Epic, `T1` in a Feature or Fix. A split task gets a letter suffix (`M1-T2a`). **Ids are never renumbered** — NGC2 renumbered after reviews and broke references.
+- Task ids: `M1-T1` in an Epic, `T1` in a Feature or Fix. A split task gets a letter suffix (`M1-T2a`). **Ids are never renumbered** — an earlier project renumbered after reviews and broke references.
 - Every spec and plan starts with a Status line: revision, review rounds, approval state. The major revision goes up once per review round; a decimal marks a correction or an amendment after approval.
-- A document is **frozen while a review round is open**: the author waits for every reviewer before editing (NGC2: a reviewer read a plan while it was being rewritten).
+- A document is **frozen while a review round is open**: the author waits for every reviewer before editing (on an earlier project, a reviewer read a plan while it was being rewritten).
 
 ### 8.2a Branches, ids and where in-flight work lives [Claude's call]
 
@@ -221,7 +221,7 @@ Each project declares **one** verify command in `sw-factory.yaml`, with two mode
 - `quick`: builds and tests what the task touched; run at every task's Verify step. Must fit a Fix inside one session.
 - `full`: the whole build and suite; run by the tester when the plan says so, at milestone demos, and at the merge gate.
 
-Both exit non-zero on failure and print totals. "Done" requires the pasted output. Full results are compared with `sw-factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (NGC2 lesson). A project whose rules restrict builds (MACE builds only when instructed) sets `builds: ask`, and the factory asks before each full run.
+Both exit non-zero on failure and print totals. "Done" requires the pasted output. Full results are compared with `sw-factory/baseline/expected-failures.md`, which traces each expected failure to the main branch — never with "green". Test totals come only from real runs, never hand counts (a lesson from an earlier project). A project whose rules restrict builds (a project that builds only when instructed) sets `builds: ask`, and the factory asks before each full run.
 
 ### 9.3 Review panel [F09]
 
@@ -235,7 +235,7 @@ Both exit non-zero on failure and print totals. "Done" requires the pasted outpu
 
 ### 9.4 Tester
 
-A separate role that never edits product code. It gets a brief (file path), confirms the commit hashes first, runs the verify command and any demo script exactly as written, and reports. **No one edits the working tree while the tester runs**; fixes found meanwhile are staged as patches (NGC2 lesson, hit twice).
+A separate role that never edits product code. It gets a brief (file path), confirms the commit hashes first, runs the verify command and any demo script exactly as written, and reports. **No one edits the working tree while the tester runs**; fixes found meanwhile are staged as patches (a lesson from an earlier project, hit twice).
 
 ### 9.5 Decision ladder for unattended choices [Claude's call, from super-board]
 
@@ -254,7 +254,7 @@ Before handing a merge to the owner:
 
 Commit trailers: `Factory-Work: FEA-07/T3`, `Factory-Role: implementer`, `Factory-Model: <model> (<effort>)`, plus the host's own co-author trailer. Review and spec headers record model, effort, sandbox mode and the versions of the skills used.
 
-### 9.8 Sessions, budget and parallel work (NGC2 lessons)
+### 9.8 Sessions, budget and parallel work (lessons from an earlier project)
 
 - `progress.md` Status line is the single resume point; every step commits.
 - At about 95% of a session's token budget: finish the loop step, commit, point `progress.md` at the resume point, hand off (`handoff` skill).
@@ -268,7 +268,7 @@ Two paths, configured per project in `sw-factory.yaml`; a project may have one o
 
 ### 10.1 Desktop installer path
 
-1. Build the installer in CI (BSI already does this in GitHub Actions for MACE and Merlin).
+1. Build the installer in CI (many projects already build installers in CI, for example GitHub Actions).
 2. Sign it; run a smoke test (install on a clean runner, launch headless where possible, run the project's smoke command).
 3. Publish to a **beta** channel automatically after a merged release branch.
 4. Owner promotes beta to **stable** (a checkpoint in every mode).
@@ -277,7 +277,7 @@ Two paths, configured per project in `sw-factory.yaml`; a project may have one o
 
 ### 10.2 Kubernetes with Helm path
 
-1. The chart lives in the project repo; CI runs `helm lint`, `helm template`, and policy checks (for NGC2's target: Restricted Pod Security, resource limits, image provenance).
+1. The chart lives in the project repo; CI runs `helm lint`, `helm template`, and policy checks (for example Restricted Pod Security, resource limits, image provenance).
 2. **dev:** deploy automatically after merge; wait for rollout and readiness.
 3. **staging:** owner approves; deploy; run smoke checks; rehearse `helm rollback` and roll forward again.
 4. **prod:** owner approval plus the change record the environment requires; agents get no standing prod credentials.
@@ -347,7 +347,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 
 ## 16. Success measures [Claude's call]
 
-- A teammate who has never seen NGC2 installs the plugin, runs setup, and completes a Fix end to end in one session.
+- A teammate who has never seen the earlier project installs the plugin, runs setup, and completes a Fix end to end in one session.
 - A model swap is one edit to `roles.yaml` followed by a green eval run, and the map and dashboard show the new binding.
 - After two months, the playbook's indicators on the dashboard trend the right way: first-pass review rate up, review rounds per task down, owner wait time down.
 - No merge reaches main without a human.
@@ -359,7 +359,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 - JSON schema details, beyond the contracts named here.
 - Prompt wording for lenses, tester, authors and triage.
 - Which five tasks seed the evals, picked with the owner.
-- The pilot project, deferred by the owner; likely a new MACE plugin in its own repo [F14]. Version 1 is built and tested without a pilot first (on a small sample repo the builder creates), then piloted.
+- The pilot project, deferred by the owner; a first real project, chosen later [F14]. Version 1 is built and tested without a pilot first (on a small sample repo the builder creates), then piloted.
 - Phasing and order of work, in the implementation plan. A sensible order: core (setup, triage, Fix and Feature tracks, review panel, role table, adapters) on a pilot project; then the Epic track and dashboard generator; then the two Deploy paths and Maintain; then evals; hooks when unparked.
 
 ---
@@ -386,7 +386,7 @@ Version 1 enforces rules through skills, instructions, git practice and the merg
 
 ## Appendix B — Sources
 
-- NGC2 prototype runbook, decisions, plans and reviews (`Documentation/NGC2-Prototype/` on branch `MACE-NGC2-Prototype`), NGC2 staging tooling, and the agent memory lessons.
+- The earlier project's runbook, decisions, plans and reviews, its staging tooling, and the agent memory lessons.
 - Claude Academy, AI-Native SDLC Playbook: https://academy.claude.com/courses/ai-native-sdlc-playbook
 - zazencodes software factory (ideas only; no license): https://github.com/zazencodes/zazencodes-season-3/tree/main/src/software-factory-claude-code
 - super-board (MIT): https://github.com/EricTechPro/super-board

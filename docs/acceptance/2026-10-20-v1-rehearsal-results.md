@@ -1,6 +1,6 @@
 # Version 1 rehearsal results, 2026-10-20
 
-> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names.
+> Names in this record are the pre-rename v1 names; see F16 and F17 in docs/decisions.md for the current names, and F19 for why references to specific BSI products and projects are generalized.
 
 A CLI-level rehearsal of one Fix on a throwaway copy of the sample app, run unattended before the owner-attended v1 demo ([`v1-checklist.md`](v1-checklist.md)). It used the real `factory` command and real review runs through the Codex CLI, but no host session: the plugin was not installed in either host, no host setting was changed, nothing was pushed, and every place that needs the owner's approval got a clearly marked placeholder instead (section 2). The host-driven passes A and B of the checklist are still to be run, by the owner.
 

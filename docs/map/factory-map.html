@@ -161,7 +161,7 @@
     <p class="eyebrow">BSRI · Software Factory · Draft 0</p>
     <h1>Software Factory Map</h1>
     <div class="prose">
-      <p class="lede">A reusable way to take work from an idea to running software with AI agents, sized from a one-line bug fix to a multi-week effort. It starts from the NGC2 prototype runbook and follows the six stages of Anthropic's AI-native SDLC playbook.</p>
+      <p class="lede">A reusable way to take work from an idea to running software with AI agents, sized from a one-line bug fix to a multi-week effort. It starts from the runbook of an earlier multi-model BSI project and follows the six stages of Anthropic's AI-native SDLC playbook.</p>
       <p>This is a working sketch for discussion. Nothing here is built yet. Model names in the figures are today's defaults; each one comes from a single role table, so a swap is one edit.</p>
     </div>
     <div class="meta">
@@ -741,7 +741,7 @@
     <ol class="questions">
       <li><div><strong>Track thresholds.</strong><p>Proposed in the design (section 8.3): a Fix is one session and one task; a Feature is up to about five tasks; anything with milestones or crossing repos is an Epic. Awaiting your review.</p></div></li>
       <li><div><strong>Packaging.</strong><p>Proposed in the design (section 6.1): one plugin with a Claude Code manifest and a Codex manifest sharing one skills folder, as BSI's codex-plugin repo already does.</p></div></li>
-      <li><div><strong>Pilot project (deferred).</strong><p>Likely a new MACE plugin. Version 1 is set up and documented first.</p></div></li>
+      <li><div><strong>Pilot project (deferred).</strong><p>A first real project, chosen later. Version 1 is set up and documented first.</p></div></li>
       <li><div><strong>Hooks that enforce rules (parked).</strong><p>Which rules block outright and which ask you; Codex hooks cannot ask yet.</p></div></li>
     </ol>
   </section>
@@ -757,7 +757,7 @@
       <table>
         <thead><tr><th>Id</th><th>Decision</th><th>Date</th></tr></thead>
         <tbody>
-          <tr><td class="mono">F01</td><td>The factory lives in its own repo under BSRI (Battlespace-Research). MACE and NGC2 are read-only references.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F01</td><td>The factory lives in its own repo under BSRI (Battlespace-Research). The earlier project's checkout is a read-only reference.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F02</td><td>It runs in Claude Code and in Codex, and either one can drive the other. Models are bound to roles in one table.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F03</td><td>Stages follow the six stages of the Claude Academy AI-native SDLC playbook.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F04</td><td>Users are BSI teammates first, possibly others later.</td><td class="mono">2026-10-20</td></tr>
@@ -770,18 +770,19 @@
           <tr><td class="mono">F11</td><td>Agent review on GitHub PRs is optional per project and off by default. No GitHub Action for it yet.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F12</td><td>Project setup produces a <code>REVIEW.md</code> (lenses, severities, per-track lens sets, always-flag rules) that the review panel reads; PR review would read the same file.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F13</td><td>Approvals happen in chat; the factory records your exact words, the time and the commit approved, and never writes one without your message.</td><td class="mono">2026-10-20</td></tr>
-          <tr><td class="mono">F14</td><td>The pilot project is deferred; likely a new MACE plugin. The repo README gives a full overview with diagrams.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F14</td><td>The pilot project is deferred; a first real project, chosen later. The repo README gives a full overview with diagrams.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F15</td><td>Design rev 2 is approved by the owner. The repo is published privately as <code>Battlespace-Research/software-factory</code>.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F16</td><td>New names: the plugin <code>bsri-sw-factory</code>, with the skills setup-project, intake, orchestrate, task-loop, review-panel and merge-gate; the command <code>sw-factory</code>; and in a project <code>sw-factory.yaml</code>, the <code>sw-factory/</code> folder and <code>sw-factory/</code> branches.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F17</td><td>The largest track is renamed from Program to Epic: the track <code>epic</code>, work ids <code>EPIC-&lt;n&gt;</code> and the templates in <code>templates/work/epic/</code>. Fix and Feature are unchanged.</td><td class="mono">2026-10-21</td></tr>
           <tr><td class="mono">F18</td><td>Three lens reviewers get one of Matt Pocock's skills as guidance, its text inlined in their prompt, never running it: correctness <code>tdd</code>, maintainability <code>codebase-design</code>, spec compliance <code>domain-modeling</code> (when the project has a <code>CONTEXT.md</code> or ADRs); security none. Each review's stamp records the skill text used. New: <code>sw-factory prompt render --reference-skill</code> and <code>sw-factory skills path</code>; the README shows which reviewers run on each track.</td><td class="mono">2026-10-21</td></tr>
+          <tr><td class="mono">F19</td><td>The documentation is project-generic: references to specific BSI products and projects are removed or generalized everywhere, including earlier decision rows and the v1 records.</td><td class="mono">2026-10-21</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
   <footer>
-    <span>Sources: the NGC2 prototype runbook and its lessons; <a href="https://academy.claude.com/courses/ai-native-sdlc-playbook">Claude Academy, AI-Native SDLC Playbook</a>; <a href="https://github.com/zazencodes/zazencodes-season-3/tree/main/src/software-factory-claude-code">zazencodes software factory</a> (ideas only, no license); <a href="https://github.com/EricTechPro/super-board">super-board</a> (MIT).</span>
+    <span>Sources: the runbook and lessons of an earlier multi-model BSI project; <a href="https://academy.claude.com/courses/ai-native-sdlc-playbook">Claude Academy, AI-Native SDLC Playbook</a>; <a href="https://github.com/zazencodes/zazencodes-season-3/tree/main/src/software-factory-claude-code">zazencodes software factory</a> (ideas only, no license); <a href="https://github.com/EricTechPro/super-board">super-board</a> (MIT).</span>
     <span>Figures drawn with the diagram-design skill in its default style.</span>
   </footer>
 </div>

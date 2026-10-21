@@ -27,12 +27,12 @@ To see where any piece of work stands, ask the agent, or run `sw-factory work st
 
 ## Why it exists
 
-The NGC2 prototype for MACE ran on a disciplined, multi-model runbook:
+An earlier multi-model project at BSI ran on a disciplined runbook:
 - grilling interviews that produce numbered decisions;
 - a reviewed spec and plan;
 - a loop for each task, in which Claude implements, a GPT model reviews through Codex, and a Claude tester verifies.
 
-It worked, but it lived in one project's runbook, one person's scripts and one agent's memory. The factory packages that process so any project can use it, and corrects the problems NGC2 ran into.
+It worked, but it lived in one project's runbook, one person's scripts and one agent's memory. The factory packages that process so any project can use it, and corrects the problems that project ran into.
 
 It also plans for change. Models get replaced often, so every model is named in exactly one place, and swapping one is a one-line edit you can check.
 
@@ -267,14 +267,14 @@ Not built yet, per the design: the dashboard and map generators, the Deploy, Mai
 1. Owner approves the design. **Done** (F15).
 2. Implementation plan. **Done:** [plan 1 of 4](docs/plans/2026-10-20-factory-core-v1.md), the core, is written.
 3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **Built and merged:** reviewed task by task and as a whole, tested on Windows and Linux, and rehearsed from the command line on the sample repo ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). The owner-attended run in both hosts ([checklist](docs/acceptance/v1-checklist.md)) is next.
-4. Pilot on a real project, likely a new MACE plugin.
+4. Pilot on a real project, chosen later.
 5. The Epic track and the dashboard generator.
 6. Deploy paths (desktop installer and Helm) and Maintain.
 7. Factory evals in CI, then hooks that enforce the rules.
 
 ## Sources and credits
 
-- The NGC2 prototype runbook and its lessons (MACE, branch `MACE-NGC2-Prototype`).
+- The runbook and lessons of an earlier multi-model BSI project.
 - Claude Academy, [AI-Native SDLC Playbook](https://academy.claude.com/courses/ai-native-sdlc-playbook).
 - [zazencodes software factory](https://github.com/zazencodes/zazencodes-season-3/tree/main/src/software-factory-claude-code): ideas only, since it has no license.
 - [super-board](https://github.com/EricTechPro/super-board) (MIT).
