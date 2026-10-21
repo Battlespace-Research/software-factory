@@ -1,6 +1,6 @@
 ---
 name: intake
-description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Picks the Fix, Feature or Program track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
+description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner asks to triage work for the factory, brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Picks the Fix, Feature or Program track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
 ---
 
 # Intake

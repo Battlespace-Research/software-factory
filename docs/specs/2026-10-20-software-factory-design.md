@@ -1,6 +1,6 @@
 # Software Factory — Design
 
-Status: rev 2.1 · names updated per F16 (2026-10-20)
+Status: rev 2.1 · names updated per F16 (2026-10-20) · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
 Decisions: `docs/decisions.md` (F01–F16) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
@@ -108,10 +108,10 @@ Each factory skill orchestrates; the craft comes from third-party skills it call
 | `task-loop` | One task: implement, verify, review panel, disposition, tester, close |
 | `review-panel` | Runs the lenses in parallel through the role adapters and combines findings |
 | `merge-gate` | Pre-merge checks (section 9.6) and the hand-off to the human |
-| `factory-deploy` | Runs the project's deploy path(s): desktop installer and/or Helm (section 10) |
-| `factory-maintain` | Reads signals, drafts new intent for triage, runs retros (section 11) |
-| `factory-dashboard` | Regenerates the dashboard (section 15) |
-| `factory-evals` | Runs the factory's own evals (section 12) |
+| `deploy` | Runs the project's deploy path(s): desktop installer and/or Helm (section 10) |
+| `maintain` | Reads signals, drafts new intent for triage, runs retros (section 11) |
+| `dashboard` | Regenerates the dashboard (section 15) |
+| `evals` | Runs the factory's own evals (section 12) |
 
 The orchestrator (`orchestrate`) keeps state only in files and holds no per-task context, so any session on either host can pick up from `progress.md` (an idea from super-board).
 
@@ -289,7 +289,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 ## 11. Maintain
 
 - **Signals** are listed per project in `sw-factory.yaml`: desktop — crash reports and user-reported issues; Kubernetes — restarts, readiness failures, error rate, latency. Each signal has a normal range.
-- `factory-maintain` (run on demand or on a schedule) reads signals; anything outside its range becomes a draft `intent.md` with status "triage" for the owner, or a `FIX-` ticket. Version 1 uses simple thresholds; control bands come later.
+- `maintain` (run on demand or on a schedule) reads signals; anything outside its range becomes a draft `intent.md` with status "triage" for the owner, or a `FIX-` ticket. Version 1 uses simple thresholds; control bands come later.
 - **Retro at close:** every work item ends with `retro.md`. Repeat mistakes become proposed additions to the project's `CLAUDE.md`/`AGENTS.md`, `REVIEW.md` or a skill — shared files, not private agent memory. The owner approves each addition; `sw-factory/lessons.md` indexes them.
 
 ## 12. Factory evals [Claude's call, from the Academy playbook and super-board]
@@ -298,7 +298,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 - Each eval runs a track headless in a scratch clone at the pre-change commit; the hidden check scores it; the run records pass/fail, rounds, cost and time.
 - Evals run whenever `roles.yaml`, `skills.yaml`, a factory skill, a prompt or a host version changes, before that change merges into the factory's main. A drop in pass rate blocks the change until the owner accepts it.
 - Every factory incident (a wrong merge, a missed bug) becomes a new eval.
-- **Where and how much (version 1) [Claude's call]:** evals run locally, on demand, through `factory-evals`, on a machine that can build each eval's project. Each run has a time and cost cap in the factory config (default: the five seed evals, run in full, one at a time). Results are committed to `evals/results/`, and the factory repo's own merge gate checks that a change touching the triggers has a fresh, non-worse result. Running evals in CI comes later; it needs vendor API keys set as CI secrets by a person and eval projects that build on Linux.
+- **Where and how much (version 1) [Claude's call]:** evals run locally, on demand, through the `evals` skill, on a machine that can build each eval's project. Each run has a time and cost cap in the factory config (default: the five seed evals, run in full, one at a time). Results are committed to `evals/results/`, and the factory repo's own merge gate checks that a change touching the triggers has a fresh, non-worse result. Running evals in CI comes later; it needs vendor API keys set as CI secrets by a person and eval projects that build on Linux.
 
 ## 13. Third-party skills
 

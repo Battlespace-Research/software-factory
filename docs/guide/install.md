@@ -183,6 +183,32 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 - **Claude Code:** `claude plugin marketplace update bsri-factory`, then `claude plugin update bsri-sw-factory@bsri-factory`, then restart Claude Code.
 - **Codex:** `codex plugin marketplace upgrade bsri-factory`, then check the version with `codex plugin list --marketplace bsri-factory`. If it still shows the old version, remove and add the plugin again: `codex plugin remove bsri-sw-factory@bsri-factory`, then `codex plugin add bsri-sw-factory@bsri-factory`.
 
+## Upgrading from 0.1.0
+
+Version 0.2.0 renamed the factory (decision F16 in `docs/decisions.md`): the command `factory` is now `sw-factory`, the plugin `software-factory` is now `bsri-sw-factory`, its skills and subagents lost their `factory-` prefix, and what it creates in a project is `sw-factory.yaml` and `sw-factory/`. If you installed 0.1.0:
+
+1. **The command.** Run `git pull` in the clone, then install the command again so that `sw-factory` exists:
+   - with pipx: `pipx install --force -e <clone>/tools`;
+   - without pipx: in the clone, `.venv/Scripts/python -m pip install -e tools` (Linux or macOS: `.venv/bin/python -m pip install -e tools`), then on Windows replace the copied `factory.exe` in your command folder with `<clone>\.venv\Scripts\sw-factory.exe`, and on Linux or macOS replace the old link with `ln -s <clone>/.venv/bin/sw-factory ~/.local/bin/sw-factory` (and delete `~/.local/bin/factory`).
+
+   `sw-factory --version` prints `0.2.0`. If an old `factory` command is still on the PATH, delete it.
+2. **Claude Code.** Remove the old plugin, refresh the marketplace and install the new one, then restart Claude Code:
+
+   ```bash
+   claude plugin uninstall software-factory@bsri-factory
+   claude plugin marketplace update bsri-factory
+   claude plugin install bsri-sw-factory@bsri-factory
+   ```
+3. **Codex.** The same, then start a new Codex session:
+
+   ```bash
+   codex plugin remove software-factory@bsri-factory
+   codex plugin marketplace upgrade bsri-factory
+   codex plugin add bsri-sw-factory@bsri-factory
+   ```
+4. **The staging folder.** Move `~/.factory` to `~/.sw-factory` (`mv ~/.factory ~/.sw-factory`; PowerShell: `Move-Item "$HOME\.factory" "$HOME\.sw-factory"`), and change the `writable_roots` entry in `~/.codex/config.toml` to the new folder (see Step 3 above).
+5. **Projects set up with 0.1.0 are not supported.** They hold `factory.yaml`, a `factory/` folder, `factory/<ID>-<slug>` branches and `<!-- factory:begin -->` sections, none of which 0.2.0 reads: `sw-factory` finds no project there, and setup would not notice the old `factory.yaml` or the old markers. Set the project up again on a fresh copy of it, and carry any open work over by hand.
+
 ## Troubleshooting
 
 | Problem | What to do |
@@ -190,7 +216,7 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 | A skill says `sw-factory` was not found | The folder holding the `sw-factory` command (pipx's `~/.local/bin`, or the folder you copied it to) is not on the PATH the host sees (step 1). Fix the PATH, then restart the host. |
 | A project's `python` (its verify command, or the merge gate's full verify) runs in the factory's virtual environment: `merge-gate.md` shows a Python path inside the factory's clone | The factory's `.venv\Scripts` (or `.venv/bin`) folder is on the PATH ahead of your own Python. Take it off the PATH and install the command as step 1 says, so that only `sw-factory` is on the PATH; `where python` (`which -a python`) then lists your own Python first. |
 | In a Codex session, writing a prompt, brief or quote file fails with `Access to the path '…\.sw-factory\staging\…' is denied.`, or Codex asks for more permissions for each such file | The staging folder is outside Codex's writable roots. Add `~/.sw-factory` to `writable_roots` in `~/.codex/config.toml` (step 3), then start a new Codex session. |
-| A skill cannot spawn `lens-reviewer`, `tester`, `doc-reviewer` or `researcher` (no such agent) | Installed as a plugin, the factory's subagents are named `bsri-sw-factory:<name>`, for example `bsri-sw-factory:lens-reviewer`. The skills say to use that name when the bare one is not available; if a session still tries the bare name, tell it the plugin-qualified one. `/agents` in Claude Code lists the subagents it has. |
+| A session spawns a bare `lens-reviewer`, `tester`, `doc-reviewer` or `researcher`, and gets "no such agent" or an agent that is not the factory's | Installed as a plugin (the normal case), the factory's subagents are named `bsri-sw-factory:<name>`, for example `bsri-sw-factory:lens-reviewer`, and the skills always spawn that name: a bare name can resolve to another plugin's agent or your own. If a session tries the bare name, tell it the plugin-qualified one. Bare names are right only when the factory's `agents/` files are installed directly, not through the plugin. `/agents` in Claude Code lists the subagents it has. |
 | `claude plugin marketplace add` or `codex plugin marketplace add` cannot read the repository | You lack access to `Battlespace-Research/software-factory`, or git has no credentials for GitHub. Check with `git ls-remote` (see "Before you start"). |
 | A review run fails on Windows with a Codex sandbox error | Set the environment variable `FACTORY_CODEX_ARGS` to `-c windows.sandbox="unelevated"`. The factory adds it to every `codex exec` run it starts and notes it in each review file it writes. |
 | `sw-factory role run` stops with `FACTORY_CODEX_ARGS: '…' is not allowed` (or `FACTORY_CODEX_ARGS: the -c override of '…' is not allowed`) | The variable may carry `-c key=value` settings and other options, but none that would replace what the factory sets for each run: `-s`/`--sandbox`, `-a`/`--ask-for-approval`, `--full-auto`, `--approve-for-me`, `--dangerously-bypass…`, `--yolo`, `--add-dir`, `-o`/`--output-last-message`, `--output-schema`, `-C`/`--cd`. The same goes for a `-c`/`--config` setting of the keys `sandbox_mode`, `approval_policy`, `sandbox_workspace_write…` (such as `writable_roots` or `network_access`), `sandbox_permissions` or `shell_environment_policy…`, in any spelling (`-c k=v`, `-c=k=v`, `-ck=v`, `--config k=v`, `--config=k=v`; case, spaces and quotes do not matter). Other keys, such as `windows.sandbox`, are fine. Take the refused one out of the variable. |

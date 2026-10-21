@@ -13,7 +13,7 @@ Write what happened in `docs/acceptance/<date>-v1-results.md`, using the record 
 These change your machine's host configuration, so they are yours to do.
 
 1. **The `sw-factory` command.** `sw-factory --version` prints `0.2.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory clone>/tools` or by putting only `sw-factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
-2. **The plugin, from this checkout.** Until `feature/core-v1` is merged into `main`, the GitHub marketplace serves no plugin, so add this checkout (with `feature/core-v1` checked out) as a local marketplace:
+2. **The plugin, from this checkout.** Check out `main` here (`git switch main && git pull`), then add this checkout as a local marketplace, so the run uses exactly the plugin you have:
 
    ```text
    claude plugin marketplace add E:\BSRI\GitHub\software-factory
@@ -150,6 +150,7 @@ Run A1 to A5 again with the same messages and answers. The differences to check:
 
 | Step | Expected on a Codex host |
 |---|---|
+| A1 | before the first message, type `$` and look at how Codex's picker lists the factory's skills: expected `bsri-sw-factory:setup-project`, `bsri-sw-factory:intake` and so on. Record exactly what it shows (the prefix, bare names, or no factory skills at all). |
 | A1 | the skills checks run for both hosts; the Codex check may report `writing-plans` and `verification-before-completion` missing (superpowers not installed in Codex). Record it. |
 | A1 | setup creates both `CLAUDE.md` and `AGENTS.md` with the same factory section (the sample has neither; rehearsal finding D2, fixed). Check that a later Codex session, for example at A2, knows where the work lives and how to resume without being pointed at `CLAUDE.md`. |
 | A1, A2, A3 | the setup commit message, rendered prompts and quote files go to `~/.sw-factory/staging/rangering/…`, outside the project. With `~/.sw-factory` in Codex's writable roots (step 0.4) these writes should need no extra permission (the rehearsal's finding D1 was without it). If Codex still asks to run those commands with more permissions, or they fail with `Access to the path … is denied.`, allow only those writes, and record each prompt or failure. |
