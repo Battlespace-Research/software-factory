@@ -1,4 +1,4 @@
-"""No pre-rename name in what the factory ships (decision F16).
+"""No pre-rename name in what the factory ships (decisions F16 and F17).
 
 Version 0.2.0 renamed the plugin to ``bsri-sw-factory``, its skills and subagents (``setup-project``, ``intake``,
 ``orchestrate``, ``task-loop``, ``review-panel``, ``merge-gate``; ``lens-reviewer``, ``doc-reviewer``, ``tester``,
@@ -8,13 +8,21 @@ planned skills follow the same scheme (``deploy``, ``maintain``, ``dashboard``, 
 setting, manifest, guide, design page or line of code that still says an old name would send a session or a person to
 a file, folder, branch, skill or command that no longer exists, so the scan fails on any of them.
 
+Version 0.3.0 renamed the largest track from Program to Epic (F17): the track id ``epic``, ids ``EPIC-<n>``, the
+templates in ``templates/work/epic/`` and the ``epic:`` key under ``tracks:`` in ``REVIEW.md``. The scan fails on the
+old id (``--track program``, ``"program"``), the ``PRG`` prefix, the old templates folder and ``REVIEW.md`` key, and
+the display name where it means the track ("a Program", "**Program**", "(Program)", "Fix, Feature or Program",
+...). In the guidance that sessions and people read most (``BROAD_FOLDERS``: skills, templates, prompts, agents and
+the guides) any capitalised "Program" or "Programs" fails, except in ``Program Files``. The word "program" in lower
+case is prose ("a POSIX program", "a document of steps rather than a program") and never fails.
+
 Unchanged on purpose: the Python package ``swfactory``, the ``Factory-*`` commit trailers, the ``FACTORY_*``
 environment variables, the repository ``Battlespace-Research/software-factory``, the ``bsri-factory`` marketplace and
 the word "factory" in prose. These never match a pattern below. The kept names that look like old ones are allowed
 explicitly (``KEPT``): the review-file stamp ``<!-- factory: ... -->``, the dashboard's ``factory-data`` id and
 ``factory-dashboard/0.1`` schema, and the file names ``factory-map.html``, ``factory-dashboard.html`` and those of the
 v1 records (``*-factory-core-v1*.md``). So are the F-rows of the append-only decision log, and the install guide's
-"Upgrading from 0.1.0" section, which has to name what it replaces.
+"Upgrading from 0.1.0" and "Upgrading from 0.2.0" sections, which have to name what they replace.
 """
 from __future__ import annotations
 
@@ -47,7 +55,23 @@ OLD_NAMES = {
     "a factory- name (old skill, agent or planned skill)": r"(?<![\w.-])factory-[a-z]",
     "the old command name factory": r"`factory[` ]|<code>factory[ <]|(?<![\w-])[\"']factory[\"']",
 }
+# The epic track's old name (F17).
+TRACK_WHAT = "the old track name Program"
+OLD_NAMES |= {
+    "the old work-id prefix PRG": r"(?<![\w-])PRG(?!\w)|(?<![\w-])prg-\d",
+    "the old track id program": r"--track[ =]program\b|\|program>|`program`|[\"']program[\"']",
+    "the old REVIEW.md tracks key program:": r"^\s*program:\s*\[",
+    "the old templates folder templates/work/program": r"templates/work/program\b",
+    TRACK_WHAT: (
+        r"\b[Aa] Programs?\b|\bPrograms?(?:'s)? (?:track|milestones?|tasks?|items?|row)\b|\*\*Programs?:?\*\*"
+        r"|\| Program \||\(Programs?[,)]|, Program\)| and Program\)|\b(?:Fix|Feature),? (?:or |and )?Program\b"
+        r"|\bProgram, (?:Feature|Fix)\b|[\"'>]Programs?[\"'<]|^\s*- Programs?:|\bup to Program\b"
+    ),
+}
 PATTERNS = {what: re.compile(source) for what, source in OLD_NAMES.items()}
+# Where any capitalised "Program" is the old track name: the guidance that sessions and people read most.
+BROAD_FOLDERS = ("skills/", "templates/", "prompts/", "agents/", "docs/guide/")
+_BROAD_TRACK = re.compile(r"(?<![\w\\/-])Programs?(?![\w-])")
 
 # Kept identifiers that look like old names: removed from a line before it is checked.
 KEPT = {
@@ -56,12 +80,14 @@ KEPT = {
     "the dashboard's data schema": r"(?<![\w-])factory-dashboard/\d+(?:\.\d+)*",
     "the map and dashboard file names": r"(?<![\w-])factory-(?:map|dashboard)\.html",
     "the v1 records' file names": r"(?<![\w-])factory-core-v1(?:-rulings)?\.md",
+    "the Windows folder Program Files": r"\bProgram Files\b",  # not the old track name
 }
 _KEPT = re.compile("|".join(f"(?:{source})" for source in KEPT.values()))
-# Lines that may name old identifiers as they are: the decision log's rows (append-only; F16 records the rename).
+# Lines that may name old identifiers as they are: the decision log's rows (append-only; F16 and F17 record the
+# renames).
 ALLOWED_LINES = {"docs/decisions.md": re.compile(r"^\| F\d+ \|")}
 # Sections that may name them: the upgrade steps say what each old name becomes.
-ALLOWED_SECTIONS = {"docs/guide/install.md": "## Upgrading from 0.1.0"}
+ALLOWED_SECTIONS = {"docs/guide/install.md": ("## Upgrading from 0.1.0", "## Upgrading from 0.2.0")}
 
 # A line of a fenced code block that runs the old command, such as ``factory config check``.
 _FENCE = re.compile(r"^\s*(```|~~~)")
@@ -88,12 +114,13 @@ def find_old_names(root: Path) -> list[str]:
     for path in scanned_files(root):
         rel = path.relative_to(root).as_posix()
         allowed_line = ALLOWED_LINES.get(rel)
-        allowed_section = ALLOWED_SECTIONS.get(rel)
+        allowed_sections = ALLOWED_SECTIONS.get(rel, ())
+        broad = rel.startswith(BROAD_FOLDERS)
         text = path.read_bytes().decode("utf-8", errors="replace")
         fenced = in_allowed_section = False
         for number, line in enumerate(text.splitlines(), start=1):
             if line.startswith("## "):
-                in_allowed_section = line.strip() == allowed_section
+                in_allowed_section = line.strip() in allowed_sections
             if _FENCE.match(line):
                 fenced = not fenced
                 continue
@@ -101,6 +128,8 @@ def find_old_names(root: Path) -> list[str]:
                 continue
             checked = _KEPT.sub("", line)
             found = [what for what, pattern in PATTERNS.items() if pattern.search(checked)]
+            if broad and TRACK_WHAT not in found and _BROAD_TRACK.search(checked):
+                found.append(TRACK_WHAT)
             if fenced and _FENCED_CALL.match(checked):
                 found.append("the old command name factory")
             offenders += [f"{rel}:{number}: {what}: {line.strip()}" for what in found]
@@ -128,7 +157,9 @@ def test_the_scan_finds_each_old_name_and_leaves_the_new_ones_alone(tmp_path):
             "## Step 1\n\nCopy factory.exe and `factory.yaml`.\n\n## Upgrading from 0.1.0\n\n"
             "```bash\nclaude plugin uninstall software-factory@bsri-factory\n```\n"
             "Move `~/.factory/` to `~/.sw-factory/`; `factory.yaml` is not read.\n\n"
-            "## Troubleshooting\n\nDelete `~/.factory/` too.\n"
+            "## Troubleshooting\n\nDelete `~/.factory/` too.\n\n## Upgrading from 0.2.0\n\n"
+            "Rename `program:` to `epic:`; finish `PRG-<n>` items first; the track was called Program.\n\n"
+            "## After\n\nA Program is now an Epic.\n"
         ),
         "docs/specs/design.md": "| `factory-evals` | Runs the factory's own evals |\n",
         "docs/map/map.html": "<code>factory skills check</code>\n",
@@ -137,9 +168,24 @@ def test_the_scan_finds_each_old_name_and_leaves_the_new_ones_alone(tmp_path):
         "docs/decisions.md": (  # checked outside its F-rows, not in them
             "Append-only log; projects keep factory.yaml.\n"
             "| F13 | 2026 | `factory.yaml` lists who may approve. | ok | Owner |\n"
+            "| F17 | 2026 | The track Program is now Epic: `PRG-<n>` becomes `EPIC-<n>`, `--track program` "
+            "becomes `--track epic`. | ok | Owner |\n"
         ),
         ".claude-plugin/plugin.json": '{\n  "name": "software-factory"\n}\n',
         "README.md": "claude plugin install software-factory@bsri-factory\n",
+        # The epic track's old name (F17).
+        "skills/d/SKILL.md": "Open it: `sw-factory work new --track program --slug x --title \"X\"`.\n",
+        "skills/e/references/y.md": "Programs run milestone demos.\n",  # only the broad check finds this
+        "templates/project/z.md": "tracks:\n  fix: [correctness]\n  program: [correctness, spec]\n",
+        "prompts/z.md": "In a Program, the tester runs each milestone's demo.\n",
+        "tools/swfactory/t.py": 'TRACK_PREFIX = {"program": "PRG", "feature": "FEA", "fix": "FIX"}\n',
+        "docs/guide/f.md": "Ids look like `EPIC-2`; the templates are in `templates/work/program/`.\n",
+        "docs/guide/g.md": "Its id looks like `PRG-2`.\n",
+        "docs/specs/u.md": "| | Program | Feature | Fix |\n",
+        "docs/specs/w.md": "Triage picks the Fix, Feature or Program track.\n",
+        "docs/map/m2.html": '<text class="t-name" x="220" y="106" text-anchor="middle">Program</text>\n',
+        "docs/dashboard/e.html": '{ "id": "EPIC-1", "track": "Program" }\n',
+        "docs/dashboard/g.html": '{ "facts": [["Branch", "prg-01-equipment"]] }\n',
     }
     new = {
         "skills/c/SKILL.md": (
@@ -165,6 +211,24 @@ def test_the_scan_finds_each_old_name_and_leaves_the_new_ones_alone(tmp_path):
         ".codex-plugin/plugin.json": '{\n  "name": "bsri-sw-factory",\n  "repository": '
                                      '"https://github.com/Battlespace-Research/software-factory"\n}\n',
         "config/y.yaml": "# `sw-factory skills check` reads this file.\n",
+        # The epic track's new name, and "program" where it is not the track (F17).
+        "skills/g/SKILL.md": (
+            "An Epic has milestones: open it with `sw-factory work new --track epic`; its id is `EPIC-<n>`.\n"
+            "If the demo is a document of steps rather than a program, carry out each step.\n"
+        ),
+        "templates/project/v.md": "tracks:\n  epic: [correctness, security, maintainability, spec]\n",
+        "tools/swfactory/q.py": (
+            'TRACK_PREFIX = {"epic": "EPIC", "feature": "FEA", "fix": "FIX"}\n'
+            "# Anything started directly (an .exe, a POSIX program) is not affected.\n"
+        ),
+        "docs/guide/h.md": "Edge is in `C:\\Program Files (x86)\\Microsoft\\Edge`; the program writes a log there.\n",
+        "docs/dashboard/f.html": "var TRACK = { Epic: 'EPIC', Feature: 'FEA', Fix: 'FIX' };\n",
+        "docs/specs/v.md": (
+            "Status: rev 2.2 · track Program renamed Epic per F17\nfrom a bug fix to a multi-week epic\n"
+        ),
+        "docs/map/o.html": (
+            '<tr><td class="mono">F17</td><td>The largest track is renamed from Program to Epic.</td></tr>\n'
+        ),
     }
     for name, text in {**old, **new}.items():
         if name in old and name in new:
@@ -178,5 +242,6 @@ def test_the_scan_finds_each_old_name_and_leaves_the_new_ones_alone(tmp_path):
     assert [line for line in offenders if line.startswith(("docs/guide/install.md", "docs/decisions.md"))] == [
         "docs/guide/install.md:3: the old project file factory.yaml: Copy factory.exe and `factory.yaml`.",
         "docs/guide/install.md:14: the old staging folder .factory: Delete `~/.factory/` too.",
+        "docs/guide/install.md:22: the old track name Program: A Program is now an Epic.",
         "docs/decisions.md:1: the old project file factory.yaml: Append-only log; projects keep factory.yaml.",
     ]
