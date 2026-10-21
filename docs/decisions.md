@@ -1,6 +1,6 @@
 # Decisions
 
-Append-only log of decisions about the software factory. Change a decision by adding a new row that supersedes it; never edit or delete an old row.
+Append-only log of decisions about the software factory. Change a decision by adding a new row that supersedes it; never edit or delete an old row (F19 records the one owner-approved exception: product and project names were generalized in earlier rows).
 
 | Id | Date | Decision | Why | Source |
 |---|---|---|---|---|

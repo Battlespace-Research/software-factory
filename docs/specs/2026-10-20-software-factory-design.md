@@ -60,7 +60,7 @@ Why now: the earlier project's runbook has proved the approach, the lessons are 
 
 ### 6.1 Factory repo layout
 
-The factory ships as one plugin with two manifests that share one `skills/` folder — the same pattern BSI's `codex-plugin` repo and the diagram-design plugin already use.
+The factory ships as one plugin with two manifests that share one `skills/` folder — the same pattern other dual-host plugins, such as diagram-design, already use.
 
 ```
 software-factory/
