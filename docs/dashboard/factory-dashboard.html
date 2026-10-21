@@ -302,12 +302,12 @@
   "needs": [
     { "kind": "hard-stop", "state": "block", "work": "FIX-13", "what": "Third review round failed", "detail": "Decide: split the task, accept as-is, or drop it.", "file": "sw-factory/work/FIX-13/reviews/T1-r3.md", "since": "40 min" },
     { "kind": "merge", "state": "wait", "work": "FIX-12", "what": "Merge PR #412", "detail": "Review passed, tests green.", "file": "PR #412", "since": "2 h" },
-    { "kind": "checkpoint", "state": "wait", "work": "PRG-02", "what": "Approve spec rev 2", "detail": "Two reviews dispositioned, no open blockers.", "file": "sw-factory/work/PRG-02/spec.md", "since": "5 h" },
+    { "kind": "checkpoint", "state": "wait", "work": "EPIC-2", "what": "Approve spec rev 2", "detail": "Two reviews dispositioned, no open blockers.", "file": "sw-factory/work/EPIC-2/spec.md", "since": "5 h" },
     { "kind": "checkpoint", "state": "wait", "work": "FEA-08", "what": "Accept intent", "detail": "Short grill finished; three open questions carried.", "file": "sw-factory/work/FEA-08/intent.md", "since": "1 d" }
   ],
   "work": [
     {
-      "id": "PRG-01", "track": "Program", "title": "Equipment sensors run headless", "stage": 3, "state": "run",
+      "id": "EPIC-1", "track": "Epic", "title": "Equipment sensors run headless", "stage": 3, "state": "run",
       "status": "M2-T4 in review, round 2 of 3", "updated": "12 min",
       "gates": [
         { "gate": "approved", "note": "intent accepted 10-02" },
@@ -330,10 +330,10 @@
         { "task": "M2-T2", "round": "r2", "lenses": [["Correctness", "pass", ""], ["Security", "pass", ""], ["Maintainability", "pass", ""], ["Spec", "pass", "1n"]], "disp": "1 accepted" }
       ],
       "files": [["intent.md", ""], ["decisions.md", "D01–D14"], ["spec.md", "rev 3"], ["plan.md", "rev 2"], ["progress.md", ""], ["reviews/", "23 files"]],
-      "facts": [["Sessions", "14"], ["Budget handoffs", "3"], ["Started", "10-01"], ["Branch", "prg-01-equipment"]]
+      "facts": [["Sessions", "14"], ["Budget handoffs", "3"], ["Started", "10-01"], ["Branch", "epic-1-equipment"]]
     },
     {
-      "id": "PRG-02", "track": "Program", "title": "Kubernetes onboarding with Helm", "stage": 2, "state": "wait",
+      "id": "EPIC-2", "track": "Epic", "title": "Kubernetes onboarding with Helm", "stage": 2, "state": "wait",
       "status": "Waiting: approve spec rev 2", "updated": "5 h",
       "gates": [
         { "gate": "approved", "note": "intent accepted 10-14" },
@@ -472,12 +472,12 @@
     { "host": "Codex", "present": 19, "required": 21, "note": "2 missing, fallbacks in use" }
   ],
   "activity": [
-    { "when": "15:30", "work": "PRG-01", "text": "M2-T4 fixes committed; round 2 review started" },
+    { "when": "15:30", "work": "EPIC-1", "text": "M2-T4 fixes committed; round 2 review started" },
     { "when": "15:02", "work": "FIX-13", "text": "Round 3 review failed; stopped for your decision" },
     { "when": "13:41", "work": "FIX-12", "text": "PR #412 opened; review passed" },
     { "when": "12:15", "work": "FEA-07", "text": "Task T3 closed; tester started" },
-    { "when": "10:48", "work": "PRG-02", "text": "Spec rev 2 ready for your approval" },
-    { "when": "09:20", "work": "PRG-01", "text": "Session handed off at 95% budget; resumed from progress.md" }
+    { "when": "10:48", "work": "EPIC-2", "text": "Spec rev 2 ready for your approval" },
+    { "when": "09:20", "work": "EPIC-1", "text": "Session handed off at 95% budget; resumed from progress.md" }
   ]
 }
 </script>
@@ -492,10 +492,10 @@
     done: { cls: 's-done', word: 'Done' },
     queue: { cls: 's-queue', word: 'Queued' }
   };
-  var TRACK = { Program: 'PRG', Feature: 'FEA', Fix: 'FIX' };
+  var TRACK = { Epic: 'EPIC', Feature: 'FEA', Fix: 'FIX' };
   var GATE_WORD = { approved: 'signed off', current: 'in progress', waiting: 'waiting on you', todo: 'not started', skipped: 'skipped' };
   var filter = 'All';
-  var selected = (data.work.find(function (w) { return w.track === 'Program' && w.state === 'run'; }) || data.work[0]).id;
+  var selected = (data.work.find(function (w) { return w.track === 'Epic' && w.state === 'run'; }) || data.work[0]).id;
 
   function el(tag, attrs) {
     var e = document.createElement(tag);
@@ -576,7 +576,7 @@
 
   function renderKpis() {
     var active = data.work.filter(function (w) { return w.state !== 'done'; });
-    var byTrack = ['Program', 'Feature', 'Fix'].map(function (t) {
+    var byTrack = ['Epic', 'Feature', 'Fix'].map(function (t) {
       return active.filter(function (w) { return w.track === t; }).length + ' ' + TRACK[t];
     }).join(' · ');
     var items = [
@@ -594,7 +594,7 @@
 
   function renderFilters() {
     var box = document.getElementById('filters');
-    box.replaceChildren.apply(box, ['All', 'Program', 'Feature', 'Fix', 'Needs you'].map(function (f) {
+    box.replaceChildren.apply(box, ['All', 'Epic', 'Feature', 'Fix', 'Needs you'].map(function (f) {
       return el('button', { type: 'button', 'aria-pressed': String(filter === f), onclick: function () { filter = f; renderFilters(); renderBoard(); } }, f);
     }));
   }

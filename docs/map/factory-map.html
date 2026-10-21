@@ -341,7 +341,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1280 412" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-tracks-title sf-tracks-desc">
         <title id="sf-tracks-title">Factory tracks by size of work</title>
-        <desc id="sf-tracks-desc">Triage routes work to the Program, Feature, or Fix track; Program runs every stage in full, Feature lightens planning and design, and Fix skips design and starts from a failing test.</desc>
+        <desc id="sf-tracks-desc">Triage routes work to the Epic, Feature, or Fix track; Epic runs every stage in full, Feature lightens planning and design, and Fix skips design and starts from a failing test.</desc>
         <defs>
           <marker id="tr-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon class="mk" points="0 0, 8 3, 0 6"/></marker>
         </defs>
@@ -374,7 +374,7 @@
 
         <!-- Track boxes -->
         <rect class="node" x="160" y="80" width="120" height="56" rx="6"/>
-        <text class="t-name" x="220" y="106" text-anchor="middle">Program</text>
+        <text class="t-name" x="220" y="106" text-anchor="middle">Epic</text>
         <text class="t-sub" x="220" y="122" text-anchor="middle">multi-session</text>
         <rect class="node" x="160" y="160" width="120" height="56" rx="6"/>
         <text class="t-name" x="220" y="186" text-anchor="middle">Feature</text>
@@ -383,7 +383,7 @@
         <text class="t-name" x="220" y="266" text-anchor="middle">Fix</text>
         <text class="t-sub" x="220" y="282" text-anchor="middle">one session</text>
 
-        <!-- Program row (y 80): all full -->
+        <!-- Epic row (y 80): all full -->
         <rect class="node" x="312" y="80" width="140" height="56" rx="6"/>
         <text class="t-name" x="382" y="106" text-anchor="middle">Grill + research</text>
         <text class="t-sub" x="382" y="122" text-anchor="middle">decision rows</text>
@@ -442,7 +442,7 @@
         <text class="t-name" x="1182" y="266" text-anchor="middle">Lesson if new</text>
         <text class="t-sub" x="1182" y="282" text-anchor="middle">→ CLAUDE.md or skill</text>
 
-        <text class="t-callout" x="312" y="336">A Fix that grows steps up to Feature. A Feature that outgrows a few sessions steps up to Program.</text>
+        <text class="t-callout" x="312" y="336">A Fix that grows steps up to Feature. A Feature that outgrows a few sessions steps up to Epic.</text>
 
         <!-- Legend -->
         <line class="hair" x1="24" y1="364" x2="1256" y2="364"/>
@@ -572,7 +572,7 @@
     <div class="figure-head">
       <span class="fig-num">Figure 4</span>
       <h2>The review panel</h2>
-      <p class="caption">Each lens reviews the same change at the same time, using its own checklist from the project's <code>REVIEW.md</code>. The round ends only when every lens has reported. A blocker or major finding from any lens sends the task back for fixes. Maintainability findings on their own never block: they become follow-up tickets. A Fix runs correctness and security, a Feature adds maintainability, and a Program runs all four, plus any lenses a project adds, such as UX or performance.</p>
+      <p class="caption">Each lens reviews the same change at the same time, using its own checklist from the project's <code>REVIEW.md</code>. The round ends only when every lens has reported. A blocker or major finding from any lens sends the task back for fixes. Maintainability findings on their own never block: they become follow-up tickets. A Fix runs correctness and security, a Feature adds maintainability, and an Epic runs all four, plus any lenses a project adds, such as UX or performance.</p>
     </div>
     <div class="diagram-container">
       <svg viewBox="0 0 1280 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-panel-title sf-panel-desc">
@@ -738,7 +738,7 @@
       <h2>Still to decide</h2>
     </div>
     <ol class="questions">
-      <li><div><strong>Track thresholds.</strong><p>Proposed in the design (section 8.3): a Fix is one session and one task; a Feature is up to about five tasks; anything with milestones or crossing repos is a Program. Awaiting your review.</p></div></li>
+      <li><div><strong>Track thresholds.</strong><p>Proposed in the design (section 8.3): a Fix is one session and one task; a Feature is up to about five tasks; anything with milestones or crossing repos is an Epic. Awaiting your review.</p></div></li>
       <li><div><strong>Packaging.</strong><p>Proposed in the design (section 6.1): one plugin with a Claude Code manifest and a Codex manifest sharing one skills folder, as BSI's codex-plugin repo already does.</p></div></li>
       <li><div><strong>Pilot project (deferred).</strong><p>Likely a new MACE plugin. Version 1 is set up and documented first.</p></div></li>
       <li><div><strong>Hooks that enforce rules (parked).</strong><p>Which rules block outright and which ask you; Codex hooks cannot ask yet.</p></div></li>
@@ -772,6 +772,7 @@
           <tr><td class="mono">F14</td><td>The pilot project is deferred; likely a new MACE plugin. The repo README gives a full overview with diagrams.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F15</td><td>Design rev 2 is approved by the owner. The repo is published privately as <code>Battlespace-Research/software-factory</code>.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F16</td><td>New names: the plugin <code>bsri-sw-factory</code>, with the skills setup-project, intake, orchestrate, task-loop, review-panel and merge-gate; the command <code>sw-factory</code>; and in a project <code>sw-factory.yaml</code>, the <code>sw-factory/</code> folder and <code>sw-factory/</code> branches.</td><td class="mono">2026-10-20</td></tr>
+          <tr><td class="mono">F17</td><td>The largest track is renamed from Program to Epic: the track <code>epic</code>, work ids <code>EPIC-&lt;n&gt;</code> and the templates in <code>templates/work/epic/</code>. Fix and Feature are unchanged.</td><td class="mono">2026-10-21</td></tr>
         </tbody>
       </table>
     </div>
