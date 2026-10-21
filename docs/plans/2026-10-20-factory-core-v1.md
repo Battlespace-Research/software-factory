@@ -1,5 +1,7 @@
 # Factory Core v1 Implementation Plan
 
+> Names in this record are the pre-rename v1 names; see F16 in docs/decisions.md for the current names.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the first usable version of the software factory: a `factory` CLI (Python) plus host-neutral skills, prompts and subagents that set up a project, triage work, and run the Fix and Feature tracks through the task loop with a cross-vendor review panel and a merge gate, installable as a plugin in Claude Code and Codex.

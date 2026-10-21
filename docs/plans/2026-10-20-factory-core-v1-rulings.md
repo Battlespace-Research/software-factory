@@ -1,5 +1,7 @@
 # Factory core v1: the controller's rulings
 
+> Names in this record are the pre-rename v1 names; see F16 in docs/decisions.md for the current names.
+
 These are the decisions the controller took while building core v1 (plan [`2026-10-20-factory-core-v1.md`](2026-10-20-factory-core-v1.md), spec [`2026-10-20-software-factory-design.md`](../specs/2026-10-20-software-factory-design.md)), wherever the plan, the spec, a review or the machine left a choice open. Each is copied word for word from the controller's ledger, a session workspace that is not kept, in the order it was taken, and each ends with its cost if it proves wrong ("if wrong: …"). The pre-flight rulings are numbered R1 to R5; the later ones are named by the task during which they were taken.
 
 The ledger's other entries (dispatches, review outcomes, deferred minor findings, carries between tasks) are not repeated here: the rehearsal record [`2026-10-20-v1-rehearsal-results.md`](../acceptance/2026-10-20-v1-rehearsal-results.md) and the commit history hold what they led to.
