@@ -2,18 +2,28 @@
 
 A reusable way for BSI teams to take work from an idea to running software with AI agents. It runs in **Claude Code** and in **Codex** (CLI and the ChatGPT desktop app), lets one model drive another, and scales from a one-session bug fix to a multi-week program.
 
-> **Status: version 1 core built, being reviewed; not yet piloted.** Built: the `factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. It has not yet run end to end on a project; that acceptance run comes next. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
+> **Status: version 1 core built and merged; not yet piloted.** Built: the `factory` command, the skills for project setup, triage, the work-item orchestrator, the task loop, the review panel and the merge gate, the reviewer and tester subagents and prompts, the role table and the plugin manifests. Its tests pass on Windows and Linux, and a rehearsal on a sample app ran a Fix from setup to a passing merge gate with real Codex reviews ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). Next come the owner-attended runs in each host ([checklist](docs/acceptance/v1-checklist.md)) and a first real project. The sections after Install describe the full [design](docs/specs/2026-10-20-software-factory-design.md) (see also the [decision log](docs/decisions.md)); the [repository layout](#repository-layout) says which parts exist today. The figures below come from the [factory map](docs/map/factory-map.html), which you can open locally in a browser.
 
 ## Install
 
 The short version; the [install guide](docs/guide/install.md) has the prerequisites, every command and the third-party skills to add.
 
-1. Clone this repository and install the `factory` command from it, in a virtual environment: `python -m pip install -e tools`, then `factory --version`.
+1. Clone this repository and install the `factory` command from it with `pipx install -e tools` (the install guide has other ways; don't put a virtual environment's folder on your PATH), then check `factory --version`.
 2. Claude Code: `claude plugin marketplace add Battlespace-Research/software-factory`, then `claude plugin install software-factory@bsri-factory`.
 3. Codex: `codex plugin marketplace add Battlespace-Research/software-factory`, then `codex plugin add software-factory@bsri-factory`.
 4. Install the third-party skills, then check both hosts with `factory skills check --host claude` and `factory skills check --host codex`.
 
-Then read [Using the factory](docs/guide/using-the-factory.md), a walkthrough from project setup to your first merged fix.
+## Quick start
+
+You drive the factory by talking to Claude Code or Codex in your project. Open a session at the root of the project's repository, with no uncommitted changes, then:
+
+1. **Set up the project, once.** Say *"Set up this repository for the software factory."* Or pick the skill: in Claude Code, type `/` and choose `software-factory:factory-setup`; in Codex, type `$` and choose `factory-setup`. It asks you one question at a time (verify commands, approvers, branching), shows every file it made, and commits on a `factory/setup` branch once you approve. You merge that branch.
+2. **Bring it work.** Say *"Triage this for the factory: the range-ring label shows m for values in km."* It proposes a track (Fix, Feature or Program) with its reason, opens a work item, and writes the ticket or intent for you to approve.
+3. **Approve in chat.** At each checkpoint it asks one question. Reply *"Approved"* and your exact words are recorded with the commit you approved; or say what to change, and it changes it and asks again.
+4. **Let it run.** It writes a failing test first, fixes, runs your verify command, has reviewers from the other vendor check the change (Claude Code calls Codex; Codex calls Claude), and runs the merge gate. It stops for you at every hard stop, such as anything that touches the main branch, credentials or new dependencies.
+5. **You merge.** When the gate passes it gives you what changed, the review results, the verify output and the merge commands. A person always merges.
+
+To see where any piece of work stands, ask the agent, or run `factory work status <ID>`. [Using the factory](docs/guide/using-the-factory.md) walks through all of this in detail, including Features, review and auto modes, and where every file lives.
 
 ## Why it exists
 
@@ -234,7 +244,7 @@ Not built yet, per the design: the dashboard and map generators, the Deploy, Mai
 
 1. Owner approves the design. **Done** (F15).
 2. Implementation plan. **Done:** [plan 1 of 4](docs/plans/2026-10-20-factory-core-v1.md), the core, is written.
-3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **In progress:** built and under review; a command-line rehearsal on the sample repo is done ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)), and the owner-attended run in both hosts ([checklist](docs/acceptance/v1-checklist.md)) is next.
+3. Version 1: project setup, triage, the Fix and Feature tracks, the review panel, the role table and host adapters, tested on a small sample repo. **Built and merged:** reviewed task by task and as a whole, tested on Windows and Linux, and rehearsed from the command line on the sample repo ([results](docs/acceptance/2026-10-20-v1-rehearsal-results.md)). The owner-attended run in both hosts ([checklist](docs/acceptance/v1-checklist.md)) is next.
 4. Pilot on a real project, likely a new MACE plugin.
 5. The Program track and the dashboard generator.
 6. Deploy paths (desktop installer and Helm) and Maintain.
