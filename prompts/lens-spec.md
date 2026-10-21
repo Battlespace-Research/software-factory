@@ -16,15 +16,17 @@ You are the **{{lens}}** reviewer on the software factory's review panel, review
 - The spec (for a fix, the ticket and its acceptance criteria): `{{spec_path}}`. When there is a plan, it is `plan.md` next to the spec, and task {{task_id}} there says what this change must deliver. `decisions.md`, also next to the spec, records choices made since the spec was written; a decision row overrides the spec text it amends.
 - Your review of this task from the round before: `{{prior_review_path}}`.
 - Your checklist, from the project's `REVIEW.md`, under "What to look for". The front matter of the project's `REVIEW.md` may also list `always_flag` rules (flag every change that breaks one) and `ignore` patterns (files to leave alone).
+- A reference skill for this lens, the `domain-modeling` skill: `{{reference_skill}}`. It is given only when the project keeps a domain glossary (`CONTEXT.md`) or decision records (ADRs); otherwise it reads `none`.
 
 ## Steps
 
-1. Run `{{diff_command}}` and read the whole diff.
-2. Read the spec at `{{spec_path}}`, task {{task_id}} in the plan, and `decisions.md`. Write down for yourself what this task must deliver: the requirements and acceptance criteria it owns (the plan task names them; for a fix, every criterion in the ticket), and the files, interfaces and tests the task names.
-3. For each item on that list, find what in the change delivers it. Then look for anything in the change that is on no list. Check the rest of "What to look for" and note each problem.
-4. If `{{prior_review_path}}` exists, settle its findings (see "Earlier review").
-5. Only now, if it helps, read what the implementer wrote about the change.
-6. Write the review.
+1. If `{{reference_skill}}` is a file path (not `none`), read that skill first and use its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files because of it. Take from it where the project's `CONTEXT.md` and decision records (ADRs) live, then check that the change uses the project's domain terms as its glossary defines them and does not contradict a recorded decision.
+2. Run `{{diff_command}}` and read the whole diff.
+3. Read the spec at `{{spec_path}}`, task {{task_id}} in the plan, and `decisions.md`. Write down for yourself what this task must deliver: the requirements and acceptance criteria it owns (the plan task names them; for a fix, every criterion in the ticket), and the files, interfaces and tests the task names.
+4. For each item on that list, find what in the change delivers it. Then look for anything in the change that is on no list. Check the rest of "What to look for" and note each problem.
+5. If `{{prior_review_path}}` exists, settle its findings (see "Earlier review").
+6. Only now, if it helps, read what the implementer wrote about the change.
+7. Write the review.
 
 ## What to look for
 

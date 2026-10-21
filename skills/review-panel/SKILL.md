@@ -7,9 +7,11 @@ description: "BSRI software factory: Runs the software factory's review panel on
 
 Reviews one task's committed change through several lenses at once: each lens is a separate reviewer with its own checklist, and at least one comes from the other vendor. Then it combines their verdicts into one. You run the reviewers and record what they say; you never write, shorten or correct a review yourself.
 
-Uses skills: code-review
+Uses skills: code-review, tdd, codebase-design, domain-modeling
 
 The code-review skill is the lens reviewers' craft: its practice (the diff and the spec before the implementer's account, evidence for every blocking finding) is built into the lens prompts, and `sw-factory skills check` reports whether it is installed for the lens roles.
+
+Three lenses also get a **reference skill** to read as guidance for their lens: correctness reads `tdd`, maintainability `codebase-design`, and spec `domain-modeling` (only in a project that keeps a domain glossary or decision records). Security reads none. A reviewer reads its skill, it never runs it: no procedure followed, no agents spawned, no commands run, no files written because of it, so each lens stays one reviewer writing one review in the panel's format.
 
 ## Names used below
 
@@ -35,11 +37,28 @@ Run every command from the repository root.
 
 For each lens:
 
-`sw-factory prompt render <factory>/prompts/lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=<task> --set round=<N> --set diff_command="git diff <start>..<head> -- . ':(exclude)sw-factory/work'" --set spec_path=<spec path> --set prior_review_path=<prior> --out <staging>/<task>-r<N>-<lens>-prompt.md`
+1. **Find its reference skill** (correctness, maintainability and spec only):
 
-- `--lens` fills the prompt's lens name, that lens's checklist from `REVIEW.md` and the nit cap. Never pass `--set lens=…` as well.
-- `<prior>` is `none` in round 1. In a later round it is that lens's review from the round before, `<work>/reviews/<task>-r<N-1>-<lens>.md`.
-- The diff is a read-only `git diff` between two full SHAs. It leaves out `sw-factory/work/` (the plan, earlier reviews, dispositions), so each reviewer reads the product change before anything the implementer wrote about it; the prompt gives the reviewer the spec and its earlier review by path.
+   | Lens | Reference skill | `<reference>` |
+   |---|---|---|
+   | correctness | `tdd` (required) | what `sw-factory skills path tdd --host <app> --project .` prints |
+   | maintainability | `codebase-design` (required) | what `sw-factory skills path codebase-design --host <app> --project .` prints |
+   | spec | `domain-modeling` (optional) | when the project keeps a `CONTEXT.md` or decision records (below), what `sw-factory skills path domain-modeling --host <app> --project .` prints; otherwise `none`, without running it |
+   | security | none | no reference skill: pass no `reference_skill` |
+
+   - `<app>` is the **app** you are running in, `claude` (Claude Code) or `codex`, as for `sw-factory skills check`. It is not the vendor that `sw-factory role resolve --host` takes (`openai` in Codex): the two commands give `--host` different meanings.
+   - `sw-factory skills path` prints the absolute path of the skill's `SKILL.md` and exits 0, or prints `none` and exits 1 when the skill is not installed. Either way, `<reference>` is what it printed.
+   - **A project that keeps a domain model** has a `CONTEXT.md` or `CONTEXT-MAP.md` at its root, or decision records (ADRs) in a folder such as `docs/adr/` or `docs/decisions/`: `git ls-files -- CONTEXT.md CONTEXT-MAP.md docs/adr docs/decisions` prints at least one file. A work item's own `decisions.md` does not count.
+   - **A required reference skill that is not installed** does not stop the panel: render that lens with `none`, and add to the round's note (section 6) that the lens ran without its reference skill, naming the skill. `sw-factory skills check` reports the skill as missing too.
+2. **Render the prompt:**
+
+   `sw-factory prompt render <factory>/prompts/lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=<task> --set round=<N> --set diff_command="git diff <start>..<head> -- . ':(exclude)sw-factory/work'" --set spec_path=<spec path> --set prior_review_path=<prior> --set reference_skill="<reference>" --out <staging>/<task>-r<N>-<lens>-prompt.md`
+
+   - For security, leave out `--set reference_skill=…`: its prompt has no such placeholder, and `sw-factory prompt render` refuses a value the template does not use.
+   - Quote `<reference>` as shown: a Windows path keeps its backslashes and a path with spaces stays one value.
+   - `--lens` fills the prompt's lens name, that lens's checklist from `REVIEW.md` and the nit cap. Never pass `--set lens=…` as well.
+   - `<prior>` is `none` in round 1. In a later round it is that lens's review from the round before, `<work>/reviews/<task>-r<N-1>-<lens>.md`.
+   - The diff is a read-only `git diff` between two full SHAs. It leaves out `sw-factory/work/` (the plan, earlier reviews, dispositions), so each reviewer reads the product change before anything the implementer wrote about it; the prompt gives the reviewer the spec and its earlier review by path.
 
 ## 3. Run every lens at once
 
@@ -85,7 +104,7 @@ Create no work item now: `sw-factory work new` switches the checkout under the r
 
 ## 6. Record the round
 
-1. `sw-factory work set-status <ID> --stage <stage> --state "<state>" --next "<next>" --note "<task> round <N>: panel <verdict> (reviews/<task>-r<N>-panel.md)"`, with the stage that `sw-factory work status <ID>` shows. Add to the note each lens that ran on its fallback binding (`lens-security ran on its fallback`). The state and next step:
+1. `sw-factory work set-status <ID> --stage <stage> --state "<state>" --next "<next>" --note "<task> round <N>: panel <verdict> (reviews/<task>-r<N>-panel.md)"`, with the stage that `sw-factory work status <ID>` shows. Add to the note each lens that ran on its fallback binding (`lens-security ran on its fallback`) and each lens that ran without its required reference skill (`lens-correctness ran without its reference skill tdd`). The state and next step:
    - PASS: `<task> review passed`; next, the caller's step after a passing round (the task loop: the tester, or for a Fix the close; a merge-gate re-review: `the merge gate (merge-gate section 3)`).
    - CHANGES: `<task> changes requested`; next `<task>: write disposition-<task>-r<N>.md, then fix`, ending with `, then the merge gate (merge-gate section 3)` in a merge-gate re-review.
    - INCOMPLETE after the retry: `blocked`, as section 4 says.
@@ -93,4 +112,4 @@ Create no work item now: `sw-factory work new` switches the checkout under the r
 
 ## 7. Report
 
-Tell the caller, and the owner, the verdict with its evidence: the summary's path, the blocking findings (lens, id, severity, location, finding), the follow-ups recorded, the warnings, and any lens that ran on its fallback. Then the caller acts on the verdict.
+Tell the caller, and the owner, the verdict with its evidence: the summary's path, the blocking findings (lens, id, severity, location, finding), the follow-ups recorded, the warnings, any lens that ran on its fallback, and any lens that ran without its required reference skill. Then the caller acts on the verdict.

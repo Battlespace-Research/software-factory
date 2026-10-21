@@ -9,7 +9,7 @@ import yaml
 
 from swfactory import cli
 from swfactory.adapters import AGENT_FOR_ROLE
-from swfactory.config import factory_home
+from swfactory.config import factory_home, load_skills_registry
 from swfactory.prompts import MissingValue, render, required_placeholders
 from swfactory.reviewmd import load_review_md
 from swfactory.verdict import BLOCKING_SEVERITIES, PRIOR_STATUSES, parse_review_markdown
@@ -18,6 +18,8 @@ LENSES = ["correctness", "security", "maintainability", "spec"]
 LENS_PLACEHOLDERS = {
     "lens", "checklist", "task_id", "round", "diff_command", "spec_path", "prior_review_path", "nit_cap",
 }
+# The skill each lens reads as guidance (F18), passed in as {{reference_skill}}; security has none.
+REFERENCE_SKILLS = {"correctness": "tdd", "maintainability": "codebase-design", "spec": "domain-modeling"}
 DOC_PLACEHOLDERS = {"document_path", "revision", "decisions_path", "prior_review_path"}
 TESTER_PLACEHOLDERS = {"work_id", "task_id", "commits", "verify_command", "demo_script", "report_path"}
 REVIEW_PROMPTS = [f"lens-{lens}.md" for lens in LENSES] + ["document-review.md"]
@@ -28,6 +30,10 @@ _EXAMPLE = re.compile(r"^```markdown\n(.*?)^```[ \t]*$", re.MULTILINE | re.DOTAL
 
 def prompt(name: str) -> Path:
     return factory_home() / "prompts" / name
+
+
+def lens_placeholders(lens: str) -> set[str]:
+    return LENS_PLACEHOLDERS | ({"reference_skill"} if lens in REFERENCE_SKILLS else set())
 
 
 def dummy_values(names: set[str]) -> dict[str, str]:
@@ -56,7 +62,27 @@ def test_each_lens_prompt_has_contract(lens):
 
 @pytest.mark.parametrize("lens", LENSES)
 def test_lens_prompt_placeholders(lens):
-    assert required_placeholders(prompt(f"lens-{lens}.md")) == LENS_PLACEHOLDERS
+    assert required_placeholders(prompt(f"lens-{lens}.md")) == lens_placeholders(lens)
+
+
+@pytest.mark.parametrize("lens, skill", sorted(REFERENCE_SKILLS.items()))
+def test_lens_prompt_reads_its_reference_skill_without_running_it(lens, skill):
+    t = re.sub(r"\s+", " ", prompt(f"lens-{lens}.md").read_text(encoding="utf-8"))
+    assert f"`{skill}`" in t
+    assert ("If `{{reference_skill}}` is a file path (not `none`), read that skill first and use its guidance for "
+            "this lens; do not follow its procedure, spawn agents, run commands or write files because of it.") in t
+    steps = t.split("## Steps", 1)[1]
+    assert steps.lstrip().startswith("1. If `{{reference_skill}}`"), "reading the skill is the first step"
+
+
+@pytest.mark.parametrize("lens, skill", sorted(REFERENCE_SKILLS.items()))
+def test_reference_skills_are_registered_for_their_lens(lens, skill):
+    assert skill in {s.name for s in load_skills_registry(factory_home() / "config" / "skills.yaml")[f"lens-{lens}"]}
+
+
+def test_lens_reviewer_agent_reads_a_reference_skill_without_running_it():
+    t = (factory_home() / "agents" / "lens-reviewer.md").read_text(encoding="utf-8")
+    assert "reference skill" in t.lower() and "not a procedure" in t
 
 
 def test_document_review_placeholders():
@@ -115,7 +141,7 @@ def test_render_missing_placeholder_raises():
     with pytest.raises(MissingValue) as e:
         render(p, {"lens": "x"})
     assert "checklist" in str(e.value)
-    assert e.value.names == sorted(LENS_PLACEHOLDERS - {"lens"})
+    assert e.value.names == sorted(lens_placeholders("correctness") - {"lens"})
     assert isinstance(e.value, KeyError)
 
 
@@ -175,7 +201,7 @@ def test_cli_prompt_render_lists_every_missing_value(tmp_path, capsys):
     code = cli.main(["prompt", "render", str(prompt("lens-spec.md")), "--set", "lens=spec", "--out", str(out)])
     assert code == 2
     err = capsys.readouterr().err
-    for name in LENS_PLACEHOLDERS - {"lens"}:
+    for name in lens_placeholders("spec") - {"lens"}:
         assert name in err
     assert not out.exists()
 
