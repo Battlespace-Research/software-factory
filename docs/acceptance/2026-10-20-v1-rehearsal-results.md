@@ -16,12 +16,12 @@ A CLI-level rehearsal of one Fix on a throwaway copy of the sample app, run unat
 
 | | |
 |---|---|
-| Factory | `E:\BSRI\GitHub\software-factory`, branch `feature/core-v1` at 9930fce (the sample and checklist commit); `factory --version` 0.1.0, run as `.venv\Scripts\factory` |
+| Factory | `<factory-clone>` (the folder where this repository was cloned), branch `feature/core-v1` at 9930fce (the sample and checklist commit); `factory --version` 0.1.0, run as `.venv\Scripts\factory` |
 | Vendor CLIs | `codex-cli 0.163.0` (npm shim `codex.cmd`), Claude Code `2.1.294` |
 | Machine | Windows 11, Git Bash, Python 3.14.8, `core.autocrlf=true` |
-| Rehearsal repo | `C:\Users\cordc\AppData\Local\Temp\sf-rehearsal-20261020-1757` (outside every repository; not committed anywhere) |
-| Raw log | `C:\Users\cordc\AppData\Local\Temp\sf-rehearsal-20261020-1757.log` (each command, exit code, wall time, output) |
-| Staging | `C:\Users\cordc\.factory\staging\rangering-rehearsal\FIX-1\` (the rendered lens prompts and the extra review of section 6.3) |
+| Rehearsal repo | `%TEMP%\sf-rehearsal-<timestamp>` (outside every repository; not committed anywhere) |
+| Raw log | `%TEMP%\sf-rehearsal-<timestamp>.log` (each command, exit code, wall time, output) |
+| Staging | `~/.factory/staging/<project>/FIX-1/` (the rendered lens prompts and the extra review of section 6.3) |
 | Project settings | name `rangering-rehearsal` (so its staging folder cannot mix with the demo's), quick `python verify.py --quick`, full `python verify.py`, approver `Rehearsal Owner`, base `main`, `per-item`, `builds: allow`, `mode: review` |
 | Codex arguments | `FACTORY_CODEX_ARGS='-c windows.sandbox="unelevated"'` for the lens runs only; the elevated sandbox was not touched or repaired |
 
@@ -66,7 +66,7 @@ Times are wall clock from the raw log. "Key output" is quoted from the tool.
 | 4.3 | fix (`… m"` to `… km"` in `rangering/__init__.py`); `python verify.py --quick` | 0 | 0.4 s | `Ran 5 tests … OK`, `verify quick: PASS` | |
 | 4.4–4.5 | commit `16b0f69 FIX-1 T1: label km values with km` (`Factory-Work: FIX-1/T1`, `Factory-Role: implementer`, `Factory-Model` from 4.0); `set-status … "T1 under review"`; commit | 0 | 0.8 s | `<head>` = `f213efc24d67be93cc2e0cf1e787699f3792b9ac` | |
 | 5.1 | `factory role resolve lens-<lens> --host claude --author claude --project .` (both lenses) | 0 | 0.4 s each | `kind: command`, `vendor: openai`, argv `codex exec -m … -c model_reasoning_effort="xhigh" -s read-only -o <out-file> -` | |
-| 5.2 | `factory prompt render E:\…\prompts\lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=T1 --set round=1 --set diff_command="git diff <start>..<head> -- . ':(exclude)factory/work'" --set spec_path=factory/work/FIX-1-km-label/ticket.md --set prior_review_path=none --out <staging>\T1-r1-<lens>-prompt.md` | 0 | 0.4 s each | `wrote …` | the two prompts, in staging |
+| 5.2 | `factory prompt render <factory-clone>\prompts\lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=T1 --set round=1 --set diff_command="git diff <start>..<head> -- . ':(exclude)factory/work'" --set spec_path=factory/work/FIX-1-km-label/ticket.md --set prior_review_path=none --out <staging>\T1-r1-<lens>-prompt.md` | 0 | 0.4 s each | `wrote …` | the two prompts, in staging |
 | 5.3 | `factory role run lens-<lens> --host claude --author claude --project . --prompt <staging prompt> --out factory/work/FIX-1-km-label/reviews/T1-r1-<lens>.md`, both started together in the background | 0, 0 | **35.7 s** (correctness), **44.0 s** (security) | `wrote factory\work\FIX-1-km-label\reviews\T1-r1-<lens>.md`; both `VERDICT: PASS`, no findings | the two review files, stamped |
 | 6.1 | `factory panel combine factory/work/FIX-1-km-label --task T1 --round 1 --commit f213efc…` | 0 | 1.6 s | `VERDICT: PASS`, every section `None.` | `reviews/T1-r1-panel.md` |
 | 6.2–6.4 | `factory work status`; `set-status … "T1 review passed"`; commit the round | 0 | 1 s | `29087ca` | |
@@ -105,8 +105,8 @@ GATE: PASS
 - reviewed-commit: ok — HEAD is 3 commit(s) after the reviewed commit; later changes are factory bookkeeping only (reviewed f213efc24d67, HEAD 0535ae2d6816); no uncommitted changes in tracked files
 - size-cap: ok — 10 lines (cap 400)
 - id-unused-on-base: ok — no other factory/work/FIX-1-* folder than FIX-1-km-label on main
-- verify-full: ok — $ E:\BSRI\GitHub\software-factory\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
-  $ E:\BSRI\GitHub\software-factory\.venv\Scripts\python.exe -m compileall -q rangering tests verify.py
+- verify-full: ok — $ <factory-clone>\.venv\Scripts\python.exe -m unittest discover -s tests -t . -v
+  $ <factory-clone>\.venv\Scripts\python.exe -m compileall -q rangering tests verify.py
   verify full: PASS
   (the five test lines)
   Ran 5 tests in 0.000s
@@ -121,8 +121,8 @@ Note the interpreter in `verify-full`: the factory's own virtual environment, no
 
 ### 6.1 Can Codex write to `~/.factory/staging`?
 
-- **In the Claude-host flow rehearsed here, it does not need to.** `factory prompt render` (a plain Python process, outside any sandbox) wrote the prompts to `C:\Users\cordc\.factory\staging\rangering-rehearsal\FIX-1\`; `factory role run` read them and sent them to `codex exec` on stdin; Codex wrote its reply through `-o` to `reviews/<file>.md.partial` inside the project, which the factory stamped and renamed. Staging under the home folder worked; nothing had to be staged under the temp folder.
-- **A Codex session cannot write there.** A separate probe, `codex exec -s workspace-write -c windows.sandbox="unelevated"` in a throwaway repo (`…\sf-rehearsal-20261020-1757-probe`), was asked to create a file in `C:\Users\cordc\.factory\staging\rangering-rehearsal\probe\` and one in its own folder. The first failed with `Access to the path 'C:\Users\cordc\.factory\staging\rangering-rehearsal\probe' is denied.`; the second worked. On a Codex host every shell command, `factory prompt render --out <staging>` included, runs in that sandbox, and the quote and commit-message files are written with Codex's own file tool. See D1. (The elevated sandbox could not be tried: it is broken on this machine.)
+- **In the Claude-host flow rehearsed here, it does not need to.** `factory prompt render` (a plain Python process, outside any sandbox) wrote the prompts to `~/.factory/staging/<project>/FIX-1/`; `factory role run` read them and sent them to `codex exec` on stdin; Codex wrote its reply through `-o` to `reviews/<file>.md.partial` inside the project, which the factory stamped and renamed. Staging under the home folder worked; nothing had to be staged under the temp folder.
+- **A Codex session cannot write there.** A separate probe, `codex exec -s workspace-write -c windows.sandbox="unelevated"` in a throwaway repo (`…\sf-rehearsal-20261020-1757-probe`), was asked to create a file in `~/.factory/staging/<project>/probe/` and one in its own folder. The first failed with `Access to the path '~/.factory/staging/<project>/probe' is denied.`; the second worked. On a Codex host every shell command, `factory prompt render --out <staging>` included, runs in that sandbox, and the quote and commit-message files are written with Codex's own file tool. See D1. (The elevated sandbox could not be tried: it is broken on this machine.)
 
 ### 6.2 Lens run times
 
@@ -143,7 +143,7 @@ VERDICT: PASS
 <!-- factory: role=lens-correctness vendor=claude model=claude-opus-5-5 effort=xhigh sandbox=read-only at=2026-10-20T22:03:57Z -->
 ```
 
-Its transcript (`~/.claude/projects/C--Users-cordc-AppData-Local-Temp-sf-rehearsal-20261020-1757/`) shows it ran `git diff`, `git show`, `cat` and `git ls-files` through Bash, although Bash is not in `--allowedTools` (D10). It changed no file.
+Its transcript (`~/.claude/projects/<project-folder>/`) shows it ran `git diff`, `git show`, `cat` and `git ls-files` through Bash, although Bash is not in `--allowedTools` (D10). It changed no file.
 
 ### 6.4 Where the skills and the CLI did not match
 
@@ -166,7 +166,7 @@ Each is a proposed `FIX-` item for plan 2, or a fix before v1 closes; none was w
 |---|---|---|---|---|
 | D1 | major (pass B) | A Codex session cannot write to `<home>/.factory/staging/<project>/<ID>/`, where the skills put rendered prompts (`factory prompt render --out`), tester briefs, approval quote files and the setup commit message. Under `workspace-write` the folder is outside Codex's writable roots. Each such step would fail or need an escalation approval. | Probe in 6.1: `Access to the path … is denied.` | Stage inside a Codex writable root: for example a git-ignored `.factory-staging/` in the project (setup adds it to `.gitignore`), or the system temp folder; or document a `sandbox_workspace_write.writable_roots` entry for `~/.factory` in the install guide. Re-test on a machine whose elevated sandbox works. |
 | D2 | moderate (pass B) | In a project with neither `CLAUDE.md` nor `AGENTS.md`, setup creates only `CLAUDE.md` (setup.py, by design in the plan). Codex reads `AGENTS.md`, so a Codex session never sees the factory section: where work lives, how to resume, the verify commands, "reviewers never edit". | 2.2 `created` lists `CLAUDE.md` only | Create both files when neither exists (or create `AGENTS.md` too when setup runs from a Codex host). |
-| D3 | moderate | With the factory's `.venv\Scripts` ahead of the system Python on PATH, a project's `python verify.py` runs in the factory's virtual environment. The rehearsal prepended that folder; the install guide says to add it to the user PATH, which on many machines comes after the system Python but not on all. For a project with its own dependencies, verify (and so the gate) would run in the wrong interpreter. | 4.3, 7.0 and `merge-gate.md`: `E:\BSRI\GitHub\software-factory\.venv\Scripts\python.exe` | Install the command with `pipx`, or put only a `factory` shim on PATH; until then the checklist tells the owner to append, not prepend, and to check `where python`. (Task 12 deferred minor, now observed.) |
+| D3 | moderate | With the factory's `.venv\Scripts` ahead of the system Python on PATH, a project's `python verify.py` runs in the factory's virtual environment. The rehearsal prepended that folder; the install guide says to add it to the user PATH, which on many machines comes after the system Python but not on all. For a project with its own dependencies, verify (and so the gate) would run in the wrong interpreter. | 4.3, 7.0 and `merge-gate.md`: `<factory-clone>\.venv\Scripts\python.exe` | Install the command with `pipx`, or put only a `factory` shim on PATH; until then the checklist tells the owner to append, not prepend, and to check `where python`. (Task 12 deferred minor, now observed.) |
 | D4 | minor | factory-run's Deploy and close step 4 sets `close · merge pending · next: none once the owner has merged …` before the merge gate runs. A session resuming there reads "waiting for the owner's merge" and has no pointer to the gate. | 7.4 in the log | Step 4's next step: "run the merge gate (factory-merge-gate)"; the gate's section 7 then writes the merge-pending line it writes today. |
 | D5 | minor | For a Fix, factory-task-loop section 7 ticks every acceptance criterion at the task's close, before the merge gate has run the full verify that a criterion like AC4 names. | ticket AC4; 7.0 | Tick only criteria with evidence in hand: run `verify.full` first when a Fix criterion names it, or leave that criterion to the gate. |
 | D6 | minor | `Factory-Model` trailers (and the setup commit) record the role table's binding from `factory role resolve`, not the model the session is actually running; nothing checks they agree. In this rehearsal the interviewer and author commits name the bindings while the session ran another model. | `git log` of the rehearsal repo | Say in the skills that the trailer is the binding, and tell the owner when the session's model differs; or record both. |
@@ -190,7 +190,7 @@ Also seen, not counted: git's `LF will be replaced by CRLF` warning on every com
 2. Before pass A, check `where python` lists the system Python before the factory's `.venv` (D3).
 3. Decide which findings are fixed before v1 closes and which become `FIX-` items for plan 2.
 
-The rehearsal repo, its log and the staging folder are left in place for inspection; delete them when done (`C:\Users\cordc\AppData\Local\Temp\sf-rehearsal-20261020-1757*`, `C:\Users\cordc\.factory\staging\rangering-rehearsal`).
+The rehearsal repo, its log and the staging folder are left in place for inspection; delete them when done (`%TEMP%\sf-rehearsal-<timestamp>*`, `~/.factory/staging/<project>`).
 
 ## 10. After the final review
 
@@ -225,7 +225,7 @@ To run it, the owner installs the package once (`sudo apt install python3.12-ven
 
 ```bash
 rm -rf ~/sf-check && mkdir -p ~/sf-check
-tar -C /mnt/e/BSRI/GitHub/software-factory --exclude=./.venv --exclude=./.superpowers --exclude='__pycache__' \
+tar -C /mnt/<drive>/<path to factory-clone> --exclude=./.venv --exclude=./.superpowers --exclude='__pycache__' \
     --exclude='.pytest_cache' --exclude='*.egg-info' -cf - . | tar -C ~/sf-check -xf -
 cd ~/sf-check && python3 -m venv .venv && . .venv/bin/activate
 python -m pip install -e "tools[dev]" && python -m pytest tools/tests -q

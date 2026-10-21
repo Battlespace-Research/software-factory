@@ -12,13 +12,13 @@ Write what happened in `docs/acceptance/<date>-v1-results.md`, using the record 
 
 These change your machine's host configuration, so they are yours to do.
 
-1. **The `sw-factory` command.** `sw-factory --version` prints `0.4.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory clone>/tools` or by putting only `sw-factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
+1. **The `sw-factory` command.** `sw-factory --version` prints `0.4.0` in a new terminal, and in a session of each host when you ask the agent to run it ([install guide](../guide/install.md), step 1). If it does not, install the command as step 1 says, with `pipx install -e <factory-clone>/tools` (`<factory-clone>` is the folder where you cloned this repository) or by putting only `sw-factory.exe` on the PATH, never the factory's `.venv\Scripts` folder, and restart both hosts. Then check that the first `python` that `where python` lists is your own, not one inside the factory's clone or pipx's folders: otherwise the sample's `python verify.py` runs in the factory's virtual environment (rehearsal finding D3).
 2. **The plugin, from this checkout.** Check out `main` here (`git switch main && git pull`), then add this checkout as a local marketplace, so the run uses exactly the plugin you have:
 
    ```text
-   claude plugin marketplace add E:\BSRI\GitHub\software-factory
+   claude plugin marketplace add <factory-clone>
    claude plugin install bsri-sw-factory@bsri-factory
-   codex plugin marketplace add E:\BSRI\GitHub\software-factory
+   codex plugin marketplace add <factory-clone>
    codex plugin add bsri-sw-factory@bsri-factory
    ```
 
@@ -33,7 +33,7 @@ These change your machine's host configuration, so they are yours to do.
 Use a new folder outside every repository, for example under your temp folder. In Git Bash:
 
 ```bash
-F=/e/BSRI/GitHub/software-factory
+F=<factory-clone>                                 # your clone, as Git Bash writes the path
 D="$TEMP/sf-v1-claude-$(date +%Y%m%d-%H%M)"     # sf-v1-codex-… for pass B
 mkdir -p "$D" && git -C "$F" archive HEAD:examples/sample-app | tar -x -C "$D"
 cd "$D" && git init -b main && git config user.name "<your name>" && git config user.email "<your email>"

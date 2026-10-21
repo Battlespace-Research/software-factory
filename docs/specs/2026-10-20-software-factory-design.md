@@ -1,6 +1,6 @@
 # Software Factory — Design
 
-Status: rev 2.4 · project-generic wording per F19 (2026-10-21) · rev 2.3 · lens reference skills per F18 (2026-10-21) · rev 2.2 track Program renamed Epic per F17 · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
+Status: rev 2.4 · project-generic wording per F19 (2026-10-21) · rev 2.3 · lens reference skills per F18 (2026-10-21) · rev 2.2 track Program renamed Epic per F17 · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15] · local paths generalized (F19)
 Decisions: `docs/decisions.md` (F01–F19) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
@@ -48,7 +48,7 @@ Why now: the earlier project's runbook has proved the approach, the lessons are 
 
 ## 5. Constraints
 
-- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research`, cloned at `E:\BSRI\GitHub\software-factory` [F01]. Factory work never writes to the earlier project's checkout, where other sessions are working; it is a read-only reference for the design.
+- **Where things live.** The factory is its own private git repo under the BSRI GitHub org `Battlespace-Research` [F01]. Factory work never writes to the earlier project's checkout, where other sessions are working; it is a read-only reference for the design.
 - **Project rules win.** Where a project's own rules (its `AGENTS.md`, `CLAUDE.md`, contribution rules) conflict with a factory default, the project's rule wins. Setup lists each conflict and the owner settles it in `sw-factory.yaml`; the owner approving `sw-factory.yaml` counts as the explicit request such rules ask for. **[Claude's call]**
 - **Work state is files in the project's own repo**, the source of truth; GitHub issues are an optional mirror [F07].
 - **Platforms.** BSI develops on Windows (PowerShell 7, Git Bash, Visual Studio); CI and Kubernetes work run on Linux. Factory scripts must run on both. Python 3 is available on both and is already used for the earlier project's dashboard.

@@ -20,8 +20,9 @@ Unchanged on purpose: the Python package ``swfactory``, the ``Factory-*`` commit
 environment variables, the repository ``Battlespace-Research/software-factory``, the ``bsri-factory`` marketplace and
 the word "factory" in prose. These never match a pattern below. The kept names that look like old ones are allowed
 explicitly (``KEPT``): the review-file stamp ``<!-- factory: ... -->``, the dashboard's ``factory-data`` id and
-``factory-dashboard/0.1`` schema, and the file names ``factory-map.html``, ``factory-dashboard.html`` and those of the
-v1 records (``*-factory-core-v1*.md``). So are the F-rows of the append-only decision log, and the install guide's
+``factory-dashboard/0.1`` schema, the file names ``factory-map.html``, ``factory-dashboard.html`` and those of the
+v1 records (``*-factory-core-v1*.md``), and the placeholder ``<factory-clone>`` for the folder where someone cloned
+this repository (F19). So are the F-rows of the append-only decision log, and the install guide's
 "Upgrading from 0.1.0" and "Upgrading from 0.2.0" sections, which have to name what they replace.
 """
 from __future__ import annotations
@@ -81,6 +82,7 @@ KEPT = {
     "the map and dashboard file names": r"(?<![\w-])factory-(?:map|dashboard)\.html",
     "the v1 records' file names": r"(?<![\w-])factory-core-v1(?:-rulings)?\.md",
     "the Windows folder Program Files": r"\bProgram Files\b",  # not the old track name
+    "the placeholder for the folder of a factory clone": r"<factory-clone>",  # not a skill name (F19)
 }
 _KEPT = re.compile("|".join(f"(?:{source})" for source in KEPT.values()))
 # Lines that may name old identifiers as they are: the decision log's rows (append-only; F16 and F17 record the
@@ -198,8 +200,9 @@ def test_the_scan_finds_each_old_name_and_leaves_the_new_ones_alone(tmp_path):
         "tools/swfactory/n.py": 'HOME = os.environ.get("FACTORY_HOME")\nfrom swfactory.config import factory_home\n',
         "docs/guide/d.md": (
             "See docs/map/factory-map.html, the bsri-factory marketplace and\n"
-            "https://github.com/Battlespace-Research/software-factory, cloned to E:/BSRI/GitHub/software-factory/.\n"
+            "https://github.com/Battlespace-Research/software-factory, cloned to ~/src/software-factory/.\n"
             "```text\nsw-factory config check --project .\n```\n"
+            "Add the marketplace with `claude plugin marketplace add <factory-clone>`.\n"
         ),
         "docs/guide/e.md": "factory skills call the command; outside a code block this line is prose.\n",
         "docs/specs/s.md": "Template: `docs/dashboard/factory-dashboard.html`, its `factory-dashboard/0.1` block.\n",
