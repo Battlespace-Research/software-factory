@@ -2,7 +2,7 @@
 
 This guide sets up the factory on your machine, for Claude Code, for Codex, or for both. Once it is done, go on to [Using the factory](using-the-factory.md).
 
-> **Version 0.3.0.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
+> **Version 0.4.0.** The `claude` and `codex` commands below were checked against the help text of Claude Code 2.1.294 and Codex CLI 0.163.0 on Windows 11, and `claude plugin validate` passes on the plugin; the third-party install commands are the ones their publishers document. The first full install on a teammate's machine is part of the v1 acceptance run, so tell the factory's maintainers about anything that does not work as written here.
 
 ## What you install
 
@@ -61,7 +61,7 @@ sw-factory --version
 where python        # PowerShell: where.exe python; Linux or macOS: which -a python
 ```
 
-`sw-factory --version` prints `0.3.0`. The first `python` listed must be your own, the one your projects use, not one inside the factory's clone or pipx's folders. If it is the factory's, take that folder off the PATH and install the command as above.
+`sw-factory --version` prints `0.4.0`. The first `python` listed must be your own, the one your projects use, not one inside the factory's clone or pipx's folders. If it is the factory's, take that folder off the PATH and install the command as above.
 
 **Keep the clone where it is.** The editable install runs the command from the clone, and the command reads the factory's role table, skills list, prompts and project templates (`config/`, `prompts/`, `templates/`) from it. Moving or deleting the clone breaks the command.
 
@@ -112,8 +112,8 @@ The factory calls skills that other people publish. `sw-factory skills check` (s
 
 | Skills | Publisher | Used for | Needed? | License |
 |---|---|---|---|---|
-| `grilling`, `research`, `to-spec`, `tdd`, `diagnosing-bugs`, `code-review`, `handoff` | Matt Pocock skills (`mattpocock/skills`) | interviews, research, specs, test-first work, debugging, reviews, session hand-offs | **Required** | not yet confirmed |
-| `grill-me`, `grill-with-docs`, `domain-modeling`, `codebase-design`, `to-tickets`, `wayfinder`, `implement`, `triage` | Matt Pocock skills | fallbacks and extra help for the same roles | Optional | not yet confirmed |
+| `grilling`, `research`, `to-spec`, `tdd`, `diagnosing-bugs`, `code-review`, `codebase-design`, `handoff` | Matt Pocock skills (`mattpocock/skills`) | interviews, research, specs, test-first work, debugging, reviews (`tdd` and `codebase-design` are also the correctness and maintainability reviewers' reference skills), session hand-offs | **Required** | not yet confirmed |
+| `grill-me`, `grill-with-docs`, `domain-modeling`, `to-tickets`, `wayfinder`, `implement`, `triage` | Matt Pocock skills | fallbacks and extra help for the same roles; `domain-modeling` is the spec reviewer's reference skill in projects with a `CONTEXT.md` or ADRs | Optional | not yet confirmed |
 | `writing-plans`, `verification-before-completion` | superpowers (`obra/superpowers`) | Feature plans; evidence before anything is called done | **Required** | MIT |
 | `test-driven-development`, `systematic-debugging`, `subagent-driven-development` | superpowers | fallbacks for `tdd` and `diagnosing-bugs`; optional build help | Optional | MIT |
 | `last30days` | last30days (`mvanhorn/last30days-skill`) | research on recent discussion | Optional | MIT |
@@ -183,12 +183,20 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 - **Claude Code:** `claude plugin marketplace update bsri-factory`, then `claude plugin update bsri-sw-factory@bsri-factory`, then restart Claude Code.
 - **Codex:** `codex plugin marketplace upgrade bsri-factory`, then check the version with `codex plugin list --marketplace bsri-factory`. If it still shows the old version, remove and add the plugin again: `codex plugin remove bsri-sw-factory@bsri-factory`, then `codex plugin add bsri-sw-factory@bsri-factory`.
 
+## Upgrading from 0.3.0
+
+Version 0.4.0 gives three review lenses a reference skill to read (decision F18 in `docs/decisions.md`): correctness reads `tdd`, maintainability `codebase-design`, and spec compliance `domain-modeling` in projects with a `CONTEXT.md` or ADRs. Projects need no change.
+
+1. **Update** the command and the plugin as [Updating](#updating) says; `sw-factory --version` then prints `0.4.0`.
+2. **Install `codebase-design`** if you do not have it: it is now required. Run the Matt Pocock skills command of step 4 again and pick it (and `domain-modeling`, if your projects keep a `CONTEXT.md` or ADRs).
+3. **Check:** `sw-factory skills check --host claude` and `sw-factory skills check --host codex` print `present codebase-design`. A lens whose reference skill is missing still runs, without it, and the review panel says so.
+
 ## Upgrading from 0.2.0
 
 Version 0.3.0 renamed the largest track from Program to Epic (decision F17 in `docs/decisions.md`): the track is `epic`, its work ids are `EPIC-<n>` and its templates are in `templates/work/epic/`. The command, the plugin and the skills keep their names, and Fix and Feature work items carry on as they are. If you installed 0.2.0:
 
-1. **Before you update, finish any open `PRG-<n>` items with 0.2.0.** 0.3.0 does not read them, and once you run `git pull` in the clone the editable install is already 0.3.0 (there is no 0.2.0 tag to go back to). An item you cannot finish first has to be opened again as an Epic after the update (`sw-factory work new --track epic …`), with its files carried over by hand.
-2. **Update** the command and the plugin as [Updating](#updating) says; `sw-factory --version` then prints `0.3.0`.
+1. **Before you update, finish any open `PRG-<n>` items with 0.2.0.** 0.3.0 does not read them, and once you run `git pull` in the clone the editable install is already 0.3.0 or later (there is no 0.2.0 tag to go back to). An item you cannot finish first has to be opened again as an Epic after the update (`sw-factory work new --track epic …`), with its files carried over by hand.
+2. **Update** the command and the plugin as [Updating](#updating) says; `sw-factory --version` then prints the current version, `0.4.0`, and the steps of [Upgrading from 0.3.0](#upgrading-from-030) apply too.
 3. **`REVIEW.md`**, in each project set up with 0.2.0: under `tracks:`, rename the `program:` key to `epic:` and keep its lenses. Until you do, `sw-factory config check --project .` reports `unknown track 'program'`, and every review panel fails, on every track, because the panel cannot load `REVIEW.md`.
 4. **`CLAUDE.md` and `AGENTS.md`**, in each such project: in the factory's section, between `<!-- sw-factory:begin -->` and `<!-- sw-factory:end -->`, change `PRG-<n>-<slug>` to `EPIC-<n>-<slug>`. Setup cannot refresh the section: it runs once per project and stops when `sw-factory.yaml` exists.
 
@@ -200,7 +208,7 @@ Version 0.2.0 renamed the factory (decision F16 in `docs/decisions.md`): the com
    - with pipx: `pipx install --force -e <clone>/tools`;
    - without pipx: in the clone, `.venv/Scripts/python -m pip install -e tools` (Linux or macOS: `.venv/bin/python -m pip install -e tools`), then on Windows replace the copied `factory.exe` in your command folder with `<clone>\.venv\Scripts\sw-factory.exe`, and on Linux or macOS replace the old link with `ln -s <clone>/.venv/bin/sw-factory ~/.local/bin/sw-factory` (and delete `~/.local/bin/factory`).
 
-   `sw-factory --version` prints the current version, `0.3.0`. If an old `factory` command is still on the PATH, delete it.
+   `sw-factory --version` prints the current version, `0.4.0`. If an old `factory` command is still on the PATH, delete it.
 2. **Claude Code.** Remove the old plugin, refresh the marketplace and install the new one, then restart Claude Code:
 
    ```bash

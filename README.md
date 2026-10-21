@@ -107,7 +107,7 @@ Reviewers work in parallel, each with one lens and a checklist from the project'
 - **Maintainability**
 - **Spec compliance**
 
-At least one lens comes from the other vendor than the author. By default that's correctness and security.
+At least one lens comes from the other vendor than the author: by default correctness and security, which every track runs.
 
 Each reviewer:
 - writes its verdict on the first line of its review file;
@@ -115,6 +115,27 @@ Each reviewer:
 - re-checks its own earlier findings in the next round.
 
 A blocker or major finding from any lens sends the task back. Maintainability findings alone never block; they become follow-up tickets.
+
+### Which reviewers run on each track
+
+| Track | Correctness | Security | Maintainability | Spec compliance |
+|---|---|---|---|---|
+| Fix | ✓ | ✓ | — | — |
+| Feature | ✓ | ✓ | ✓ | — |
+| Epic | ✓ | ✓ | ✓ | ✓ |
+
+Each lens is one reviewer. How it runs depends on the host, the app the factory runs in; the table assumes the host's own model wrote the change, as it normally does:
+
+| Lens | Who runs it by default | On a Claude Code host | On a Codex host | Reference skill it reads |
+|---|---|---|---|---|
+| Correctness | a model from the other vendor than the author | `codex exec` | `claude -p` | `tdd` |
+| Security | a model from the other vendor than the author | `codex exec` | `claude -p` | none |
+| Maintainability | a model from the same vendor as the author | the `bsri-sw-factory:lens-reviewer` subagent | `codex exec` | `codebase-design` |
+| Spec compliance | a model from the same vendor as the author | the `bsri-sw-factory:lens-reviewer` subagent | `codex exec` | `domain-modeling`, when the project has a `CONTEXT.md` or ADRs |
+
+A reviewer reads its reference skill, one of Matt Pocock's, as guidance for its lens: `tdd` to judge whether the tests really prove the change, `codebase-design` for the deep-module vocabulary that makes maintainability findings concrete, and `domain-modeling` to check the change against the project's domain terms and recorded decisions. It never runs the skill: it follows none of its steps, runs none of its commands, spawns no agents and writes no files because of it, and replies with the same review format.
+
+These are the defaults. Each project sets the lenses of each track in its `REVIEW.md` (under `tracks:`), and the models come from `config/roles.yaml` (see [Roles and models](#roles-and-models)).
 
 ## Roles and models
 
@@ -208,6 +229,7 @@ The factory calls installed skills rather than copying them. It checks they are 
 | Design | `to-spec`, `codebase-design`, `diagram-design` | Matt Pocock skills, Cathryn Lavery |
 | Build | `writing-plans`, `subagent-driven-development`, `to-tickets`, `wayfinder`, `implement`, `tdd` | superpowers, Matt Pocock skills |
 | Test | `tdd`, `diagnosing-bugs`, `verification-before-completion` | Matt Pocock skills, superpowers |
+| Review panel (Build) | `code-review`; reference skills `tdd`, `codebase-design`, `domain-modeling`; `security-review` | Matt Pocock skills, Claude Code |
 | Deploy | `code-review`, `security-review`, `deploy-checklist` | Matt Pocock skills, Claude Code, Anthropic engineering plugin |
 | Maintain | `triage`, `incident-response` | Matt Pocock skills, Anthropic engineering plugin |
 | Any | `handoff` | Matt Pocock skills |

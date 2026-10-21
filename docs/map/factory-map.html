@@ -572,7 +572,7 @@
     <div class="figure-head">
       <span class="fig-num">Figure 4</span>
       <h2>The review panel</h2>
-      <p class="caption">Each lens reviews the same change at the same time, using its own checklist from the project's <code>REVIEW.md</code>. The round ends only when every lens has reported. A blocker or major finding from any lens sends the task back for fixes. Maintainability findings on their own never block: they become follow-up tickets. A Fix runs correctness and security, a Feature adds maintainability, and an Epic runs all four, plus any lenses a project adds, such as UX or performance.</p>
+      <p class="caption">Each lens reviews the same change at the same time, using its own checklist from the project's <code>REVIEW.md</code>. The round ends only when every lens has reported. A blocker or major finding from any lens sends the task back for fixes. Maintainability findings on their own never block: they become follow-up tickets. A Fix runs correctness and security, a Feature adds maintainability, and an Epic runs all four, plus any lenses a project adds, such as UX or performance. Three lenses also read one of Matt Pocock's skills as guidance for their lens, never running it: correctness reads <code>tdd</code>, maintainability <code>codebase-design</code>, and spec compliance <code>domain-modeling</code> when the project keeps a <code>CONTEXT.md</code> or ADRs. Security reads none.</p>
     </div>
     <div class="diagram-container">
       <svg viewBox="0 0 1280 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="sf-panel-title sf-panel-desc">
@@ -723,6 +723,7 @@
           <tr><td>Build</td><td><code>to-tickets</code>, <code>wayfinder</code>, <code>implement</code></td><td>Matt Pocock skills</td><td>Tickets with blocking edges; maps for very large work</td></tr>
           <tr><td>Build, Test</td><td><code>tdd</code>, <code>diagnosing-bugs</code></td><td>Matt Pocock skills</td><td>Red-green-refactor; hard bugs</td></tr>
           <tr><td>Test</td><td><code>verification-before-completion</code></td><td>superpowers</td><td>No "done" without pasted evidence</td></tr>
+          <tr><td>Review panel (Build)</td><td><code>code-review</code>; reference skills <code>tdd</code>, <code>codebase-design</code>, <code>domain-modeling</code>; <code>security-review</code></td><td>Matt Pocock skills, Claude Code</td><td>The review panel: <code>code-review</code>'s practice is built into the lens prompts; correctness reads <code>tdd</code>, maintainability <code>codebase-design</code>, and spec <code>domain-modeling</code> (with a <code>CONTEXT.md</code> or ADRs) as guidance, not as a procedure</td></tr>
           <tr><td>Deploy</td><td><code>code-review</code>, <code>security-review</code>, <code>deploy-checklist</code></td><td>Matt Pocock skills, Claude Code, Anthropic engineering plugin</td><td>PR review passes and release checks</td></tr>
           <tr><td>Maintain</td><td><code>triage</code>, <code>incident-response</code></td><td>Matt Pocock skills, Anthropic engineering plugin</td><td>Turn signals into ranked, agent-ready work</td></tr>
           <tr><td>Any</td><td><code>handoff</code></td><td>Matt Pocock skills</td><td>Hand a session to the next one near the budget limit</td></tr>
@@ -773,6 +774,7 @@
           <tr><td class="mono">F15</td><td>Design rev 2 is approved by the owner. The repo is published privately as <code>Battlespace-Research/software-factory</code>.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F16</td><td>New names: the plugin <code>bsri-sw-factory</code>, with the skills setup-project, intake, orchestrate, task-loop, review-panel and merge-gate; the command <code>sw-factory</code>; and in a project <code>sw-factory.yaml</code>, the <code>sw-factory/</code> folder and <code>sw-factory/</code> branches.</td><td class="mono">2026-10-20</td></tr>
           <tr><td class="mono">F17</td><td>The largest track is renamed from Program to Epic: the track <code>epic</code>, work ids <code>EPIC-&lt;n&gt;</code> and the templates in <code>templates/work/epic/</code>. Fix and Feature are unchanged.</td><td class="mono">2026-10-21</td></tr>
+          <tr><td class="mono">F18</td><td>Three lens reviewers read one of Matt Pocock's skills as guidance, never running it: correctness <code>tdd</code>, maintainability <code>codebase-design</code>, spec compliance <code>domain-modeling</code> (when the project has a <code>CONTEXT.md</code> or ADRs); security none. New command <code>sw-factory skills path</code>; the README shows which reviewers run on each track.</td><td class="mono">2026-10-21</td></tr>
         </tbody>
       </table>
     </div>

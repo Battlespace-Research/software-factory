@@ -1,7 +1,7 @@
 # Software Factory — Design
 
-Status: rev 2.2 · track Program renamed Epic per F17 (2026-10-21) · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
-Decisions: `docs/decisions.md` (F01–F17) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
+Status: rev 2.3 · lens reference skills per F18 (2026-10-21) · rev 2.2 track Program renamed Epic per F17 · rev 2.1 names updated per F16 · rev 2 approved by the owner 2026-10-20 ("Approved, create the repo and push it") [F15]
+Decisions: `docs/decisions.md` (F01–F18) · Map: `docs/map/factory-map.html` (published privately) · Dashboard template: `docs/dashboard/factory-dashboard.html`
 
 Items marked **[Claude's call]** were not discussed with the owner; they are proposals the owner can overturn. Everything else was decided with the owner (decision ids in brackets).
 
@@ -227,6 +227,7 @@ Both exit non-zero on failure and print totals. "Done" requires the pasted outpu
 
 - Lenses run **in parallel**, each with its own checklist from `REVIEW.md`: correctness, security, maintainability, spec compliance, plus any project lenses (UX, performance). Track sets which lenses run (8.3).
 - At least one lens comes from the other vendor; by default correctness and security do.
+- **Reference skills [F18]:** three lenses read one of Matt Pocock's skills as guidance for their lens: correctness reads `tdd` (do the tests really prove the change: behaviour through public interfaces, one behaviour per test, red before green), maintainability reads `codebase-design` (the deep-module vocabulary, so findings name shallow modules, leaky seams and interface depth), and spec compliance reads `domain-modeling`, only when the project has a `CONTEXT.md` or decision records (ADRs), to check the change against the project's domain terms and recorded decisions. Security reads none (Claude Code's `security-review` stays optional). A reviewer reads the skill and never runs it: it follows none of the skill's procedure, spawns no agents, runs no commands and writes no files because of it, and keeps the panel's review format and verdict rules. The panel finds each skill's installed `SKILL.md` with `sw-factory skills path` and passes its path into the lens prompt, or `none`; a lens whose required skill is missing still runs, and the round's note says so. Reading rather than running keeps one reviewer per lens: `code-review` would start its own two reviewers.
 - Each reviewer reads the diff and the spec **before** the implementer's summary (super-board practice), and writes a file whose first line is `VERDICT: PASS` or `VERDICT: CHANGES`, followed by findings with ids `R1…`, severity (blocker, major, minor, nit; at most five nits), location and a concrete fix.
 - **Review memory:** in round N+1 each reviewer gets its round-N file and first marks each earlier finding fixed, not fixed, or no longer applies, then adds new findings.
 - **Combine:** the round ends only when every lens has reported. Any blocker or major sends the task back. Maintainability findings alone never block; they become follow-up tickets (`FIX-` or `FEA-` items in triage).
@@ -304,6 +305,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 
 - The factory **references** installed skills; it does not copy them. `config/skills.yaml` lists, per role and host, the skills it requires or can use, each with a fallback.
 - `setup-project` and `orchestrate` check readiness before a run and report missing skills; interactive skills (grilling) are never used inside unattended roles.
+- The lens reviewers' reference skills (9.3) are registered per lens: `tdd` for correctness and `codebase-design` for maintainability are required, `domain-modeling` for spec compliance is optional. They are read as guidance, never run, and have no fallback: a lens whose skill is missing runs without one.
 
 | Stage | Skills | Source |
 |---|---|---|
@@ -311,6 +313,7 @@ Version 1 delivers: the release checklist and gates for both paths, the smoke-te
 | Design | `to-spec`, `codebase-design`, `diagram-design` | Matt Pocock skills; Cathryn Lavery |
 | Build | `writing-plans`, `subagent-driven-development`, `to-tickets`, `wayfinder`, `implement`, `tdd` | superpowers; Matt Pocock skills |
 | Test | `tdd`, `diagnosing-bugs`, `verification-before-completion` | Matt Pocock skills; superpowers |
+| Review panel (Build) | `code-review`; reference skills `tdd`, `codebase-design`, `domain-modeling`; `security-review` | Matt Pocock skills; Claude Code |
 | Deploy | `code-review`, `security-review`, `deploy-checklist` | Matt Pocock skills; Claude Code; Anthropic engineering plugin |
 | Maintain | `triage`, `incident-response` | Matt Pocock skills; Anthropic engineering plugin |
 | Any | `handoff` | Matt Pocock skills |
