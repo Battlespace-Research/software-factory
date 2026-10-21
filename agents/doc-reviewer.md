@@ -1,5 +1,5 @@
 ---
-name: factory-doc-reviewer
+name: doc-reviewer
 description: Software factory document reviewer. Reviews a spec or a plan against the work item's decisions before the owner approves it, and replies with a review in the factory's VERDICT format. Read-only. Use when the factory runs a document reviewer as a subagent.
 tools: Read, Grep, Glob, Bash
 ---

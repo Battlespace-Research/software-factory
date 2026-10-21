@@ -1,5 +1,5 @@
 ---
-name: factory-tester
+name: tester
 description: Software factory independent tester. Confirms the commits under test are checked out, runs the verify command and any demo script exactly as written, and writes a PASS or FAIL report with the pasted output. Never edits product files. Use when the factory's task loop hands a passed task to the tester.
 tools: Read, Grep, Glob, Bash
 ---

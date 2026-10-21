@@ -1,10 +1,10 @@
 """Project setup: scaffold a project for the factory, and find the project's own rules that conflict with factory defaults.
 
-``setup_project`` writes ``factory.yaml`` and ``REVIEW.md`` from ``templates/project/``, creates the ``factory/``
+``setup_project`` writes ``sw-factory.yaml`` and ``REVIEW.md`` from ``templates/project/``, creates the ``sw-factory/``
 folders, ignores the generated dashboard, and adds the factory's marked section to ``CLAUDE.md`` and ``AGENTS.md``.
 It never runs git and never commits: the owner reviews the result first. Everything that can refuse is checked
 before the first file is written, and a write that fails is undone, so setup either finishes or leaves the project
-as it was (``factory.yaml``, whose presence means "already set up", is written last).
+as it was (``sw-factory.yaml``, whose presence means "already set up", is written last).
 """
 from __future__ import annotations
 
@@ -19,16 +19,16 @@ from pathlib import Path
 
 import yaml
 
-from swfactory.config import ConfigError, factory_home, load_project_config
+from swfactory.config import PROJECT_CONFIG, PROJECT_FOLDER, ConfigError, factory_home, load_project_config
 
-BEGIN_MARKER = "<!-- factory:begin -->"
-END_MARKER = "<!-- factory:end -->"
-GITIGNORE_ENTRY = "factory/dashboard/"
+BEGIN_MARKER = "<!-- sw-factory:begin -->"
+END_MARKER = "<!-- sw-factory:end -->"
+GITIGNORE_ENTRY = f"{PROJECT_FOLDER}/dashboard/"
 
 _BEGIN = BEGIN_MARKER.encode("utf-8")
 _END = END_MARKER.encode("utf-8")
 # Ways a .gitignore line can already ignore the generated dashboard.
-_IGNORES_DASHBOARD = {"factory/dashboard/", "/factory/dashboard/", "factory/dashboard", "/factory/dashboard"}
+_IGNORES_DASHBOARD = {f"{lead}{PROJECT_FOLDER}/dashboard{trail}" for lead in ("", "/") for trail in ("", "/")}
 _SECTION_FILES = ("CLAUDE.md", "AGENTS.md")  # the factory section goes into each that exists
 _CONFLICT_FILES = ("AGENTS.md", "CLAUDE.md")  # the project's own rules are read from these, in this order
 _CONFLICT_RULES = re.compile(
@@ -98,10 +98,10 @@ def _code_span(text: str) -> str:
     return f"{fence}{pad}{text}{pad}{fence}"
 
 
-def _render_factory_yaml(answers: SetupAnswers) -> str:
-    """The project's ``factory.yaml``; raises ``SetupError`` listing every problem when the answers are not valid."""
+def _render_sw_factory_yaml(answers: SetupAnswers) -> str:
+    """The project's ``sw-factory.yaml``; raises ``SetupError`` listing every problem when the answers are not valid."""
     work_branch = answers.work_branch if answers.branching == "single" else None
-    text = _fill(_template("factory.yaml"), {
+    text = _fill(_template(PROJECT_CONFIG), {
         "project": _quote(answers.project),
         "base_branch": _quote(answers.base_branch),
         "branching": _quote(answers.branching),
@@ -113,12 +113,12 @@ def _render_factory_yaml(answers: SetupAnswers) -> str:
         "builds": _quote(answers.builds),
     })
     with tempfile.TemporaryDirectory() as scratch:
-        probe = Path(scratch) / "factory.yaml"
+        probe = Path(scratch) / PROJECT_CONFIG
         probe.write_text(text, encoding="utf-8", newline="\n")
         try:
             load_project_config(probe)
         except ConfigError as err:
-            raise SetupError("the answers do not make a valid factory.yaml:\n" + "\n".join(err.problems)) from None
+            raise SetupError(f"the answers do not make a valid {PROJECT_CONFIG}:\n" + "\n".join(err.problems)) from None
     return text
 
 
@@ -165,7 +165,7 @@ def _write_atomically(path: Path, data: bytes) -> None:
     that file takes its place, so a failure part way cannot truncate the original. The file keeps its permissions,
     and a symbolic link is followed (the file it points to is replaced, the link stays)."""
     target = Path(os.path.realpath(path))
-    descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".factory-tmp")
+    descriptor, temporary = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=f".{PROJECT_FOLDER}-tmp")
     try:
         with os.fdopen(descriptor, "wb") as handle:
             handle.write(data)
@@ -211,41 +211,42 @@ class _Undo:
 def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
     """Scaffold the project at ``repo`` for the factory. Does not run git and does not commit.
 
-    Creates ``factory.yaml``, ``REVIEW.md``, ``factory/work/``, ``factory/baseline/expected-failures.md`` and
-    ``factory/lessons.md``; adds ``factory/dashboard/`` to ``.gitignore`` unless it is already ignored; and puts the
-    factory section between ``<!-- factory:begin -->`` and ``<!-- factory:end -->`` in ``CLAUDE.md`` and ``AGENTS.md``
+    Creates ``sw-factory.yaml``, ``REVIEW.md``, ``sw-factory/work/``, ``sw-factory/baseline/expected-failures.md`` and
+    ``sw-factory/lessons.md``; adds ``sw-factory/dashboard/`` to ``.gitignore`` unless it is already ignored; and puts the
+    factory section between ``<!-- sw-factory:begin -->`` and ``<!-- sw-factory:end -->`` in ``CLAUDE.md`` and ``AGENTS.md``
     wherever they exist (both, new, when neither does: Claude Code reads ``CLAUDE.md`` and Codex reads
     ``AGENTS.md``), replacing a section already there.
 
-    Raises ``SetupError``, having written nothing, when ``factory.yaml`` already exists ("already set up"), when
-    another file setup would create exists, when ``factory`` (or a folder in it) exists as a file, when a file setup
-    must change is read-only, when the answers do not make a valid ``factory.yaml``, or when the markers in an
+    Raises ``SetupError``, having written nothing, when ``sw-factory.yaml`` already exists ("already set up"), when
+    another file setup would create exists, when ``sw-factory`` (or a folder in it) exists as a file, when a file setup
+    must change is read-only, when the answers do not make a valid ``sw-factory.yaml``, or when the markers in an
     existing ``CLAUDE.md`` or ``AGENTS.md`` are not one begin line followed by one end line. If a write fails
     anyway, everything written so far is removed or restored (existing files are replaced atomically, never
-    truncated) and ``SetupError`` names the path that failed; ``factory.yaml`` is written last, so a failed run
+    truncated) and ``SetupError`` names the path that failed; ``sw-factory.yaml`` is written last, so a failed run
     never leaves the project looking set up.
     """
     repo = Path(repo)
     if not repo.is_dir():
         raise SetupError(f"{repo} is not a folder")
-    factory_yaml = repo / "factory.yaml"
-    if factory_yaml.exists():
-        raise SetupError(f"already set up: {factory_yaml} exists (setup runs once for a project)")
+    sw_factory_yaml = repo / PROJECT_CONFIG
+    if sw_factory_yaml.exists():
+        raise SetupError(f"already set up: {sw_factory_yaml} exists (setup runs once for a project)")
     review_md = repo / "REVIEW.md"
-    expected_failures = repo / "factory" / "baseline" / "expected-failures.md"
-    lessons = repo / "factory" / "lessons.md"
+    project_folder = repo / PROJECT_FOLDER
+    expected_failures = project_folder / "baseline" / "expected-failures.md"
+    lessons = project_folder / "lessons.md"
     for path in (review_md, expected_failures, lessons):
         if path.exists():
             raise SetupError(f"{path} already exists; setup will not overwrite it (move it aside, then run setup again)")
-    work_folder = repo / "factory" / "work"
-    folders = [repo / "factory", repo / "factory" / "baseline", work_folder]
+    work_folder = project_folder / "work"
+    folders = [project_folder, project_folder / "baseline", work_folder]
     for folder in folders:
         if folder.exists() and not folder.is_dir():
             raise SetupError(
                 f"{folder} exists and is not a folder; setup needs a folder there (move it aside, then run setup again)"
             )
     new_folders = [folder for folder in folders if not folder.exists()]
-    factory_yaml_text = _render_factory_yaml(answers)
+    sw_factory_yaml_text = _render_sw_factory_yaml(answers)
     new_files = [
         (review_md, _template("REVIEW.md")),
         (expected_failures, _template("expected-failures.md")),
@@ -295,9 +296,9 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
             else:
                 _write_atomically(path, after)
                 undo.changed.append((path, before))
-        current = factory_yaml
-        undo.made.append(factory_yaml)
-        factory_yaml.write_bytes(factory_yaml_text.encode("utf-8"))
+        current = sw_factory_yaml
+        undo.made.append(sw_factory_yaml)
+        sw_factory_yaml.write_bytes(sw_factory_yaml_text.encode("utf-8"))
         conflicts = find_conflicts(repo)
     except BaseException as err:
         stuck = undo.roll_back()
@@ -313,7 +314,7 @@ def setup_project(repo: Path, answers: SetupAnswers) -> SetupResult:
             f"{reason} Setup undid what it had written, so the project is as it was; fix the problem and run setup again."
         ) from err
 
-    created = [factory_yaml, review_md]
+    created = [sw_factory_yaml, review_md]
     if work_folder in new_folders:
         created.append(work_folder)
     created += [expected_failures, lessons]
@@ -329,7 +330,7 @@ def find_conflicts(repo: Path) -> list[str]:
     defaults would break (no extra branches, no builds, commit straight to main, never push).
 
     Each is ``"<file>:<line>: <text>"``: the file name, the 1-based line number and the line without trailing
-    whitespace; ``AGENTS.md`` is read first, and lines come in file order. The owner settles each in ``factory.yaml``.
+    whitespace; ``AGENTS.md`` is read first, and lines come in file order. The owner settles each in ``sw-factory.yaml``.
     """
     found: list[str] = []
     for name in _CONFLICT_FILES:

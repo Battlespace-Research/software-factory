@@ -16,8 +16,8 @@ from swfactory.config import DEFAULT_HARD_STOPS, factory_home, load_project_conf
 from swfactory.reviewmd import check_panel_vendor_mix, load_review_md
 from swfactory.setup import SetupAnswers, SetupError, SetupResult, find_conflicts, setup_project
 
-BEGIN = "<!-- factory:begin -->"
-END = "<!-- factory:end -->"
+BEGIN = "<!-- sw-factory:begin -->"
+END = "<!-- sw-factory:end -->"
 
 # What an owner might type: quotes, colons, '#', braces and backslashes, none of which may break the YAML.
 AWKWARD_COMMAND = r"""python -c "print('a: b # c')" && pytest -k 'x or y' --opt={a,b} #tail \ {{not_a_placeholder}} {}"""
@@ -55,20 +55,20 @@ def tree(repo: Path) -> set[str]:
 
 def test_setup_creates_files(repo):
     res = setup_project(repo, make_answers())
-    assert (repo / "factory.yaml").exists() and (repo / "REVIEW.md").exists()
-    assert (repo / "factory/baseline/expected-failures.md").exists()
-    assert load_project_config(repo / "factory.yaml").verify_full == "pytest"
+    assert (repo / "sw-factory.yaml").exists() and (repo / "REVIEW.md").exists()
+    assert (repo / "sw-factory/baseline/expected-failures.md").exists()
+    assert load_project_config(repo / "sw-factory.yaml").verify_full == "pytest"
     assert load_review_md(repo / "REVIEW.md").tracks["fix"] == ["correctness", "security"]
-    assert (repo / "factory/work").is_dir()
-    assert (repo / "factory/lessons.md").is_file()
-    assert (repo / ".gitignore").read_text(encoding="utf-8") == "factory/dashboard/\n"
+    assert (repo / "sw-factory/work").is_dir()
+    assert (repo / "sw-factory/lessons.md").is_file()
+    assert (repo / ".gitignore").read_text(encoding="utf-8") == "sw-factory/dashboard/\n"
     assert isinstance(res, SetupResult)
     assert relative(repo, res.created) == [
-        "factory.yaml",
+        "sw-factory.yaml",
         "REVIEW.md",
-        "factory/work",
-        "factory/baseline/expected-failures.md",
-        "factory/lessons.md",
+        "sw-factory/work",
+        "sw-factory/baseline/expected-failures.md",
+        "sw-factory/lessons.md",
         ".gitignore",
         "CLAUDE.md",
         "AGENTS.md",
@@ -76,20 +76,20 @@ def test_setup_creates_files(repo):
     assert res.updated == [] and res.conflicts == []
 
 
-def test_setup_fills_the_answers_into_factory_yaml(repo):
+def test_setup_fills_the_answers_into_sw_factory_yaml(repo):
     setup_project(repo, make_answers(
         project="Range Tool", approvers=["Cord", "Alex"], base_branch="develop", builds="ask", mode="auto",
         verify_quick="make quick", verify_full="make all",
     ))
-    cfg = load_project_config(repo / "factory.yaml")
+    cfg = load_project_config(repo / "sw-factory.yaml")
     assert (cfg.project, cfg.approvers, cfg.base_branch) == ("Range Tool", ["Cord", "Alex"], "develop")
     assert (cfg.builds, cfg.mode, cfg.verify_quick, cfg.verify_full) == ("ask", "auto", "make quick", "make all")
     assert (cfg.branching, cfg.work_branch) == ("per-item", None)
 
 
-def test_factory_yaml_writes_every_default_explicitly(repo):
+def test_sw_factory_yaml_writes_every_default_explicitly(repo):
     setup_project(repo, make_answers())
-    text = (repo / "factory.yaml").read_text(encoding="utf-8")
+    text = (repo / "sw-factory.yaml").read_text(encoding="utf-8")
     data = yaml.safe_load(text)
     assert data["version"] == 1
     assert data["hard_stops"] == DEFAULT_HARD_STOPS
@@ -98,19 +98,19 @@ def test_factory_yaml_writes_every_default_explicitly(repo):
     assert data["review"] == {"max_rounds": 3}
     assert data["work_branch"] is None and data["builds"] == "allow" and data["mode"] == "review"
     assert "#" in text  # every key is explained by a comment
-    cfg = load_project_config(repo / "factory.yaml")
+    cfg = load_project_config(repo / "sw-factory.yaml")
     assert (cfg.size_cap, cfg.max_rounds, cfg.hard_stops) == (400, 3, DEFAULT_HARD_STOPS)
 
 
 def test_single_branching_writes_the_work_branch_and_per_item_writes_null(repo, tmp_path):
     setup_project(repo, make_answers(branching="single", work_branch="factory-work"))
-    cfg = load_project_config(repo / "factory.yaml")
+    cfg = load_project_config(repo / "sw-factory.yaml")
     assert (cfg.branching, cfg.work_branch) == ("single", "factory-work")
 
     other = tmp_path / "other"
     other.mkdir()
     setup_project(other, make_answers(branching="per-item", work_branch="ignored"))
-    assert load_project_config(other / "factory.yaml").work_branch is None
+    assert load_project_config(other / "sw-factory.yaml").work_branch is None
 
 
 def test_awkward_values_survive_the_round_trip(repo):
@@ -118,7 +118,7 @@ def test_awkward_values_survive_the_round_trip(repo):
         project='My "Project": v2 #1', verify_quick=AWKWARD_COMMAND, verify_full=AWKWARD_COMMAND + " --full",
         approvers=["Ann: the \"owner\"", "b#c"], base_branch="release/{1}",
     ))
-    cfg = load_project_config(repo / "factory.yaml")
+    cfg = load_project_config(repo / "sw-factory.yaml")
     assert cfg.project == 'My "Project": v2 #1'
     assert cfg.verify_quick == AWKWARD_COMMAND and cfg.verify_full == AWKWARD_COMMAND + " --full"
     assert cfg.approvers == ["Ann: the \"owner\"", "b#c"] and cfg.base_branch == "release/{1}"
@@ -142,7 +142,7 @@ def test_invalid_answers_raise_and_write_nothing(repo):
         {"verify_full": "  "},
         {"project": ""},
     ):
-        with pytest.raises(SetupError, match="factory.yaml"):
+        with pytest.raises(SetupError, match="sw-factory.yaml"):
             setup_project(repo, make_answers(**bad))
         assert tree(repo) == set(), bad
 
@@ -219,7 +219,7 @@ def test_review_md_template_says_the_review_format_lives_in_the_prompts(repo):
 
 def test_expected_failures_template_states_the_exit_code_contract(repo):
     setup_project(repo, make_answers())
-    text = (repo / "factory/baseline/expected-failures.md").read_text(encoding="utf-8")
+    text = (repo / "sw-factory/baseline/expected-failures.md").read_text(encoding="utf-8")
     assert "exits 0" in text and "exit code" in text and "verify" in text
 
 
@@ -253,20 +253,20 @@ def test_setup_refuses_second_run(repo):
     assert {p: p.read_bytes() for p in repo.rglob("*") if p.is_file()} == before
 
 
-def test_setup_refuses_when_factory_yaml_exists_whatever_it_holds(repo):
-    put(repo / "factory.yaml", "not even yaml: [")
+def test_setup_refuses_when_sw_factory_yaml_exists_whatever_it_holds(repo):
+    put(repo / "sw-factory.yaml", "not even yaml: [")
     with pytest.raises(SetupError, match="already set up"):
         setup_project(repo, make_answers())
-    assert tree(repo) == {"factory.yaml"}
+    assert tree(repo) == {"sw-factory.yaml"}
 
 
-@pytest.mark.parametrize("name", ["REVIEW.md", "factory/lessons.md", "factory/baseline/expected-failures.md"])
+@pytest.mark.parametrize("name", ["REVIEW.md", "sw-factory/lessons.md", "sw-factory/baseline/expected-failures.md"])
 def test_setup_will_not_overwrite_an_existing_file(repo, name):
     put(repo / name, "the project's own text\n")
     with pytest.raises(SetupError, match=r"already exists"):
         setup_project(repo, make_answers())
     assert (repo / name).read_text(encoding="utf-8") == "the project's own text\n"
-    assert not (repo / "factory.yaml").exists() and not (repo / "CLAUDE.md").exists()
+    assert not (repo / "sw-factory.yaml").exists() and not (repo / "CLAUDE.md").exists()
 
 
 # --------------------------------------------------------------------------- a write that fails
@@ -298,7 +298,7 @@ def failing_replace(monkeypatch, name: str, exc: BaseException | None = None):
     return seen
 
 
-@pytest.mark.parametrize("name", ["factory", "factory/baseline", "factory/work"])
+@pytest.mark.parametrize("name", ["sw-factory", "sw-factory/baseline", "sw-factory/work"])
 def test_a_plain_file_where_a_factory_folder_goes_is_refused_before_any_write(repo, name):
     put(repo / "AGENTS.md", "# A\n")
     put(repo / name, "not a folder")
@@ -323,7 +323,7 @@ def test_a_read_only_file_is_refused_and_a_retry_after_making_it_writable_succee
         os.chmod(agents, stat.S_IREAD | stat.S_IWRITE)
     res = setup_project(repo, make_answers())
     assert {"AGENTS.md", "CLAUDE.md", ".gitignore"} <= set(relative(repo, res.updated))
-    assert (repo / "AGENTS.md").read_text(encoding="utf-8").count(BEGIN) == 1 and (repo / "factory.yaml").is_file()
+    assert (repo / "AGENTS.md").read_text(encoding="utf-8").count(BEGIN) == 1 and (repo / "sw-factory.yaml").is_file()
 
 
 def test_a_failed_edit_undoes_everything_and_a_retry_succeeds(repo, monkeypatch):
@@ -339,7 +339,7 @@ def test_a_failed_edit_undoes_everything_and_a_retry_succeeds(repo, monkeypatch)
     assert snapshot(repo) == before  # no new file or folder, no temporary file, every original byte-identical
     monkeypatch.undo()
     res = setup_project(repo, make_answers())
-    assert (repo / "factory.yaml").is_file() and "AGENTS.md" in relative(repo, res.updated)
+    assert (repo / "sw-factory.yaml").is_file() and "AGENTS.md" in relative(repo, res.updated)
 
 
 def test_a_failed_swap_of_a_read_only_file_leaves_no_temporary_file(repo, monkeypatch):
@@ -375,13 +375,13 @@ def test_a_failed_folder_creation_removes_what_was_made_before_it(repo, monkeypa
     assert snapshot(repo) == before
 
 
-def test_a_failed_last_write_leaves_no_partial_factory_yaml_and_restores_the_edits(repo, monkeypatch):
+def test_a_failed_last_write_leaves_no_partial_sw_factory_yaml_and_restores_the_edits(repo, monkeypatch):
     project_with_files_to_edit(repo)
     before = snapshot(repo)
     real = Path.write_bytes
 
     def write_bytes(self, data):
-        if self.name == "factory.yaml":
+        if self.name == "sw-factory.yaml":
             real(self, data[:10])  # a partial file, as a full disk would leave
             raise OSError(errno.ENOSPC, "No space left on device", str(self))
         return real(self, data)
@@ -428,7 +428,7 @@ def test_what_setup_could_not_undo_is_named(repo, monkeypatch):
     assert set(after) == set(before)
 
 
-def test_factory_yaml_is_written_last(repo, monkeypatch):
+def test_sw_factory_yaml_is_written_last(repo, monkeypatch):
     put(repo / "AGENTS.md", "# A\n")
     events: list[str] = []
     real_write, real_replace = Path.write_bytes, os.replace
@@ -444,7 +444,7 @@ def test_factory_yaml_is_written_last(repo, monkeypatch):
     monkeypatch.setattr(Path, "write_bytes", write_bytes)
     monkeypatch.setattr(os, "replace", replace)
     setup_project(repo, make_answers())
-    assert events[-1] == "factory.yaml"
+    assert events[-1] == "sw-factory.yaml"
     assert {"REVIEW.md", "lessons.md", "expected-failures.md", ".gitignore", "AGENTS.md"} <= set(events)
 
 
@@ -537,8 +537,8 @@ def test_only_the_existing_file_gets_the_section_when_one_exists(repo):
 def test_section_says_where_work_lives_how_to_resume_and_how_to_verify(repo):
     setup_project(repo, make_answers(verify_quick="make quick", verify_full="make all"))
     text = (repo / "CLAUDE.md").read_text(encoding="utf-8")
-    for expected in ("factory/work/", "factory work status", "progress.md", "`make quick`", "`make all`",
-                     "factory.yaml", "REVIEW.md", "expected-failures.md", "never edit product code"):
+    for expected in ("sw-factory/work/", "sw-factory work status", "progress.md", "`make quick`", "`make all`",
+                     "sw-factory.yaml", "REVIEW.md", "expected-failures.md", "never edit product code"):
         assert expected in text, expected
 
 
@@ -569,7 +569,7 @@ def test_a_section_already_current_is_not_reported_as_updated(repo, tmp_path):
 
 # --------------------------------------------------------------------------- .gitignore
 
-@pytest.mark.parametrize("line", ["factory/dashboard/", "/factory/dashboard/", "factory/dashboard", "  factory/dashboard/  "])
+@pytest.mark.parametrize("line", ["sw-factory/dashboard/", "/sw-factory/dashboard/", "sw-factory/dashboard", "  sw-factory/dashboard/  "])
 def test_gitignore_entry_once(repo, line):
     put(repo / ".gitignore", f"*.pyc\n{line}\nbuild/\n")
     res = setup_project(repo, make_answers())
@@ -580,15 +580,15 @@ def test_gitignore_entry_once(repo, line):
 def test_gitignore_entry_is_appended_once_and_keeps_the_rest(repo):
     put(repo / ".gitignore", b"*.pyc\r\nbuild/")
     res = setup_project(repo, make_answers())
-    assert (repo / ".gitignore").read_bytes() == b"*.pyc\r\nbuild/\r\nfactory/dashboard/\r\n"
+    assert (repo / ".gitignore").read_bytes() == b"*.pyc\r\nbuild/\r\nsw-factory/dashboard/\r\n"
     assert ".gitignore" in relative(repo, res.updated)
 
 
 def test_gitignore_comment_naming_the_folder_does_not_count(repo):
-    put(repo / ".gitignore", "# factory/dashboard/ goes below\n")
+    put(repo / ".gitignore", "# sw-factory/dashboard/ goes below\n")
     setup_project(repo, make_answers())
     lines = (repo / ".gitignore").read_text(encoding="utf-8").splitlines()
-    assert lines == ["# factory/dashboard/ goes below", "factory/dashboard/"]
+    assert lines == ["# sw-factory/dashboard/ goes below", "sw-factory/dashboard/"]
 
 
 # --------------------------------------------------------------------------- conflicts
@@ -655,11 +655,11 @@ def test_cli_setup_prints_the_result_as_json(repo, monkeypatch, capsys):
     put(repo / "AGENTS.md", "- Do not build the solution.\n")
     assert run_cli(monkeypatch, repo, *BASE_ARGV) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["created"] == ["factory.yaml", "REVIEW.md", "factory/work", "factory/baseline/expected-failures.md",
-                              "factory/lessons.md", ".gitignore"]
+    assert out["created"] == ["sw-factory.yaml", "REVIEW.md", "sw-factory/work", "sw-factory/baseline/expected-failures.md",
+                              "sw-factory/lessons.md", ".gitignore"]
     assert out["updated"] == ["AGENTS.md"]
     assert out["conflicts"] == ["AGENTS.md:1: - Do not build the solution."]
-    assert load_project_config(repo / "factory.yaml").approvers == ["owner"]
+    assert load_project_config(repo / "sw-factory.yaml").approvers == ["owner"]
 
 
 def test_cli_setup_takes_every_option(repo, monkeypatch, capsys):
@@ -668,7 +668,7 @@ def test_cli_setup_takes_every_option(repo, monkeypatch, capsys):
             "--work-branch", "factory-work", "--builds", "ask", "--mode", "auto"]
     assert run_cli(monkeypatch, repo, *argv) == 0
     capsys.readouterr()
-    cfg = load_project_config(repo / "factory.yaml")
+    cfg = load_project_config(repo / "sw-factory.yaml")
     assert (cfg.project, cfg.approvers, cfg.base_branch, cfg.branching) == ("Range Tool", ["Cord", "Alex"], "develop", "single")
     assert (cfg.work_branch, cfg.builds, cfg.mode) == ("factory-work", "ask", "auto")
 

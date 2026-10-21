@@ -15,7 +15,7 @@ session, and the commit approved, in ``<work folder>/approvals/<artifact>-rev<re
 
     > the owner's words, one ">" line for each line they wrote
 
-No record is written without a non-empty quote and an approver named in ``factory.yaml``, and a record is
+No record is written without a non-empty quote and an approver named in ``sw-factory.yaml``, and a record is
 never overwritten: a changed artifact is approved again as a new revision.
 """
 from __future__ import annotations
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from swfactory.config import ProjectConfig
+from swfactory.config import PROJECT_CONFIG, ProjectConfig
 
 __all__ = ["Approval", "ApprovalError", "latest_approval", "record_approval"]
 
@@ -108,7 +108,7 @@ def _check_approver(cfg: ProjectConfig, approver: str) -> str:
     allowed = [entry.strip() for entry in cfg.approvers]
     if name not in allowed:
         raise ApprovalError(
-            f"{name!r} is not one of the approvers listed in factory.yaml; allowed: {', '.join(allowed)}"
+            f"{name!r} is not one of the approvers listed in {PROJECT_CONFIG}; allowed: {', '.join(allowed)}"
         )
     return name
 

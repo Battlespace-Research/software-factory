@@ -1,7 +1,7 @@
 """Work items: ids, branches, folders and the Status line of ``progress.md`` (design section 8).
 
 A piece of work gets an id (``FIX-1``, ``FEA-12``, ``PRG-3``), numbered per track and never reused, a branch
-``factory/<ID>-<slug>`` and a folder ``factory/work/<ID>-<slug>/`` of template files. The Status line on the
+``sw-factory/<ID>-<slug>`` and a folder ``sw-factory/work/<ID>-<slug>/`` of template files. The Status line on the
 first line of its ``progress.md`` is the resume point for any session that picks the work up.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from swfactory.config import ProjectConfig, factory_home
+from swfactory.config import PROJECT_FOLDER, ProjectConfig, factory_home
 from swfactory.gitutil import GitError, current_branch, ref_exists, run_git
 from swfactory.tracks import TRACK_PREFIX, track_for_id
 from swfactory.trailers import work_trailer
@@ -22,6 +22,7 @@ from swfactory.trailers import work_trailer
 __all__ = [
     "GitError",
     "TRACK_PREFIX",
+    "WORK_ROOT_GIT",
     "Status",
     "WorkItem",
     "create_work_item",
@@ -34,9 +35,9 @@ __all__ = [
     "write_status",
 ]
 
-BRANCH_PREFIX = "factory/"
-_WORK_ROOT = ("factory", "work")  # the folder of work folders, below the project root
-_WORK_ROOT_GIT = "/".join(_WORK_ROOT) + "/"
+BRANCH_PREFIX = f"{PROJECT_FOLDER}/"  # work-item branches are <BRANCH_PREFIX><ID>-<slug>
+_WORK_ROOT = (PROJECT_FOLDER, "work")  # the folder of work folders, below the project root
+WORK_ROOT_GIT = "/".join(_WORK_ROOT) + "/"  # the same as a git path, which always uses "/"
 
 # A work id is ``<PREFIX>-<number>`` with an optional letter for a collision (``FEA-12b``); a work folder or
 # branch name continues with ``-<slug>``. The ``-`` after the number or letter keeps the two apart.
@@ -46,7 +47,7 @@ _NAME = re.compile(
 )
 _SLUG = re.compile(r"[a-z0-9-]{1,40}")
 
-# ``refs/heads/factory/<name>`` and ``refs/remotes/<remote>/factory/<name>``.
+# ``refs/heads/sw-factory/<name>`` and ``refs/remotes/<remote>/sw-factory/<name>``.
 _FACTORY_REF = re.compile(rf"refs/(?:heads|remotes/[^/]+)/{re.escape(BRANCH_PREFIX)}(?P<name>.+)")
 
 _PLACEHOLDER = re.compile(r"\{\{(id|title|track|date)\}\}")
@@ -91,18 +92,18 @@ def _refs(repo: Path) -> list[_Ref]:
 
 
 def _work_folder_names(repo: Path, tree: str) -> list[str]:
-    """The names of the entries of ``factory/work/`` in the tree of ``tree`` (none if there is no such folder)."""
-    listing = run_git(repo, "ls-tree", "-z", "--name-only", tree, "--", _WORK_ROOT_GIT)
+    """The names of the entries of ``sw-factory/work/`` in the tree of ``tree`` (none if there is no such folder)."""
+    listing = run_git(repo, "ls-tree", "-z", "--name-only", tree, "--", WORK_ROOT_GIT)
     return [entry.rsplit("/", 1)[-1] for entry in listing.split("\0") if entry]
 
 
 def ids_in_use(repo: Path, base: str) -> set[str]:
     """Every work id already taken in ``repo``.
 
-    Read from the ``factory/work/*`` folders in the trees of the base branch (and its copy on each remote)
+    Read from the ``sw-factory/work/*`` folders in the trees of the base branch (and its copy on each remote)
     and of the checked-out commit (with single branching the items live on the work branch), and from the
-    names of all local and remote ``factory/*`` branches. Anything else is ignored. A missing base branch,
-    remote, commit or ``factory/work`` folder just contributes nothing.
+    names of all local and remote ``sw-factory/*`` branches. Anything else is ignored. A missing base branch,
+    remote, commit or ``sw-factory/work`` folder just contributes nothing.
     """
     refs = _refs(repo)
     remote_base = re.compile(rf"refs/remotes/[^/]+/{re.escape(base)}")
@@ -199,7 +200,7 @@ def _abandon(repo: Path, folder: Path, branch: str | None, return_to: str, detac
     except GitError:
         pass
     shutil.rmtree(folder, ignore_errors=True)
-    for parent in (folder.parent, folder.parent.parent):  # factory/work, then factory, only if now empty
+    for parent in (folder.parent, folder.parent.parent):  # sw-factory/work, then sw-factory, only if now empty
         try:
             parent.rmdir()
         except OSError:
@@ -216,7 +217,7 @@ def _abandon(repo: Path, folder: Path, branch: str | None, return_to: str, detac
 def create_work_item(repo: Path, cfg: ProjectConfig, track: str, slug: str, title: str) -> WorkItem:
     """Open a work item: allocate its id, give it a branch, copy its track's templates and commit them.
 
-    With per-item branching the branch ``factory/<ID>-<slug>`` is cut from the base branch and checked out.
+    With per-item branching the branch ``sw-factory/<ID>-<slug>`` is cut from the base branch and checked out.
     With single branching the repo must already be on the project's work branch, which gets the commit.
     The commit is ``<ID>: open work item`` with a ``Factory-Work: <ID>`` trailer, and holds only the new folder.
 
@@ -279,7 +280,7 @@ def _read_title(folder: Path, id_: str, slug: str) -> str:
 
 
 def _branches_of(repo: Path, id_: str) -> list[str]:
-    """Local and remote ``factory/`` branch names (without the remote) that belong to ``id_``."""
+    """Local and remote ``sw-factory/`` branch names (without the remote) that belong to ``id_``."""
     try:
         refs = _refs(repo)
     except GitError:

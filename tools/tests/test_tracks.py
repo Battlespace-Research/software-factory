@@ -42,7 +42,7 @@ def test_track_for_id_maps_ids_and_work_folder_names(name, track):
         "FIX-3-",
         "FIX-3\n",
         "T1",
-        "factory",
+        "sw-factory",
         "../FIX-3",
     ],
 )
@@ -52,28 +52,28 @@ def test_track_for_id_rejects_anything_else(name):
 
 
 def test_find_project_root_from_a_nested_folder(tmp_path):
-    (tmp_path / "factory.yaml").write_text("project: x\n", encoding="utf-8")
-    work = tmp_path / "factory" / "work" / "FIX-1-x" / "reviews"
+    (tmp_path / "sw-factory.yaml").write_text("project: x\n", encoding="utf-8")
+    work = tmp_path / "sw-factory" / "work" / "FIX-1-x" / "reviews"
     work.mkdir(parents=True)
     assert find_project_root(work) == tmp_path.resolve()
 
 
 def test_find_project_root_when_start_is_the_root(tmp_path):
-    (tmp_path / "factory.yaml").write_text("project: x\n", encoding="utf-8")
+    (tmp_path / "sw-factory.yaml").write_text("project: x\n", encoding="utf-8")
     assert find_project_root(tmp_path) == tmp_path.resolve()
 
 
 def test_find_project_root_takes_the_nearest(tmp_path):
-    (tmp_path / "factory.yaml").write_text("project: outer\n", encoding="utf-8")
+    (tmp_path / "sw-factory.yaml").write_text("project: outer\n", encoding="utf-8")
     inner = tmp_path / "sub" / "project"
     inner.mkdir(parents=True)
-    (inner / "factory.yaml").write_text("project: inner\n", encoding="utf-8")
-    assert find_project_root(inner / "factory") == inner.resolve()
+    (inner / "sw-factory.yaml").write_text("project: inner\n", encoding="utf-8")
+    assert find_project_root(inner / "sw-factory") == inner.resolve()
 
 
-def test_find_project_root_without_factory_yaml_names_the_start(tmp_path):
+def test_find_project_root_without_sw_factory_yaml_names_the_start(tmp_path):
     start = tmp_path / "a" / "b"
     start.mkdir(parents=True)
     with pytest.raises(FileNotFoundError) as err:
         find_project_root(start)
-    assert str(start) in str(err.value) and "factory.yaml" in str(err.value)
+    assert str(start) in str(err.value) and "sw-factory.yaml" in str(err.value)

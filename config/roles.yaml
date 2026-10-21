@@ -2,7 +2,7 @@
 #
 # This is the only file in the factory that names a model. Skills, prompts, agents,
 # templates and swfactory code refer to roles only. A project may override any role in
-# its factory.yaml under `roles:` (a partial override is merged field by field).
+# its sw-factory.yaml under `roles:` (a partial override is merged field by field).
 #
 # Fields per role:
 #   stage    plan | design | build | test | deploy | maintain

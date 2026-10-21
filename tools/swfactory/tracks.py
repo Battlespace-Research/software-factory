@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from swfactory.config import PROJECT_CONFIG
+
 TRACK_PREFIX = {"program": "PRG", "feature": "FEA", "fix": "FIX"}
 
 _TRACK_FOR_PREFIX = {prefix: track for track, prefix in TRACK_PREFIX.items()}
@@ -27,12 +29,12 @@ def track_for_id(id_: str) -> str:
 
 
 def find_project_root(start: Path) -> Path:
-    """The nearest folder at or above ``start`` that holds a ``factory.yaml``.
+    """The nearest folder at or above ``start`` that holds a ``sw-factory.yaml``.
 
     Raises ``FileNotFoundError`` naming ``start`` when there is none.
     """
     here = Path(start).resolve()
     for folder in (here, *here.parents):
-        if (folder / "factory.yaml").is_file():
+        if (folder / PROJECT_CONFIG).is_file():
             return folder
-    raise FileNotFoundError(f"no factory.yaml in {start} or any folder above it")
+    raise FileNotFoundError(f"no {PROJECT_CONFIG} in {start} or any folder above it")

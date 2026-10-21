@@ -1,4 +1,4 @@
-"""The ``factory`` command line.
+"""The ``sw-factory`` command line.
 
 ``COMMANDS`` lists every top-level subcommand; the skill lint checks the commands that
 factory skills mention against it, so a task that adds a subcommand adds its name here.
@@ -24,6 +24,7 @@ from swfactory.config import (
     BRANCHING,
     BUILDS,
     MODES,
+    PROJECT_CONFIG,
     ConfigError,
     RoleTable,
     check_config,
@@ -45,15 +46,15 @@ from swfactory.workitems import Status, WorkItem, create_work_item, find_work_it
 
 COMMANDS: set[str] = {"config", "role", "panel", "work", "approve", "gate", "setup", "skills", "prompt"}
 
-# Exit codes of ``factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
+# Exit codes of ``sw-factory role run`` besides 0 (done) and 1 (the run failed; retry with --fallback).
 EXIT_USAGE = 2
 EXIT_NOT_A_COMMAND = 3  # a main or subagent role: the caller has to act on what was printed
 
-# Exit codes of ``factory panel combine`` are the panel verdict. A problem that stops it reaching a verdict
+# Exit codes of ``sw-factory panel combine`` are the panel verdict. A problem that stops it reaching a verdict
 # (not a work folder, no REVIEW.md, no git to name the commit) exits EXIT_USAGE with the reason on stderr.
 _PANEL_EXIT = {"PASS": 0, "CHANGES": 1, "INCOMPLETE": 2}
 
-# ``factory role resolve`` prints the invocation without a real output file; this stands in.
+# ``sw-factory role resolve`` prints the invocation without a real output file; this stands in.
 _PLACEHOLDER_OUT = Path("<out-file>")
 
 
@@ -94,11 +95,11 @@ def _print_problems(problems: list[str]) -> int:
 
 
 def _load_role_table(project: Path | None) -> RoleTable:
-    """The default role table, with the role overrides of a project's factory.yaml when one is given."""
+    """The default role table, with the role overrides of a project's sw-factory.yaml when one is given."""
     overrides = None
     if project is not None:
-        factory_yaml = project / "factory.yaml" if project.is_dir() else project
-        overrides = load_project_config(factory_yaml).role_overrides
+        sw_factory_yaml = project / PROJECT_CONFIG if project.is_dir() else project
+        overrides = load_project_config(sw_factory_yaml).role_overrides
     return load_role_table(factory_home() / "config" / "roles.yaml", overrides)
 
 
@@ -203,7 +204,7 @@ def _cmd_work_help(args: argparse.Namespace) -> int:
 
 
 def _work_project_root(project: Path | None) -> Path:
-    """The project the ``work`` commands act on: ``--project`` (a folder or its factory.yaml), else the one
+    """The project the ``work`` commands act on: ``--project`` (a folder or its sw-factory.yaml), else the one
     around the current folder."""
     if project is None:
         return find_project_root(Path.cwd())
@@ -213,7 +214,7 @@ def _work_project_root(project: Path | None) -> Path:
 def _cmd_work_new(args: argparse.Namespace) -> int:
     try:
         root = _work_project_root(args.project)
-        item = create_work_item(root, load_project_config(root / "factory.yaml"), args.track, args.slug, args.title)
+        item = create_work_item(root, load_project_config(root / PROJECT_CONFIG), args.track, args.slug, args.title)
     except ConfigError as err:
         return _print_problems(err.problems)
     except (ValueError, OSError, GitError) as err:
@@ -261,7 +262,7 @@ def _cmd_approve(args: argparse.Namespace) -> int:
             return _print_problems([f"cannot read the quote file {args.quote_file}: {err}"])
     try:
         root = find_project_root(Path.cwd())
-        cfg = load_project_config(root / "factory.yaml")
+        cfg = load_project_config(root / PROJECT_CONFIG)
         item = find_work_item(root, args.id)
         record = record_approval(
             item.path, cfg, args.artifact, args.rev, quote, args.approver, args.commit, args.host, args.session
@@ -280,7 +281,7 @@ def _cmd_approve(args: argparse.Namespace) -> int:
 def _cmd_gate(args: argparse.Namespace) -> int:
     try:
         root = find_project_root(Path.cwd())
-        cfg = load_project_config(root / "factory.yaml")
+        cfg = load_project_config(root / PROJECT_CONFIG)
         item = find_work_item(root, args.id)
         reviewed = args.reviewed_commit
         if reviewed is None:
@@ -343,7 +344,7 @@ def _cmd_skills_check(args: argparse.Namespace) -> int:
     except ConfigError as err:
         return _print_problems(err.problems)
     if project is not None and project.is_file():
-        project = project.parent  # --project was the factory.yaml; the skill folders sit next to it
+        project = project.parent  # --project was the sw-factory.yaml; the skill folders sit next to it
     home = args.home if args.home is not None else Path.home()
     report = check_readiness(registry, table, args.host, home, project)
     for skill in report.present:
@@ -433,7 +434,7 @@ def _cmd_prompt_render(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="factory", description="Command-line tools for the BSRI software factory.")
+    parser = argparse.ArgumentParser(prog="sw-factory", description="Command-line tools for the BSRI software factory.")
     parser.add_argument("--version", action="store_true", help="print the version and exit")
     commands = parser.add_subparsers(dest="command", metavar="<command>")
 
@@ -441,13 +442,13 @@ def build_parser() -> argparse.ArgumentParser:
     config_commands = config.add_subparsers(dest="config_command", metavar="<subcommand>")
     check = config_commands.add_parser(
         "check",
-        help="validate roles.yaml and skills.yaml, and a project's factory.yaml; exit 1 listing every problem",
+        help="validate roles.yaml and skills.yaml, and a project's sw-factory.yaml; exit 1 listing every problem",
     )
     check.add_argument(
         "--project",
         type=Path,
         metavar="PATH",
-        help="a project folder or factory.yaml to validate as well (its role overrides are applied)",
+        help="a project folder or sw-factory.yaml to validate as well (its role overrides are applied)",
     )
     check.set_defaults(handler=_cmd_config_check)
 
@@ -475,7 +476,7 @@ def build_parser() -> argparse.ArgumentParser:
             "--project",
             type=Path,
             metavar="PATH",
-            help="a project folder or factory.yaml whose role overrides are applied",
+            help="a project folder or sw-factory.yaml whose role overrides are applied",
         )
     run.add_argument("--prompt", required=True, type=Path, metavar="FILE", help="the prompt, sent on stdin")
     run.add_argument("--out", required=True, type=Path, metavar="FILE", help="where the reviewer's text is written")
@@ -494,7 +495,7 @@ def build_parser() -> argparse.ArgumentParser:
         "work_dir",
         type=Path,
         metavar="WORK_DIR",
-        help="the work item's folder, factory/work/<ID>-<slug>; its name gives the track, and its lenses come "
+        help="the work item's folder, sw-factory/work/<ID>-<slug>; its name gives the track, and its lenses come "
         "from the project's REVIEW.md",
     )
     combine_cmd.add_argument("--task", required=True, metavar="T", help="the task id, as in reviews/<T>-r<N>-<lens>.md")
@@ -536,7 +537,7 @@ def build_parser() -> argparse.ArgumentParser:
             "--project",
             type=Path,
             metavar="PATH",
-            help="a project folder or factory.yaml (default: the project around the current folder)",
+            help="a project folder or sw-factory.yaml (default: the project around the current folder)",
         )
     approve = commands.add_parser(
         "approve",
@@ -560,7 +561,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="a UTF-8 file holding the owner's message, word for word; read exactly as --quote would be, "
         "and safe from shell quoting",
     )
-    approve.add_argument("--approver", required=True, metavar="A", help="who approved; must be listed under approvers in factory.yaml")
+    approve.add_argument("--approver", required=True, metavar="A", help="who approved; must be listed under approvers in sw-factory.yaml")
     approve.add_argument("--commit", required=True, metavar="C", help="the commit that holds the approved revision")
     approve.add_argument("--host", default="", metavar="H", help="the host of the session, such as claude or codex")
     approve.add_argument("--session", default="", metavar="S", help="the session id, if the host has one")
@@ -587,13 +588,13 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument(
         "--builds-approved",
         action="store_true",
-        help="the owner agreed to the full build (needed when factory.yaml says builds: ask)",
+        help="the owner agreed to the full build (needed when sw-factory.yaml says builds: ask)",
     )
     gate.set_defaults(handler=_cmd_gate)
 
     setup = commands.add_parser(
         "setup",
-        help="set up the project in the current folder for the factory: factory.yaml, REVIEW.md, the factory/ "
+        help="set up the project in the current folder for the factory: sw-factory.yaml, REVIEW.md, the sw-factory/ "
         "folders and a factory section in CLAUDE.md/AGENTS.md; prints what it created and updated, and the project "
         "rules that conflict with factory defaults, as JSON (does not commit; exit 2 if it refuses)",
     )
@@ -661,7 +662,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--project",
         type=Path,
         metavar="PATH",
-        help="a project folder or factory.yaml: its own skill folders are searched and its role overrides applied",
+        help="a project folder or sw-factory.yaml: its own skill folders are searched and its role overrides applied",
     )
     skills_check.add_argument(
         "--home",

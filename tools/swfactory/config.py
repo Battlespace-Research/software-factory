@@ -1,4 +1,4 @@
-"""Configuration for the factory: role table, skills registry and a project's factory.yaml.
+"""Configuration for the factory: role table, skills registry and a project's sw-factory.yaml.
 
 Every loader collects all the problems it can find and raises one ``ConfigError`` carrying
 them, so a person fixes a file in one pass. Model names live only in ``config/roles.yaml``;
@@ -22,6 +22,11 @@ BINDING_VENDORS = ("claude", "openai")
 BRANCHING = ("per-item", "single")
 MODES = ("review", "auto")
 BUILDS = ("allow", "ask")
+
+# A project's factory settings, at its root; the file's presence marks the project as set up.
+PROJECT_CONFIG = "sw-factory.yaml"
+# The factory's folder in a project: work items, the test baseline, lessons and the dashboard.
+PROJECT_FOLDER = "sw-factory"
 
 DEFAULT_HARD_STOPS = [
     "main-branch",
@@ -315,7 +320,7 @@ def load_skills_registry(path: Path) -> dict[str, list[SkillReq]]:
 
 @dataclass
 class ProjectConfig:
-    """A project's ``factory.yaml`` with every default filled in."""
+    """A project's ``sw-factory.yaml`` with every default filled in."""
 
     project: str
     base_branch: str
@@ -335,7 +340,7 @@ class ProjectConfig:
 
 
 def load_project_config(path: Path) -> ProjectConfig:
-    """Load a project's ``factory.yaml``, fill defaults, and validate.
+    """Load a project's ``sw-factory.yaml``, fill defaults, and validate.
 
     Unknown top-level keys are ignored: the file also carries settings that later parts of
     the factory read (design section 6.2). Raises ``ConfigError`` listing every problem.
@@ -473,24 +478,24 @@ def _check_review_md(path: Path, table: RoleTable | None) -> list[str]:
 
 
 def check_config(project: Path | None = None) -> list[str]:
-    """Validate the factory's own config, and a project's ``factory.yaml`` when given.
+    """Validate the factory's own config, and a project's ``sw-factory.yaml`` when given.
 
-    ``project`` is a project folder or a ``factory.yaml`` path. When a ``REVIEW.md`` sits next to the
-    ``factory.yaml`` it is checked too: that it loads, and that every track has a lens on the other vendor
-    (judged with the project's role overrides, so only when its ``factory.yaml`` is valid). Returns every
+    ``project`` is a project folder or a ``sw-factory.yaml`` path. When a ``REVIEW.md`` sits next to the
+    ``sw-factory.yaml`` it is checked too: that it loads, and that every track has a lens on the other vendor
+    (judged with the project's role overrides, so only when its ``sw-factory.yaml`` is valid). Returns every
     problem found (empty when all is well); never raises ``ConfigError``.
     """
     home = factory_home()
     problems: list[str] = []
 
     overrides: dict | None = None
-    factory_yaml: Path | None = None
+    sw_factory_yaml: Path | None = None
     project_loaded = False
     if project is not None:
         project = Path(project)
-        factory_yaml = project / "factory.yaml" if project.is_dir() else project
+        sw_factory_yaml = project / PROJECT_CONFIG if project.is_dir() else project
         try:
-            overrides = load_project_config(factory_yaml).role_overrides
+            overrides = load_project_config(sw_factory_yaml).role_overrides
             project_loaded = True
         except ConfigError as err:
             problems.extend(err.problems)
@@ -512,6 +517,6 @@ def check_config(project: Path | None = None) -> list[str]:
             if role != "*" and role not in table.roles:
                 problems.append(f"skills.yaml: role '{role}' is not in roles.yaml")
 
-    if factory_yaml is not None:
-        problems.extend(_check_review_md(factory_yaml.parent / "REVIEW.md", table if project_loaded else None))
+    if sw_factory_yaml is not None:
+        problems.extend(_check_review_md(sw_factory_yaml.parent / "REVIEW.md", table if project_loaded else None))
     return problems

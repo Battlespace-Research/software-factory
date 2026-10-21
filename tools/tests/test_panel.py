@@ -1,4 +1,4 @@
-"""Tests for swfactory.panel (combining lens reviews into one verdict) and the ``factory panel`` command."""
+"""Tests for swfactory.panel (combining lens reviews into one verdict) and the ``sw-factory panel`` command."""
 from __future__ import annotations
 
 import io
@@ -391,7 +391,7 @@ def test_latest_passing_commit_reads_a_hand_edited_summary(tmp_path):
     assert latest_passing_commit(tmp_path) == "abc"
 
 
-# --------------------------------------------------------------------------- the factory panel command
+# --------------------------------------------------------------------------- the sw-factory panel command
 
 REVIEW_MD = """\
 ---
@@ -415,10 +415,10 @@ nit_cap: %d
 
 def make_project(tmp_path: Path, work_name: str = "FIX-1-demo", nit_cap: int = 5) -> Path:
     root = tmp_path / "proj"
-    (root / "factory" / "work" / work_name).mkdir(parents=True)
-    (root / "factory.yaml").write_text("project: demo\n", encoding="utf-8")
+    (root / "sw-factory" / "work" / work_name).mkdir(parents=True)
+    (root / "sw-factory.yaml").write_text("project: demo\n", encoding="utf-8")
     (root / "REVIEW.md").write_text(REVIEW_MD % nit_cap, encoding="utf-8")
-    return root / "factory" / "work" / work_name
+    return root / "sw-factory" / "work" / work_name
 
 
 def run_panel(work: Path, *extra: str, task: str = "T1", rnd: str = "1") -> int:
@@ -501,7 +501,7 @@ def test_cli_panel_without_a_commit_outside_git_is_an_error(tmp_path, capsys, mo
     assert not panel_path(work, "T1", 1).exists()
 
 
-@pytest.mark.parametrize("work_name", ["notes", "factory", "fix-3"])
+@pytest.mark.parametrize("work_name", ["notes", "sw-factory", "fix-3"])
 def test_cli_panel_needs_a_work_folder_name(tmp_path, capsys, work_name):
     work = make_project(tmp_path, work_name)
     assert run_panel(work, "--commit", "abc") == 2
@@ -519,7 +519,7 @@ def test_cli_panel_outside_a_project_is_an_error(tmp_path, capsys):
     work = tmp_path / "FIX-1-demo"
     work.mkdir()
     assert run_panel(work, "--commit", "abc") == 2
-    assert "factory.yaml" in capsys.readouterr().err
+    assert "sw-factory.yaml" in capsys.readouterr().err
 
 
 def test_cli_panel_missing_review_md_is_an_error(tmp_path, capsys):
@@ -539,7 +539,7 @@ def test_cli_panel_track_missing_from_review_md_is_an_error(tmp_path, capsys):
 
 def test_cli_panel_a_work_folder_that_does_not_exist_is_an_error_and_creates_nothing(tmp_path, capsys):
     make_project(tmp_path)
-    missing = tmp_path / "proj" / "factory" / "work" / "FIX-9-gone"
+    missing = tmp_path / "proj" / "sw-factory" / "work" / "FIX-9-gone"
     assert run_panel(missing, "--commit", "abc") == 2
     assert not missing.exists() and "FIX-9-gone" in capsys.readouterr().err
 

@@ -1,4 +1,4 @@
-"""Tests for swfactory.readiness (skill search paths, installed skills, the readiness report) and ``factory skills check``.
+"""Tests for swfactory.readiness (skill search paths, installed skills, the readiness report) and ``sw-factory skills check``.
 
 Every test builds its own home folder under ``tmp_path`` and passes it explicitly; the autouse fixture also
 points the environment at empty folders, so nothing reads the real home or the real ``%APPDATA%``.
@@ -591,11 +591,11 @@ def test_cli_check_with_a_project_reads_its_skills_and_role_overrides(home, tmp_
     make_skill(agents_skills(home), "grilling")
     project = tmp_path / "project"
     make_skill(project / ".claude" / "skills", "project-skill")
-    (project / "factory.yaml").write_text(yaml.safe_dump({
+    (project / "sw-factory.yaml").write_text(yaml.safe_dump({
         "project": "demo", "approvers": ["owner"], "verify": {"quick": "q", "full": "f"},
         "roles": {"interviewer": {"run_as": "subagent"}},
     }), encoding="utf-8")
-    for given in (project, project / "factory.yaml"):
+    for given in (project, project / "sw-factory.yaml"):
         code, out, _ = run_check(capsys, home, "--project", str(given))
         assert code == 1  # the project's override makes the interviewer unattended
         assert lines(out) == [

@@ -1,4 +1,4 @@
-# Factory settings for this project. `factory config check` validates this file.
+# Factory settings for this project. `sw-factory config check` validates this file.
 # Every key is written out with its default so the owner can see and change it.
 version: 1
 
@@ -26,7 +26,7 @@ approvers: {{approvers}}
 # The project's verify commands. Each exits 0 on success and non-zero on failure, and prints totals.
 #   quick: builds and tests what a task touched; run at every task.
 #   full:  the whole build and test suite; run by the tester, at milestone demos and at the merge gate.
-#          It compares its results with factory/baseline/expected-failures.md.
+#          It compares its results with sw-factory/baseline/expected-failures.md.
 verify:
   quick: {{verify_quick}}
   full: {{verify_full}}
@@ -62,5 +62,5 @@ hard_stops:
 # For example, a project limited to one vendor. Empty means every default stands.
 roles: {}
 
-# Mirror work items to GitHub issues. Leave false: the files in factory/work/ are the source of truth.
+# Mirror work items to GitHub issues. Leave false: the files in sw-factory/work/ are the source of truth.
 github_mirror: false

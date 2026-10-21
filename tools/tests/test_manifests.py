@@ -1,6 +1,6 @@
 """The plugin manifests (design section 6.1).
 
-The factory ships as one plugin, ``software-factory``, with a Claude Code manifest and a Codex manifest that
+The factory ships as one plugin, ``bsri-sw-factory``, with a Claude Code manifest and a Codex manifest that
 share one ``skills/`` folder. A marketplace file lists the plugin for each host. The manifests must agree with
 each other and with the CLI's version, and every path they name must exist.
 
@@ -18,7 +18,7 @@ import pytest
 import swfactory
 from swfactory.config import factory_home
 
-NAME = "software-factory"
+NAME = "bsri-sw-factory"
 MARKETPLACE = "bsri-factory"
 SHARED_FIELDS = ("name", "version", "description", "author", "repository", "license", "skills")
 

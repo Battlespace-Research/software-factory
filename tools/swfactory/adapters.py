@@ -84,10 +84,10 @@ REFUSED_CODEX_CONFIG_KEY_PREFIXES = ("sandbox_workspace_write", "sandbox_permiss
 
 # Role-name globs (first match wins) to the subagent definition that runs them on a Claude host.
 AGENT_FOR_ROLE: dict[str, str] = {
-    "lens-*": "factory-lens-reviewer",
-    "doc-reviewer-*": "factory-doc-reviewer",
-    "tester": "factory-tester",
-    "researcher": "factory-researcher",
+    "lens-*": "lens-reviewer",
+    "doc-reviewer-*": "doc-reviewer",
+    "tester": "tester",
+    "researcher": "researcher",
 }
 
 _MODEL_ALIAS = re.compile(r"^claude-([a-z]+)-")

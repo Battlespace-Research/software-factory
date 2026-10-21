@@ -4,9 +4,9 @@
 
 1. ``base-merged``: the base branch is already merged into the branch being merged.
 2. ``reviewed-commit``: HEAD is the commit the review panel passed (or later commits changed nothing but
-   factory bookkeeping under ``factory/work/``), and no tracked file has uncommitted changes.
+   factory bookkeeping under ``sw-factory/work/``), and no tracked file has uncommitted changes.
 3. ``size-cap``: the change is under the project's line cap. Generated files, binaries and everything under
-   ``factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
+   ``sw-factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
 4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id). The
    item's own folder, ``<ID>-<slug>`` exactly, is not counted: a Program merges once per milestone.
 5. ``verify-full``: the project's full verify command passes.
@@ -30,7 +30,7 @@ from pathlib import Path
 
 from swfactory.config import ProjectConfig
 from swfactory.gitutil import GitError, ref_exists, run_git
-from swfactory.workitems import WorkItem, ids_in_use, with_letter_suffix
+from swfactory.workitems import WORK_ROOT_GIT, WorkItem, ids_in_use, with_letter_suffix
 
 __all__ = ["GATE_FILE", "GateCheck", "GateReport", "render_gate_report", "run_gate", "write_gate_report"]
 
@@ -39,7 +39,6 @@ GATE_FILE = "merge-gate.md"
 _REMOTE = "origin"
 _VERIFY_TAIL_LINES = 40
 _LISTED_PATHS = 5  # paths a detail names before it says "and N more"
-_WORK_ROOT = "factory/work/"  # where the factory keeps work folders; git paths always use "/"
 _DASH = "—"  # between a check's result and its detail in the report
 
 
@@ -83,7 +82,7 @@ def _base_refs(repo: Path, base: str) -> list[_BaseRef]:
 def _missing_base(base: str) -> tuple[bool, str]:
     return False, (
         f"the base branch '{base}' was not found (no {_REMOTE}/{base} and no local {base}); "
-        "fetch it, or fix base_branch in factory.yaml"
+        "fetch it, or fix base_branch in sw-factory.yaml"
     )
 
 
@@ -130,7 +129,7 @@ def _name_paths(paths: list[str]) -> str:
 
 def _paths_changed_since(repo: Path, reviewed: str) -> list[str]:
     """Every path that differs between the commit ``reviewed`` and HEAD. ``--no-renames`` lists both the old and
-    the new path of a move, so a product file moved into ``factory/work/`` still shows up under its old name."""
+    the new path of a move, so a product file moved into ``sw-factory/work/`` still shows up under its old name."""
     listing = run_git(repo, "diff", "--no-renames", "--name-only", "-z", f"{reviewed}..HEAD")
     return [path for path in listing.split("\0") if path]
 
@@ -139,7 +138,7 @@ def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None,
     """How HEAD relates to the reviewed commit: ``(problem, None)`` or ``(None, what to say when it is fine)``.
 
     Fine when they are the same commit, or when the reviewed commit is an ancestor of HEAD and the commits
-    since changed only paths under ``factory/work/``: the factory commits its bookkeeping (panel summaries, the
+    since changed only paths under ``sw-factory/work/``: the factory commits its bookkeeping (panel summaries, the
     tester report, progress notes, approvals, this gate's report) after a review has passed, and none of that
     is product code the panel would have to look at again.
     """
@@ -152,11 +151,11 @@ def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None,
             None,
         )
     later = int(run_git(repo, "rev-list", "--count", f"{reviewed}..HEAD"))
-    outside = [path for path in _paths_changed_since(repo, reviewed) if not path.startswith(_WORK_ROOT)]
+    outside = [path for path in _paths_changed_since(repo, reviewed) if not path.startswith(WORK_ROOT_GIT)]
     if outside:
         return (
             f"HEAD is {head[:12]}, {later} commit(s) after the reviewed commit {reviewed[:12]}, and they changed "
-            f"files outside {_WORK_ROOT}: {_name_paths(outside)}; run the panel again on HEAD",
+            f"files outside {WORK_ROOT_GIT}: {_name_paths(outside)}; run the panel again on HEAD",
             None,
         )
     return None, (
@@ -194,7 +193,7 @@ def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
 
 def _changed_lines(numstat: str, generated: list[str]) -> int:
     """Lines added plus lines deleted in the output of ``git diff --numstat -z``, leaving out binary files,
-    everything under ``factory/work/`` (the factory's own artifacts are not product code, so the size cap
+    everything under ``sw-factory/work/`` (the factory's own artifacts are not product code, so the size cap
     does not count them) and paths that match a pattern in ``generated`` (``fnmatch`` globs; ``*`` also
     crosses ``/``).
 
@@ -218,7 +217,7 @@ def _changed_lines(numstat: str, generated: list[str]) -> int:
             lines = None if added == "-" and deleted == "-" else int(added) + int(deleted)
         except (ValueError, IndexError):
             raise GitError(f"cannot read the output of git diff --numstat: unexpected record {record!r}") from None
-        left_out = path.startswith(_WORK_ROOT) or any(fnmatch.fnmatchcase(path, pattern) for pattern in generated)
+        left_out = path.startswith(WORK_ROOT_GIT) or any(fnmatch.fnmatchcase(path, pattern) for pattern in generated)
         if lines is not None and not left_out:
             total += lines
     return total
@@ -238,8 +237,8 @@ def _size_cap(repo: Path, cfg: ProjectConfig, refs: list[_BaseRef]) -> tuple[boo
 
 
 def _work_folders(repo: Path, ref: str) -> list[str]:
-    """The names of the folders directly inside ``factory/work/`` in the tree of ``ref``."""
-    listing = run_git(repo, "ls-tree", "-z", ref, "--", _WORK_ROOT)
+    """The names of the folders directly inside ``sw-factory/work/`` in the tree of ``ref``."""
+    listing = run_git(repo, "ls-tree", "-z", ref, "--", WORK_ROOT_GIT)
     names = []
     for entry in listing.split("\0"):
         meta, _, path = entry.partition("\t")  # "<mode> <type> <object>" TAB "<path>"
@@ -261,8 +260,8 @@ def _id_unused(repo: Path, cfg: ProjectConfig, item: WorkItem, refs: list[_BaseR
             if folder.startswith(prefix) and folder != own:
                 found.setdefault(folder, ref.label)
     if not found:
-        return True, f"no other factory/work/{item.id}-* folder than {own} on {' or '.join(ref.label for ref in refs)}"
-    taken = ", ".join(f"factory/work/{folder} on {label}" for folder, label in found.items())
+        return True, f"no other {WORK_ROOT_GIT}{item.id}-* folder than {own} on {' or '.join(ref.label for ref in refs)}"
+    taken = ", ".join(f"{WORK_ROOT_GIT}{folder} on {label}" for folder, label in found.items())
     try:
         suggestion = f"; the next free id is {with_letter_suffix(item.id, ids_in_use(repo, cfg.base_branch))}"
     except (ValueError, GitError):

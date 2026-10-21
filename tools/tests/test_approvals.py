@@ -1,7 +1,7 @@
-"""Tests for swfactory.approvals and the ``factory approve`` command.
+"""Tests for swfactory.approvals and the ``sw-factory approve`` command.
 
 Nothing here needs git: an approval is a file in a work folder, and the command only has to find the
-project (a ``factory.yaml``) and the work folder around it.
+project (a ``sw-factory.yaml``) and the work folder around it.
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ def owner_cfg(cfg: ProjectConfig) -> ProjectConfig:
 
 @pytest.fixture
 def wd(tmp_path: Path) -> Path:
-    """A work folder as ``factory work new`` leaves it: ``approvals/`` holds only a ``.gitkeep``."""
-    folder = tmp_path / "factory" / "work" / "FEA-1-demo"
+    """A work folder as ``sw-factory work new`` leaves it: ``approvals/`` holds only a ``.gitkeep``."""
+    folder = tmp_path / "sw-factory" / "work" / "FEA-1-demo"
     (folder / "approvals").mkdir(parents=True)
     (folder / "approvals" / ".gitkeep").write_bytes(b"")
     return folder
@@ -366,16 +366,16 @@ def test_latest_approval_reads_a_record_saved_with_a_bom_and_crlf(wd, owner_cfg)
     assert latest_approval(wd, "spec") == written
 
 
-# --------------------------------------------------------------------------- factory approve (CLI)
+# --------------------------------------------------------------------------- sw-factory approve (CLI)
 
 @pytest.fixture
 def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A project folder (a factory.yaml and a work folder FIX-3-crash) that is the current folder."""
-    (tmp_path / "factory.yaml").write_text(
+    """A project folder (a sw-factory.yaml and a work folder FIX-3-crash) that is the current folder."""
+    (tmp_path / "sw-factory.yaml").write_text(
         "project: demo\napprovers: [Cord, Dana Fox]\nverify:\n  quick: pytest -q\n  full: pytest\n",
         encoding="utf-8", newline="\n",
     )
-    folder = tmp_path / "factory" / "work" / "FIX-3-crash"
+    folder = tmp_path / "sw-factory" / "work" / "FIX-3-crash"
     (folder / "approvals").mkdir(parents=True)
     (folder / "approvals" / ".gitkeep").write_bytes(b"")
     (folder / "ticket.md").write_text("# FIX-3: Crash\n", encoding="utf-8", newline="\n")
@@ -399,7 +399,7 @@ def test_cli_approve_writes_the_record_and_prints_its_path(project, capsys):
     assert code == 0 and err == ""
     path = Path(json.loads(out)["path"])
     assert set(json.loads(out)) == {"path"}
-    assert path == project.resolve() / "factory" / "work" / "FIX-3-crash" / "approvals" / "spec-rev2.md"
+    assert path == project.resolve() / "sw-factory" / "work" / "FIX-3-crash" / "approvals" / "spec-rev2.md"
     text = path.read_text(encoding="utf-8")
     assert "Approved by: Cord\n" in text and "Commit: abc123\n" in text and "> Approved, go ahead.\n" in text
 
@@ -412,16 +412,16 @@ def test_cli_approve_records_host_session_and_the_exact_words(project, capsys):
     )
     assert code == 0, err
     assert out.isascii()  # JSON, ASCII-escaped, whatever the console encoding is
-    found = latest_approval(project / "factory" / "work" / "FIX-3-crash", "plan")
+    found = latest_approval(project / "sw-factory" / "work" / "FIX-3-crash", "plan")
     assert (found.approver, found.host, found.session, found.commit, found.quote) == ("Dana Fox", "claude", "s-42", "0f0f0f", quote)
     assert Path(json.loads(out)["path"]) == found.path
 
 
 def test_cli_output_path_is_ascii_whatever_the_folder_is_called(tmp_path, monkeypatch, capsys):
     (tmp_path / "Ünï").mkdir()
-    (tmp_path / "Ünï" / "factory.yaml").write_text(
+    (tmp_path / "Ünï" / "sw-factory.yaml").write_text(
         "project: demo\napprovers: [Cord]\nverify:\n  quick: q\n  full: f\n", encoding="utf-8", newline="\n")
-    (tmp_path / "Ünï" / "factory" / "work" / "FIX-3-crash" / "approvals").mkdir(parents=True)
+    (tmp_path / "Ünï" / "sw-factory" / "work" / "FIX-3-crash" / "approvals").mkdir(parents=True)
     monkeypatch.chdir(tmp_path / "Ünï")
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args())
     assert code == 0, err
@@ -429,7 +429,7 @@ def test_cli_output_path_is_ascii_whatever_the_folder_is_called(tmp_path, monkey
 
 
 def test_cli_approve_finds_the_project_from_a_subfolder(project, capsys, monkeypatch):
-    sub = project / "factory" / "work" / "FIX-3-crash" / "approvals"
+    sub = project / "sw-factory" / "work" / "FIX-3-crash" / "approvals"
     monkeypatch.chdir(sub)
     code, out, err = run_cli(capsys, "approve", "FIX-3-crash", "spec", *approve_args())
     assert code == 0, err
@@ -440,25 +440,25 @@ def test_cli_approve_writes_only_the_record(project, capsys):
     before = sorted(p.relative_to(project).as_posix() for p in project.rglob("*"))
     assert run_cli(capsys, "approve", "FIX-3", "spec", *approve_args())[0] == 0
     after = sorted(p.relative_to(project).as_posix() for p in project.rglob("*"))
-    assert [p for p in after if p not in before] == ["factory/work/FIX-3-crash/approvals/spec-rev1.md"]
+    assert [p for p in after if p not in before] == ["sw-factory/work/FIX-3-crash/approvals/spec-rev1.md"]
 
 
 def test_cli_approve_refuses_an_unlisted_approver(project, capsys):
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args(**{"--approver": "Mallory"}))
     assert code == 1 and out == ""
     assert "Mallory" in err and "Cord" in err and "Dana Fox" in err
-    assert not (project / "factory/work/FIX-3-crash/approvals/spec-rev1.md").exists()
+    assert not (project / "sw-factory/work/FIX-3-crash/approvals/spec-rev1.md").exists()
 
 
 def test_cli_approve_refuses_an_empty_quote(project, capsys):
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args(**{"--quote": "  "}))
     assert code == 1 and out == "" and "quote" in err
-    assert not (project / "factory/work/FIX-3-crash/approvals/spec-rev1.md").exists()
+    assert not (project / "sw-factory/work/FIX-3-crash/approvals/spec-rev1.md").exists()
 
 
 def test_cli_approve_refuses_to_overwrite(project, capsys):
     assert run_cli(capsys, "approve", "FIX-3", "spec", *approve_args())[0] == 0
-    path = project / "factory/work/FIX-3-crash/approvals/spec-rev1.md"
+    path = project / "sw-factory/work/FIX-3-crash/approvals/spec-rev1.md"
     before = path.read_bytes()
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args(**{"--quote": "different"}))
     assert code == 1 and out == "" and "already" in err
@@ -484,11 +484,11 @@ def test_cli_approve_with_a_bad_id(project, capsys):
 def test_cli_approve_without_a_project(tmp_path, capsys, monkeypatch):
     monkeypatch.chdir(tmp_path)
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args())
-    assert code == 2 and out == "" and "factory.yaml" in err
+    assert code == 2 and out == "" and "sw-factory.yaml" in err
 
 
-def test_cli_approve_with_an_invalid_factory_yaml(project, capsys):
-    (project / "factory.yaml").write_text("project: demo\n", encoding="utf-8", newline="\n")
+def test_cli_approve_with_an_invalid_sw_factory_yaml(project, capsys):
+    (project / "sw-factory.yaml").write_text("project: demo\n", encoding="utf-8", newline="\n")
     code, out, err = run_cli(capsys, "approve", "FIX-3", "spec", *approve_args())
     assert code == 2 and out == "" and "approvers" in err
 
@@ -503,7 +503,7 @@ def test_cli_approve_needs_every_option(missing):
     assert caught.value.code == 2
 
 
-# --------------------------------------------------------------------------- factory approve --quote-file
+# --------------------------------------------------------------------------- sw-factory approve --quote-file
 
 def quote_file_args(path: Path, **overrides: str) -> list[str]:
     """The options of an approval whose words come from ``path`` instead of ``--quote``."""
@@ -522,7 +522,7 @@ AWKWARD_WORDS = (
 
 
 def record_for(project: Path, artifact: str = "spec") -> Approval | None:
-    return latest_approval(project / "factory" / "work" / "FIX-3-crash", artifact)
+    return latest_approval(project / "sw-factory" / "work" / "FIX-3-crash", artifact)
 
 
 def test_cli_quote_file_records_the_words_verbatim(project, tmp_path, capsys):

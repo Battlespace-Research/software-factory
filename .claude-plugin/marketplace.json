@@ -8,9 +8,9 @@
   },
   "plugins": [
     {
-      "name": "software-factory",
+      "name": "bsri-sw-factory",
       "source": "./",
-      "description": "The BSRI software factory: sets up a project, triages work by size, and runs each task test-first through a cross-vendor review panel, an independent tester and a merge gate, with approvals in chat and a person merging. Needs the factory CLI (docs/guide/install.md)."
+      "description": "The BSRI software factory: sets up a project, triages work by size, and runs each task test-first through a cross-vendor review panel, an independent tester and a merge gate, with approvals in chat and a person merging. Needs the sw-factory CLI (docs/guide/install.md)."
     }
   ]
 }

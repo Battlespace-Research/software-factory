@@ -1,4 +1,4 @@
-"""Prompt templates, ``factory prompt render`` and the subagent definitions."""
+"""Prompt templates, ``sw-factory prompt render`` and the subagent definitions."""
 from __future__ import annotations
 
 import re
@@ -131,13 +131,13 @@ def test_render_tester_brief():
     assert "{{" not in out and "<verify_command>" in out and "<report_path>" in out
 
 
-# --------------------------------------------------------------------------- factory prompt render
+# --------------------------------------------------------------------------- sw-factory prompt render
 
 LENS_SETS = [
     "--set", "task_id=T2",
     "--set", "round=1",
     "--set", "diff_command=git diff main...HEAD",
-    "--set", "spec_path=factory/work/FEA-1-demo/spec.md",
+    "--set", "spec_path=sw-factory/work/FEA-1-demo/spec.md",
     "--set", "prior_review_path=none",
 ]
 
@@ -246,7 +246,7 @@ def test_every_mapped_agent_is_defined():
     assert {path.stem for path in agent_files()} == set(AGENT_FOR_ROLE.values())
 
 
-@pytest.mark.parametrize("agent", ["factory-lens-reviewer", "factory-doc-reviewer", "factory-tester"])
+@pytest.mark.parametrize("agent", ["lens-reviewer", "doc-reviewer", "tester"])
 def test_reviewer_and_tester_tools(agent):
     data = front_matter(factory_home() / "agents" / f"{agent}.md")
     assert data["tools"] == "Read, Grep, Glob, Bash"

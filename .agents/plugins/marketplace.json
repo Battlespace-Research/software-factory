@@ -5,7 +5,7 @@
   },
   "plugins": [
     {
-      "name": "software-factory",
+      "name": "bsri-sw-factory",
       "source": {
         "source": "local",
         "path": "./"

@@ -2,7 +2,7 @@
 #
 # The factory references installed skills; it never copies them. This registry lists, per
 # role, each skill the factory requires or can use. The key "*" applies to every role.
-# `factory skills check` and the skill lint read it, so every skill name a factory skill or
+# `sw-factory skills check` and the skill lint read it, so every skill name a factory skill or
 # prompt mentions must be registered here.
 #
 # Fields per skill:

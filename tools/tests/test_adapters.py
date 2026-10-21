@@ -1,4 +1,4 @@
-"""Tests for swfactory.adapters (invocation planning and headless runs) and the ``factory role`` CLI."""
+"""Tests for swfactory.adapters (invocation planning and headless runs) and the ``sw-factory role`` CLI."""
 from __future__ import annotations
 
 import dataclasses
@@ -115,7 +115,7 @@ def test_codex_roles_on_a_codex_host_also_run_through_codex_exec(table, tmp_path
 
 def test_subagent_for_claude_lens_on_claude_host(table, tmp_path):
     inv = plan_invocation(resolve_role(table, "lens-spec", "claude", "claude"), "claude", tmp_path / "o.md")
-    assert (inv.kind, inv.agent, inv.model_alias) == ("subagent", "factory-lens-reviewer", "opus")
+    assert (inv.kind, inv.agent, inv.model_alias) == ("subagent", "lens-reviewer", "opus")
 
 
 def test_subagent_invocation_carries_effort_and_sandbox_but_no_argv(table, tmp_path):
@@ -124,11 +124,11 @@ def test_subagent_invocation_carries_effort_and_sandbox_but_no_argv(table, tmp_p
 
 
 @pytest.mark.parametrize("role, agent, alias", [
-    ("lens-maintainability", "factory-lens-reviewer", "sonnet"),
-    ("lens-spec", "factory-lens-reviewer", "opus"),
-    ("doc-reviewer-a", "factory-doc-reviewer", "opus"),
-    ("tester", "factory-tester", "sonnet"),
-    ("researcher", "factory-researcher", "sonnet"),
+    ("lens-maintainability", "lens-reviewer", "sonnet"),
+    ("lens-spec", "lens-reviewer", "opus"),
+    ("doc-reviewer-a", "doc-reviewer", "opus"),
+    ("tester", "tester", "sonnet"),
+    ("researcher", "researcher", "sonnet"),
 ])
 def test_claude_roles_on_a_claude_host_run_as_the_mapped_subagent(table, tmp_path, role, agent, alias):
     _, inv, _ = lens(table, tmp_path, role=role)
@@ -142,10 +142,10 @@ def test_headless_doc_reviewer_b_goes_to_the_other_vendor(table, tmp_path):
 
 def test_agent_mapping_is_the_designed_one():
     assert AGENT_FOR_ROLE == {
-        "lens-*": "factory-lens-reviewer",
-        "doc-reviewer-*": "factory-doc-reviewer",
-        "tester": "factory-tester",
-        "researcher": "factory-researcher",
+        "lens-*": "lens-reviewer",
+        "doc-reviewer-*": "doc-reviewer",
+        "tester": "tester",
+        "researcher": "researcher",
     }
 
 
@@ -657,7 +657,7 @@ def test_cli_role_resolve_subagent_and_fallback(capsys):
     data = json.loads(out)
     assert code == 0 and data["resolved"]["fallback_used"] is True
     assert (data["invocation"]["kind"], data["invocation"]["agent"], data["invocation"]["model_alias"]) == (
-        "subagent", "factory-lens-reviewer", "sonnet")
+        "subagent", "lens-reviewer", "sonnet")
     assert data["invocation"]["argv"] is None
 
 
@@ -666,11 +666,11 @@ def test_cli_role_resolve_author_is_optional(capsys):
     assert code == 0 and json.loads(out)["resolved"]["vendor"] == "claude"
 
 
-def write_factory_yaml(folder, **settings):
-    """A valid minimal factory.yaml in ``folder`` plus extra settings; returns its path."""
+def write_sw_factory_yaml(folder, **settings):
+    """A valid minimal sw-factory.yaml in ``folder`` plus extra settings; returns its path."""
     data = {"project": "demo", "approvers": ["owner"], "verify": {"quick": "pytest -q", "full": "pytest"}, **settings}
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / "factory.yaml"
+    path = folder / "sw-factory.yaml"
     path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     return path
 
@@ -680,7 +680,7 @@ OVERRIDE = {"lens-security": {"bindings": {"openai": {"model": "override-model",
 
 @pytest.mark.parametrize("as_file", [False, True], ids=["project-folder", "factory-yaml-file"])
 def test_cli_role_resolve_project_override_changes_the_resolved_model(tmp_path, capsys, as_file):
-    yaml_path = write_factory_yaml(tmp_path / "my project", roles=OVERRIDE)
+    yaml_path = write_sw_factory_yaml(tmp_path / "my project", roles=OVERRIDE)
     project = yaml_path if as_file else yaml_path.parent
     code, out, _ = run_cli(capsys, "role", "resolve", "lens-security", "--host", "claude", "--author", "claude",
                            "--project", project)
@@ -694,7 +694,7 @@ def test_cli_role_resolve_project_override_changes_the_resolved_model(tmp_path, 
 
 
 def test_cli_role_run_project_override_reaches_the_command(tmp_path, capsys, fake_cli):
-    project = write_factory_yaml(tmp_path / "proj", roles=OVERRIDE).parent
+    project = write_sw_factory_yaml(tmp_path / "proj", roles=OVERRIDE).parent
     prompt, out = tmp_path / "p.md", tmp_path / "o.md"
     prompt.write_text("x", encoding="utf-8")
     code, _, _ = run_cli(capsys, "role", "run", "lens-security", "--host", "claude", "--author", "claude",
@@ -707,7 +707,7 @@ def test_cli_role_run_project_override_reaches_the_command(tmp_path, capsys, fak
 
 @pytest.mark.parametrize("command", ["resolve", "run"])
 def test_cli_role_with_a_bad_project_exits_2_listing_the_problems(tmp_path, capsys, command):
-    project = write_factory_yaml(tmp_path / "proj", roles={"ghost": {"vendor": "claude"}}).parent
+    project = write_sw_factory_yaml(tmp_path / "proj", roles={"ghost": {"vendor": "claude"}}).parent
     extra = ["--prompt", tmp_path / "p.md", "--out", tmp_path / "o.md"] if command == "run" else []
     code, out, err = run_cli(capsys, "role", command, "lens-security", "--host", "claude", "--project", project, *extra)
     assert code == 2 and out == "" and "ghost" in err
@@ -776,7 +776,7 @@ def test_cli_role_run_subagent_role_prints_the_spawn_line_and_exits_3(tmp_path, 
     code, stdout, _ = run_cli(capsys, "role", "run", "lens-spec", "--host", "claude", "--author", "claude",
                               "--prompt", prompt, "--out", out)
     assert code == 3
-    assert stdout.strip() == "spawn subagent factory-lens-reviewer with model opus"
+    assert stdout.strip() == "spawn subagent lens-reviewer with model opus"
     assert not out.exists() and fake_cli.calls() == []
 
 

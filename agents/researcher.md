@@ -1,5 +1,5 @@
 ---
-name: factory-researcher
+name: researcher
 description: Software factory researcher. Investigates one question about a codebase, a library or a technology and replies with findings backed by sources (file paths with line numbers, links to primary documentation). Read-only. Use when the factory's planning stage needs an investigation before the spec is written.
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---

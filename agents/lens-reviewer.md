@@ -1,5 +1,5 @@
 ---
-name: factory-lens-reviewer
+name: lens-reviewer
 description: Software factory lens reviewer. Reviews one task's committed change through one lens (correctness, security, maintainability, spec compliance or a project lens) and replies with a review in the factory's VERDICT format. Read-only. Use when the factory's review panel runs a lens as a subagent.
 tools: Read, Grep, Glob, Bash
 ---

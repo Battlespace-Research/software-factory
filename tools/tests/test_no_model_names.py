@@ -88,7 +88,7 @@ def test_scan_finds_model_names_in_any_scanned_folder(tmp_path):
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "roles.yaml").write_text(real.read_text(encoding="utf-8"), encoding="utf-8")
     files = {
-        "skills/factory-run/SKILL.md": f"Run it with {a_model.upper()}.\n",
+        "skills/orchestrate/SKILL.md": f"Run it with {a_model.upper()}.\n",
         "agents/x.md": "---\nname: x\n---\nuses GPT-7 today\n",
         "tools/swfactory/m.py": "ALIAS = 'claude-haiku-9'\n",
         "templates/project/ok.md": "claude-([a-z]+)- is a pattern, not a model\n",
@@ -101,7 +101,7 @@ def test_scan_finds_model_names_in_any_scanned_folder(tmp_path):
         (tmp_path / name).write_text(text, encoding="utf-8")
     offenders = find_model_names(tmp_path, model_patterns(tmp_path / "config" / "roles.yaml"))
     assert offenders == [
-        f"skills/factory-run/SKILL.md:1: Run it with {a_model.upper()}.",
+        f"skills/orchestrate/SKILL.md:1: Run it with {a_model.upper()}.",
         "agents/x.md:4: uses GPT-7 today",
         "tools/swfactory/m.py:1: ALIAS = 'claude-haiku-9'",
         "docs/guide/using.md:1: The tester runs on Sonnet 5.5 by default.",

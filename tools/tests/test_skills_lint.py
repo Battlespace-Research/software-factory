@@ -1,14 +1,14 @@
 """Lint the factory's own skills (design sections 6.3 and 13).
 
-A factory skill is a SKILL.md that a Claude Code or Codex session loads and follows, calling the ``factory`` CLI
+A factory skill is a SKILL.md that a Claude Code or Codex session loads and follows, calling the ``sw-factory`` CLI
 for every deterministic step. These checks keep the skills honest about what they call:
 
 - front matter with ``name`` (the folder's name) and a ``description`` that says when to use the skill;
-- every ``factory …`` call names a real command, subcommand and option of the CLI;
+- every ``sw-factory …`` call names a real command, subcommand and option of the CLI;
 - one ``Uses skills:`` line per skill, naming only third-party skills registered in ``config/skills.yaml``;
 - every ``references/…`` file a skill points to exists, and the hard-stop reference lists every default id.
 
-The teammate guides (``docs/guide/*.md``) and the README follow the same command rule: every ``factory …`` call
+The teammate guides (``docs/guide/*.md``) and the README follow the same command rule: every ``sw-factory …`` call
 they show is a real command line of the CLI.
 """
 from __future__ import annotations
@@ -25,17 +25,17 @@ from swfactory.cli import COMMANDS, build_parser
 from swfactory.config import DEFAULT_HARD_STOPS, factory_home, load_skills_registry
 
 EXPECTED_SKILLS = {
-    "factory-setup",
-    "factory-triage",
-    "factory-run",
-    "factory-task-loop",
-    "factory-review-panel",
-    "factory-merge-gate",
+    "setup-project",
+    "intake",
+    "orchestrate",
+    "task-loop",
+    "review-panel",
+    "merge-gate",
 }
 
 _USES_SKILLS = re.compile(r"^Uses skills:(.*)$", re.MULTILINE)
-_COMMAND = re.compile(r"`factory ([a-z][a-z-]*)")
-_CALL_SPAN = re.compile(r"`(factory [^`\n]+)`")
+_COMMAND = re.compile(r"`sw-factory ([a-z][a-z-]*)")
+_CALL_SPAN = re.compile(r"`(sw-factory [^`\n]+)`")
 _FENCE = re.compile(r"^(```|~~~)")
 # ``references/x.md`` in the skill's own folder, or ``../<other skill>/references/x.md``.
 _REFERENCE = re.compile(r"(?:\.\./[A-Za-z0-9_-]+/)?references/[A-Za-z0-9_.-]+\.md")
@@ -59,7 +59,7 @@ GUIDES = ("install.md", "using-the-factory.md")
 
 
 def guide_markdown() -> list[Path]:
-    """The teammate guides and the README: the documents that show ``factory`` commands to people."""
+    """The teammate guides and the README: the documents that show ``sw-factory`` commands to people."""
     return sorted((factory_home() / "docs" / "guide").glob("*.md")) + [factory_home() / "README.md"]
 
 
@@ -93,13 +93,13 @@ def registered_skill_names() -> set[str]:
 
 
 def factory_calls(text: str) -> list[str]:
-    """Every ``factory …`` call in the text: inline code spans, and fenced-code lines that start with one."""
+    """Every ``sw-factory …`` call in the text: inline code spans, and fenced-code lines that start with one."""
     calls = list(_CALL_SPAN.findall(text))
     fenced = False
     for line in text.split("\n"):
         if _FENCE.match(line.strip()):
             fenced = not fenced
-        elif fenced and line.strip().startswith("factory "):
+        elif fenced and line.strip().startswith("sw-factory "):
             calls.append(line.strip())
     return calls
 
@@ -116,7 +116,7 @@ def _options(parser: argparse.ArgumentParser) -> set[str]:
 
 
 def call_problems(call: str) -> list[str]:
-    """Why ``call`` (``factory <command> [<subcommand>] …``) is not a real command line of the CLI, if it is not.
+    """Why ``call`` (``sw-factory <command> [<subcommand>] …``) is not a real command line of the CLI, if it is not.
 
     Placeholders such as ``<ID>`` and ``…`` are allowed anywhere; every ``--option`` must belong to the
     (sub)command it follows."""
@@ -126,7 +126,7 @@ def call_problems(call: str) -> list[str]:
         tokens = call.split()
     parser = build_parser()
     rest = tokens[1:]
-    path = "factory"
+    path = "sw-factory"
     while rest and _NAME_TOKEN.fullmatch(rest[0]) and (choices := _subcommands(parser)) is not None:
         name = rest.pop(0)
         if name not in choices:
@@ -179,7 +179,7 @@ def test_referenced_files_exist(skill_md):
 
 
 def test_hard_stop_reference_lists_every_default_id():
-    text = read(skills_dir() / "factory-run" / "references" / "hard-stops.md")
+    text = read(skills_dir() / "orchestrate" / "references" / "hard-stops.md")
     assert [stop for stop in DEFAULT_HARD_STOPS if f"`{stop}`" not in text] == []
 
 
@@ -204,13 +204,13 @@ def test_guide_commands_exist(md):
 
 def test_call_problems_accepts_real_calls():
     for call in (
-        "factory --version",
-        "factory work new --track fix --slug <slug> --title \"<title>\"",
-        "factory approve <ID> spec --rev 2 --quote-file <file> --approver \"<name>\" --commit <sha>",
-        "factory prompt render <factory>/prompts/document-review.md --set revision=2 --out <file>",
-        "factory gate <ID> --spot-check=\"<criterion: evidence>\"",
-        "factory setup --project x --verify-quick \"pytest -q --no-header\" --verify-full pytest --approver a",
-        "factory role",
+        "sw-factory --version",
+        "sw-factory work new --track fix --slug <slug> --title \"<title>\"",
+        "sw-factory approve <ID> spec --rev 2 --quote-file <file> --approver \"<name>\" --commit <sha>",
+        "sw-factory prompt render <factory>/prompts/document-review.md --set revision=2 --out <file>",
+        "sw-factory gate <ID> --spot-check=\"<criterion: evidence>\"",
+        "sw-factory setup --project x --verify-quick \"pytest -q --no-header\" --verify-full pytest --approver a",
+        "sw-factory role",
     ):
         assert call_problems(call) == [], call
 
@@ -218,10 +218,10 @@ def test_call_problems_accepts_real_calls():
 @pytest.mark.parametrize(
     ("call", "expected"),
     [
-        ("factory work open --track fix", "has no subcommand 'open'"),
-        ("factory approve <ID> spec --quote_file x", "has no option '--quote_file'"),
-        ("factory role resolve tester --vendor claude", "has no option '--vendor'"),
-        ("factory --verbose", "has no option '--verbose'"),
+        ("sw-factory work open --track fix", "has no subcommand 'open'"),
+        ("sw-factory approve <ID> spec --quote_file x", "has no option '--quote_file'"),
+        ("sw-factory role resolve tester --vendor claude", "has no option '--vendor'"),
+        ("sw-factory --verbose", "has no option '--verbose'"),
     ],
 )
 def test_call_problems_rejects_unreal_calls(call, expected):
@@ -230,8 +230,8 @@ def test_call_problems_rejects_unreal_calls(call, expected):
 
 
 def test_factory_calls_reads_spans_and_fenced_lines():
-    text = "Run `factory work status <ID>` first.\n\n```text\nfactory gate <ID> --spot-check x\ngit status\n```\n"
-    assert factory_calls(text) == ["factory work status <ID>", "factory gate <ID> --spot-check x"]
+    text = "Run `sw-factory work status <ID>` first.\n\n```text\nsw-factory gate <ID> --spot-check x\ngit status\n```\n"
+    assert factory_calls(text) == ["sw-factory work status <ID>", "sw-factory gate <ID> --spot-check x"]
 
 
 def test_used_skills_needs_exactly_one_line():

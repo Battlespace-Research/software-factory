@@ -233,7 +233,7 @@ def _required_skills(registry: dict[str, list[SkillReq]]) -> dict[str, str | Non
 
 def _interactive_in_unattended(registry: dict[str, list[SkillReq]], table: RoleTable) -> list[str]:
     """Interactive skills registered for a role that runs unattended; ``"*"`` stands for every role in
-    the table, and a role the table does not have is left to ``factory config check``."""
+    the table, and a role the table does not have is left to ``sw-factory config check``."""
     unattended = {name for name, spec in table.roles.items() if spec.run_as in UNATTENDED_RUN_AS}
     flagged: set[str] = set()
     for role, skills in registry.items():

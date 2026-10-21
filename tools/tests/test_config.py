@@ -74,10 +74,10 @@ def write_yaml(path: Path, data: object) -> Path:
 
 
 def write_project(tmp_path: Path, **overrides: object) -> Path:
-    """Write a factory.yaml (minimal valid plus overrides; a None value drops the key)."""
+    """Write a sw-factory.yaml (minimal valid plus overrides; a None value drops the key)."""
     data = {**MINIMAL_PROJECT, **overrides}
     data = {k: v for k, v in data.items() if v is not None}
-    return write_yaml(tmp_path / "factory.yaml", data)
+    return write_yaml(tmp_path / "sw-factory.yaml", data)
 
 
 # --------------------------------------------------------------------------- factory_home
@@ -363,7 +363,7 @@ def test_project_config_reads_every_key(tmp_path):
         version=1,
         base_branch="develop",
         branching="single",
-        work_branch="factory/work",
+        work_branch="sw-factory/work",
         mode="auto",
         approvers=["a", "b"],
         builds="ask",
@@ -374,7 +374,7 @@ def test_project_config_reads_every_key(tmp_path):
         github_mirror=True,
     )
     c = load_project_config(p)
-    assert (c.base_branch, c.branching, c.work_branch, c.mode) == ("develop", "single", "factory/work", "auto")
+    assert (c.base_branch, c.branching, c.work_branch, c.mode) == ("develop", "single", "sw-factory/work", "auto")
     assert (c.approvers, c.builds, c.size_cap, c.max_rounds) == (["a", "b"], "ask", 250, 2)
     assert c.generated == ["**/*.g.cs", "docs/gen/**"]
     assert c.hard_stops == ["main-branch", "xml-serialization"]
@@ -408,7 +408,7 @@ def test_project_config_per_item_ignores_a_work_branch_equal_to_the_base(tmp_pat
 
 
 def test_project_config_missing_required_keys_all_reported(tmp_path):
-    p = write_yaml(tmp_path / "factory.yaml", {"version": 1})
+    p = write_yaml(tmp_path / "sw-factory.yaml", {"version": 1})
     with pytest.raises(ConfigError) as e:
         load_project_config(p)
     problems = e.value.problems
@@ -446,14 +446,14 @@ def test_project_config_rejects_bad_values(tmp_path, overrides, word):
 
 
 def test_project_config_unknown_top_level_keys_are_ignored(tmp_path):
-    # factory.yaml also carries keys later plans add (design 6.2: tracks, deploy paths, signals).
+    # sw-factory.yaml also carries keys later plans add (design 6.2: tracks, deploy paths, signals).
     c = load_project_config(write_project(tmp_path, deploy={"installer": "build.ps1"}))
     assert c.project == "demo"
 
 
 @pytest.mark.parametrize("content", ["", "- a\n- b\n", "project: [unclosed\n"])
 def test_project_config_wrong_shape_rejected(tmp_path, content):
-    p = tmp_path / "factory.yaml"
+    p = tmp_path / "sw-factory.yaml"
     p.write_text(content, encoding="utf-8")
     with pytest.raises(ConfigError) as e:
         load_project_config(p)
@@ -462,16 +462,16 @@ def test_project_config_wrong_shape_rejected(tmp_path, content):
 
 def test_project_config_missing_file_rejected(tmp_path):
     with pytest.raises(ConfigError) as e:
-        load_project_config(tmp_path / "factory.yaml")
-    assert "factory.yaml" in e.value.problems[0]
+        load_project_config(tmp_path / "sw-factory.yaml")
+    assert "sw-factory.yaml" in e.value.problems[0]
 
 
 def test_project_config_crlf_bom_and_spaces_in_path(tmp_path):
     folder = tmp_path / "my project"
     folder.mkdir()
     text = yaml.safe_dump(MINIMAL_PROJECT, sort_keys=False)
-    (folder / "factory.yaml").write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
-    assert load_project_config(folder / "factory.yaml").project == "demo"
+    (folder / "sw-factory.yaml").write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+    assert load_project_config(folder / "sw-factory.yaml").project == "demo"
 
 
 def test_config_error_message_lists_every_problem():
@@ -491,7 +491,7 @@ def test_check_config_project_dir_or_file_ok(tmp_path):
     folder.mkdir()
     write_project(folder)
     assert check_config(folder) == []
-    assert check_config(folder / "factory.yaml") == []
+    assert check_config(folder / "sw-factory.yaml") == []
 
 
 def test_check_config_validates_project_role_overrides(tmp_path):
@@ -522,7 +522,7 @@ def test_check_config_project_with_a_good_review_md_ok(tmp_path):
     write_project(tmp_path)
     write_review_md(tmp_path)
     assert check_config(tmp_path) == []
-    assert check_config(tmp_path / "factory.yaml") == []
+    assert check_config(tmp_path / "sw-factory.yaml") == []
 
 
 def test_check_config_reports_review_md_load_problems(tmp_path):
@@ -547,7 +547,7 @@ def test_check_config_panel_check_uses_the_projects_role_overrides(tmp_path):
     assert check_config(tmp_path) == []
 
 
-def test_check_config_review_md_is_found_next_to_the_factory_yaml_only(tmp_path):
+def test_check_config_review_md_is_found_next_to_the_sw_factory_yaml_only(tmp_path):
     folder = tmp_path / "project"
     folder.mkdir()
     write_project(folder)
@@ -555,14 +555,14 @@ def test_check_config_review_md_is_found_next_to_the_factory_yaml_only(tmp_path)
     assert check_config(folder) == []
 
 
-def test_check_config_skips_the_panel_check_when_the_factory_yaml_is_invalid(tmp_path):
+def test_check_config_skips_the_panel_check_when_the_sw_factory_yaml_is_invalid(tmp_path):
     write_project(tmp_path, mode="turbo")
     write_review_md(tmp_path, {**PANEL_TRACKS, "fix": ["maintainability"]})
     problems = check_config(tmp_path)
     assert len(problems) == 1 and "mode" in problems[0]
 
 
-def test_check_config_reports_review_md_load_problems_even_when_the_factory_yaml_is_invalid(tmp_path):
+def test_check_config_reports_review_md_load_problems_even_when_the_sw_factory_yaml_is_invalid(tmp_path):
     write_project(tmp_path, mode="turbo")
     (tmp_path / "REVIEW.md").write_text("no front matter\n", encoding="utf-8")
     problems = check_config(tmp_path)
@@ -587,7 +587,7 @@ def test_check_config_collects_problems_from_every_file(monkeypatch, tmp_path):
     monkeypatch.setenv("FACTORY_HOME", str(home))
     project = tmp_path / "proj"
     project.mkdir()
-    write_yaml(project / "factory.yaml", {"version": 1})
+    write_yaml(project / "sw-factory.yaml", {"version": 1})
     problems = check_config(project)
     assert len(problems) >= 6
     for fragment in ("project", "roles.yaml", "skills.yaml"):
@@ -598,12 +598,12 @@ def test_check_config_collects_problems_from_every_file(monkeypatch, tmp_path):
 
 def test_cli_version(capsys):
     assert cli.main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == "0.1.0" == __version__
+    assert capsys.readouterr().out.strip() == "0.2.0" == __version__
 
 
 def test_cli_without_command_prints_usage(capsys):
     assert cli.main([]) == 2
-    assert "factory" in capsys.readouterr().out
+    assert "sw-factory" in capsys.readouterr().out
 
 
 def test_cli_commands_set_matches_parser():
@@ -634,7 +634,7 @@ def test_cli_config_check_project_problems_one_per_line(tmp_path, capsys):
 
 def test_cli_config_check_project_ok(tmp_path, capsys):
     write_project(tmp_path)
-    assert cli.main(["config", "check", "--project", str(tmp_path / "factory.yaml")]) == 0
+    assert cli.main(["config", "check", "--project", str(tmp_path / "sw-factory.yaml")]) == 0
     assert capsys.readouterr().out.strip() == "config ok"
 
 
@@ -664,4 +664,4 @@ def test_cli_config_check_project_with_review_md_ok(tmp_path, capsys):
 
 def test_python_dash_m_runs_the_cli():
     done = subprocess.run([sys.executable, "-m", "swfactory", "--version"], capture_output=True, text=True, timeout=60)
-    assert done.returncode == 0 and done.stdout.strip() == "0.1.0"
+    assert done.returncode == 0 and done.stdout.strip() == "0.2.0"
