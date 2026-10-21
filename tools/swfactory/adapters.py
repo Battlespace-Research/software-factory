@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Literal
 
 from swfactory.config import ConfigError
+from swfactory.reference import reference_marker
 from swfactory.roles import ResolvedRole, Vendor
 
 CODEX_EXE = "codex"
@@ -50,11 +51,15 @@ CLAUDE_PRINT_FLAGS = {
     "effort": "--effort",
     "output_format": "--output-format",
     "permission_mode": "--permission-mode",
+    "disallowed_tools": "--disallowedTools",  # variadic: ended by the next option
     "allowed_tools": "--allowedTools",  # variadic: keep it the last option on the command line
 }
 CLAUDE_OUTPUT_FORMAT = "json"
 CLAUDE_PERMISSION_MODE = "plan"  # the read-only guard of a claude -p run (see plan_invocation)
 CLAUDE_READ_ONLY_TOOLS = "Read,Grep,Glob"  # pre-approved so the run needs no prompt; not a limit on its tools
+# Denied outright: a reviewer is one reviewer, so it starts no subagent (Agent) and runs no skill (Skill), not even
+# the reference skill its prompt inlines as reading matter (decision F18).
+CLAUDE_DENIED_TOOLS = "Agent,Skill"
 
 # Environment variable holding extra arguments for every ``codex exec`` run, for example the
 # Windows workaround ``-c windows.sandbox="unelevated"`` when Codex's elevated sandbox fails.
@@ -169,6 +174,7 @@ def _claude_argv(r: ResolvedRole) -> list[str]:
         flags["effort"], r.effort,
         flags["output_format"], CLAUDE_OUTPUT_FORMAT,
         flags["permission_mode"], CLAUDE_PERMISSION_MODE,
+        flags["disallowed_tools"], CLAUDE_DENIED_TOOLS,
         flags["allowed_tools"], CLAUDE_READ_ONLY_TOOLS,
     ]
 
@@ -183,8 +189,8 @@ def plan_invocation(r: ResolvedRole, host: Vendor, out_path: Path, schema_path: 
     What keeps ``claude -p`` read-only is plan mode (``--permission-mode plan``), not the tool list:
     ``--allowedTools Read,Grep,Glob`` pre-approves those tools, it does not restrict the run to them,
     and the v1 rehearsal saw such a reviewer run read-only shell commands (``git diff``, ``git show``)
-    through Bash, which the lens needs. Denying writing tools by name (``--disallowedTools``) and
-    capping the turns (``--max-turns``) are plan-2 items.
+    through Bash, which the lens needs. ``--disallowedTools Agent,Skill`` keeps the reviewer from starting
+    subagents or skills. Denying writing tools by name and capping the turns (``--max-turns``) are plan-2 items.
     """
     sandbox = _sandbox_for(r.access)
     if r.run_as == "main":
@@ -386,10 +392,13 @@ def _reviewer_text(r: ResolvedRole, partial: Path, stdout: str) -> tuple[str, st
     return text, "" if text else "the run produced no output"
 
 
-def _stamp(r: ResolvedRole, inv: Invocation, extra: list[str]) -> str:
+def _stamp(r: ResolvedRole, inv: Invocation, extra: list[str], reference: str | None) -> str:
     at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     line = (f"<!-- factory: role={r.role} vendor={r.vendor} model={r.model} effort={r.effort} "
-            f"sandbox={inv.sandbox} at={at}")
+            f"sandbox={inv.sandbox} ")
+    if reference is not None:
+        line += f"reference={reference} "
+    line += f"at={at}"
     if extra:
         line += f" extra={json.dumps(' '.join(extra))}"
     return line + " -->"
@@ -425,7 +434,8 @@ def _execute(
     text, problem = _reviewer_text(r, partial, stdout)
     if problem:
         return failed(exit_code, problem)
-    partial.write_text(f"{text}\n\n{_stamp(r, inv, extra)}\n", encoding="utf-8", newline="\n")
+    stamp = _stamp(r, inv, extra, reference_marker(prompt_text))
+    partial.write_text(f"{text}\n\n{stamp}\n", encoding="utf-8", newline="\n")
     os.replace(partial, out_path)
     return RunResult(ok=True, exit_code=exit_code, out_path=out_path, stderr_tail=_tail(stderr), suggest_fallback=False)
 
@@ -434,8 +444,9 @@ def run_invocation(inv: Invocation, r: ResolvedRole, prompt_text: str, out_path:
     """Run a ``command`` invocation: prompt on stdin, the reviewer's text to ``out_path``.
 
     The vendor CLI is pointed at ``<out_path>.partial``, never at ``out_path``. On success the text
-    gets a trailing ``<!-- factory: ... -->`` stamp (role, vendor, model, effort, sandbox, time and
-    any extra Codex arguments) and the partial file is renamed onto ``out_path``. A missing
+    gets a trailing ``<!-- factory: ... -->`` stamp (role, vendor, model, effort, sandbox, the prompt's
+    reference skill when its ``<!-- reference: ... -->`` line names one or ``none``, time and any extra Codex
+    arguments) and the partial file is renamed onto ``out_path``. A missing
     executable, a non-zero exit, a timeout or an empty result deletes both files and returns
     ``ok=False`` with ``suggest_fallback=True``; so does an interrupt (``KeyboardInterrupt``,
     ``SystemExit``), after the process tree is killed, and the interrupt is re-raised.

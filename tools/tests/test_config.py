@@ -280,14 +280,17 @@ def test_skills_registry_assigns_skills_to_roles():
     for lens in ("lens-correctness", "lens-security", "lens-maintainability", "lens-spec"):
         assert "code-review" in names(lens)
     assert "security-review" in names("lens-security")
-    # Each lens's reference skill (F18): required for correctness and maintainability, optional for spec.
-    reference = {role: {s.name: s.required for s in reg[role] if s.name != "code-review"}
+    # Each lens's reference skill (F18): required for correctness and maintainability, optional for spec; the
+    # files inlined with it; tdd falls back to superpowers' test-driven-development.
+    reference = {role: {s.name: (s.required, s.fallback, s.read) for s in reg[role] if s.name != "code-review"}
                  for role in ("lens-correctness", "lens-maintainability", "lens-spec")}
     assert reference == {
-        "lens-correctness": {"tdd": True},
-        "lens-maintainability": {"codebase-design": True},
-        "lens-spec": {"domain-modeling": False},
+        "lens-correctness": {"tdd": (True, "test-driven-development", ("tests.md", "mocking.md"))},
+        "lens-maintainability": {"codebase-design": (True, None, ("DEEPENING.md",))},
+        "lens-spec": {"domain-modeling": (False, None, ())},
     }
+    # DESIGN-IT-TWICE.md tells its reader to spawn sub-agents and ask the user: never inlined.
+    assert not any("DESIGN-IT-TWICE.md" in s.read for skills in reg.values() for s in skills)
     assert "deploy-checklist" in names("release-checker")
     assert {"triage", "incident-response"} <= names("triage")
     assert "handoff" in names("*")
@@ -313,6 +316,23 @@ def test_skills_registry_roles_exist_in_role_table():
 def test_skills_registry_fills_entry_defaults(tmp_path):
     path = write_yaml(tmp_path / "skills.yaml", {"roles": {"tester": [{"name": "tdd"}]}})
     assert load_skills_registry(path) == {"tester": [SkillReq("tdd", False, None, False)]}
+    assert load_skills_registry(path)["tester"][0].read == ()
+
+
+def test_skills_registry_reads_the_files_to_inline(tmp_path):
+    path = write_yaml(tmp_path / "skills.yaml", {"roles": {"lens-x": [{"name": "s", "read": ["a.md", "notes/b.md"]}]}})
+    assert load_skills_registry(path)["lens-x"][0].read == ("a.md", "notes/b.md")
+
+
+@pytest.mark.parametrize("read", [
+    "a.md", [""], ["/abs.md"], ["../up.md"], ["a/../b.md"], ["C:/x.md"], ["dir\\a.md"], ["./a.md"], [1],
+    ["SKILL.md"], ["a.md", "a.md"],
+])
+def test_skills_registry_refuses_a_bad_read_list(tmp_path, read):
+    path = write_yaml(tmp_path / "skills.yaml", {"roles": {"lens-x": [{"name": "s", "read": read}]}})
+    with pytest.raises(ConfigError) as e:
+        load_skills_registry(path)
+    assert any("read" in problem for problem in e.value.problems)
 
 
 def test_skills_registry_problems_collected(tmp_path):

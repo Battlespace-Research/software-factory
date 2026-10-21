@@ -29,7 +29,8 @@ PASS_TEXT = "VERDICT: PASS\nChecked: caf\u00e9 \u2713"
 
 PROVENANCE = re.compile(
     r"^<!-- factory: role=(?P<role>\S+) vendor=(?P<vendor>\S+) model=(?P<model>\S+) effort=(?P<effort>\S+) "
-    r"sandbox=(?P<sandbox>\S+) at=(?P<at>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)(?P<extra> extra=.*)? -->$"
+    r"sandbox=(?P<sandbox>\S+) (?:reference=(?P<reference>none|\S+ sha256:[0-9a-f]{12}) )?"
+    r"at=(?P<at>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)(?P<extra> extra=.*)? -->$"
 )
 
 
@@ -181,7 +182,7 @@ def test_claude_argv_on_openai_host(table, tmp_path):
     assert inv.kind == "command" and inv.argv[0:2] == ["claude", "-p"]
     assert inv.argv == [
         "claude", "-p", "--model", "claude-opus-5-5", "--effort", "xhigh", "--output-format", "json",
-        "--permission-mode", "plan", "--allowedTools", "Read,Grep,Glob",
+        "--permission-mode", "plan", "--disallowedTools", "Agent,Skill", "--allowedTools", "Read,Grep,Glob",
     ]
     assert (inv.agent, inv.model_alias, inv.effort, inv.sandbox) == (None, None, "xhigh", "read-only")
 
@@ -236,6 +237,23 @@ def test_run_invocation_stamps_role_model_effort_sandbox_and_time(tmp_path, tabl
     assert (m["role"], m["vendor"], m["model"], m["effort"], m["sandbox"]) == (
         "lens-security", "openai", "gpt-6.1-sol", "xhigh", "read-only")
     assert not m["extra"]
+    assert m["reference"] is None  # a prompt without a reference marker: no reference in the stamp
+
+
+@pytest.mark.parametrize("marker", ["tdd sha256:0123456789ab", "test-driven-development sha256:abcdef012345", "none"])
+def test_run_invocation_copies_the_prompts_reference_marker_into_the_stamp(tmp_path, table, fake_cli, marker):
+    r, inv, out = lens(table, tmp_path, role="lens-correctness")
+    prompt = f"# Review lens\n\n<!-- reference: {marker} -->\n## Reference: x\n\ntext\n"
+    assert run_invocation(inv, r, prompt, out).ok
+    m = PROVENANCE.match(out.read_text(encoding="utf-8").splitlines()[-1])
+    assert m and m["reference"] == marker
+
+
+def test_run_invocation_ignores_a_marker_that_is_not_on_its_own_line(tmp_path, table, fake_cli):
+    r, inv, out = lens(table, tmp_path, role="lens-correctness")
+    assert run_invocation(inv, r, "see `<!-- reference: tdd sha256:0123456789ab -->` above\n", out).ok
+    m = PROVENANCE.match(out.read_text(encoding="utf-8").splitlines()[-1])
+    assert m and m["reference"] is None
 
 
 def test_run_invocation_keeps_the_reviewers_text_intact_with_the_stamp_last(tmp_path, table, fake_cli):

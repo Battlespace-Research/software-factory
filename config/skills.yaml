@@ -12,6 +12,8 @@
 #   fallback     the name of an installed skill to use instead, or null
 #   interactive  true when the skill talks to the user. Interactive skills are never used
 #                inside unattended (subagent or headless) roles.
+#   read         optional: files of the skill, besides SKILL.md, inlined with it when it is a
+#                lens's reference skill (paths inside the skill's folder)
 
 version: 1
 
@@ -44,11 +46,13 @@ roles:
     - {name: verification-before-completion, required: true,  fallback: null,                    interactive: false}
     - {name: tdd,                            required: true,  fallback: test-driven-development, interactive: false}
 
-  # A lens's reference skill (tdd, codebase-design, domain-modeling) is read as guidance for the lens, never
-  # run; the review panel passes its SKILL.md path into the lens prompt (`sw-factory skills path`), or `none`.
+  # A lens's reference skill (tdd, codebase-design, domain-modeling) is guidance for the lens, never run:
+  # `sw-factory prompt render --reference-skill` inlines its SKILL.md and the files under `read:` into the
+  # lens prompt (front matter stripped). A fallback is inlined as its SKILL.md only. codebase-design's
+  # DESIGN-IT-TWICE.md is left out on purpose: it tells its reader to spawn sub-agents and ask the user.
   lens-correctness:
     - {name: code-review, required: true,  fallback: null, interactive: false}
-    - {name: tdd,         required: true,  fallback: null, interactive: false}
+    - {name: tdd,         required: true,  fallback: test-driven-development, interactive: false, read: [tests.md, mocking.md]}
 
   lens-security:
     - {name: code-review,     required: true,  fallback: null, interactive: false}
@@ -56,7 +60,7 @@ roles:
 
   lens-maintainability:
     - {name: code-review,     required: true,  fallback: null, interactive: false}
-    - {name: codebase-design, required: true,  fallback: null, interactive: false}
+    - {name: codebase-design, required: true,  fallback: null, interactive: false, read: [DEEPENING.md]}
 
   lens-spec:
     - {name: code-review,     required: true,  fallback: null, interactive: false}

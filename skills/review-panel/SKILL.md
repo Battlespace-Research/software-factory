@@ -11,7 +11,7 @@ Uses skills: code-review, tdd, codebase-design, domain-modeling
 
 The code-review skill is the lens reviewers' craft: its practice (the diff and the spec before the implementer's account, evidence for every blocking finding) is built into the lens prompts, and `sw-factory skills check` reports whether it is installed for the lens roles.
 
-Three lenses also get a **reference skill** to read as guidance for their lens: correctness reads `tdd`, maintainability `codebase-design`, and spec `domain-modeling` (only in a project that keeps a domain glossary or decision records). Security reads none. A reviewer reads its skill, it never runs it: no procedure followed, no agents spawned, no commands run, no files written because of it, so each lens stays one reviewer writing one review in the panel's format.
+Three lenses also get a **reference skill** as guidance for their lens: correctness `tdd`, maintainability `codebase-design`, and spec `domain-modeling` (only in a project that has domain files, below). Security gets none. `sw-factory prompt render --reference-skill` inlines the installed skill's text into the lens prompt, so the reviewer needs no access to the skill's folder. A reviewer reads that text, it never runs it: no procedure followed, no agents spawned, no commands run, no files written because of it, so each lens stays one reviewer writing one review in the panel's format.
 
 ## Names used below
 
@@ -35,27 +35,28 @@ Run every command from the repository root.
 
 ## 2. Render each lens prompt
 
-For each lens:
+**The domain files**, once per round when the spec lens runs: `git ls-files -- ":(glob)**/CONTEXT.md" CONTEXT-MAP.md docs/adr doc/adr docs/decisions` lists the project's glossaries (`CONTEXT.md` in any folder, `CONTEXT-MAP.md`) and decision records (ADRs). `<domain files>` is that list, the paths separated by spaces, or `none` when it prints nothing. A work item's own `decisions.md` is not among them.
 
-1. **Find its reference skill** (correctness, maintainability and spec only):
+Then for each lens:
 
-   | Lens | Reference skill | `<reference>` |
-   |---|---|---|
-   | correctness | `tdd` (required) | what `sw-factory skills path tdd --host <app> --project .` prints |
-   | maintainability | `codebase-design` (required) | what `sw-factory skills path codebase-design --host <app> --project .` prints |
-   | spec | `domain-modeling` (optional) | when the project keeps a `CONTEXT.md` or decision records (below), what `sw-factory skills path domain-modeling --host <app> --project .` prints; otherwise `none`, without running it |
-   | security | none | no reference skill: pass no `reference_skill` |
+1. **Its reference skill:**
 
-   - `<app>` is the **app** you are running in, `claude` (Claude Code) or `codex`, as for `sw-factory skills check`. It is not the vendor that `sw-factory role resolve --host` takes (`openai` in Codex): the two commands give `--host` different meanings.
-   - `sw-factory skills path` prints the absolute path of the skill's `SKILL.md` and exits 0, or prints `none` and exits 1 when the skill is not installed. Either way, `<reference>` is what it printed.
-   - **A project that keeps a domain model** has a `CONTEXT.md` or `CONTEXT-MAP.md` at its root, or decision records (ADRs) in a folder such as `docs/adr/` or `docs/decisions/`: `git ls-files -- CONTEXT.md CONTEXT-MAP.md docs/adr docs/decisions` prints at least one file. A work item's own `decisions.md` does not count.
-   - **A required reference skill that is not installed** does not stop the panel: render that lens with `none`, and add to the round's note (section 6) that the lens ran without its reference skill, naming the skill. `sw-factory skills check` reports the skill as missing too.
+   | Lens | `<reference>` |
+   |---|---|
+   | correctness | `tdd` (required; its fallback `test-driven-development` is used when it is missing) |
+   | maintainability | `codebase-design` (required) |
+   | spec | `domain-modeling` when `<domain files>` is not `none`; otherwise `none` |
+   | security | no reference skill: pass no `--reference-skill`, `--host` or `--home` |
+
 2. **Render the prompt:**
 
-   `sw-factory prompt render <factory>/prompts/lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=<task> --set round=<N> --set diff_command="git diff <start>..<head> -- . ':(exclude)sw-factory/work'" --set spec_path=<spec path> --set prior_review_path=<prior> --set reference_skill="<reference>" --out <staging>/<task>-r<N>-<lens>-prompt.md`
+   `sw-factory prompt render <factory>/prompts/lens-<lens>.md --from-review-md REVIEW.md --lens <lens> --set task_id=<task> --set round=<N> --set diff_command="git diff <start>..<head> -- . ':(exclude)sw-factory/work'" --set spec_path=<spec path> --set prior_review_path=<prior> --reference-skill <reference> --host <app> --out <staging>/<task>-r<N>-<lens>-prompt.md`
 
-   - For security, leave out `--set reference_skill=…`: its prompt has no such placeholder, and `sw-factory prompt render` refuses a value the template does not use.
-   - Quote `<reference>` as shown: a Windows path keeps its backslashes and a path with spaces stays one value.
+   - For spec, add `--set domain_files="<domain files>"`.
+   - For security, leave out `--reference-skill <reference> --host <app>`: its prompt has no reference section, and `sw-factory prompt render` refuses a value the template does not use.
+   - `<app>` is the **app** you are running in, `claude` (Claude Code) or `codex`, as for `sw-factory skills check`. It is not the vendor that `sw-factory role resolve --host` takes (`openai` in Codex): the two commands give `--host` different meanings. Only that app's user-level skill folders are searched, never the project's own, so the change under review cannot supply its reviewer's guidance.
+   - After `wrote …`, it prints `reference: <name> sha256:<12 hex>` (the skill it inlined, which for correctness may be the fallback) or `reference: none`. A skill that is not installed does not stop the panel: the prompt then says no reference skill was available. When that happens for a required one (`tdd` with no fallback installed, or `codebase-design`), add to the round's note (section 6) that the lens ran without its reference skill. `sw-factory skills check` reports the skill as missing too.
+   - Exit 2 names a problem and writes no prompt. For a skill that is installed but cannot be inlined (a file its registry entry lists is missing or not UTF-8, the text is too long or holds a reference tag), render that lens again with `--reference-skill none` and add the reason to the round's note. Fix any other problem and render again. Never patch a rendered prompt by hand.
    - `--lens` fills the prompt's lens name, that lens's checklist from `REVIEW.md` and the nit cap. Never pass `--set lens=…` as well.
    - `<prior>` is `none` in round 1. In a later round it is that lens's review from the round before, `<work>/reviews/<task>-r<N-1>-<lens>.md`.
    - The diff is a read-only `git diff` between two full SHAs. It leaves out `sw-factory/work/` (the plan, earlier reviews, dispositions), so each reviewer reads the product change before anything the implementer wrote about it; the prompt gives the reviewer the spec and its earlier review by path.
@@ -64,7 +65,7 @@ For each lens:
 
 1. **Resolve each lens:** `sw-factory role resolve lens-<lens> --host <vendor> --author <author> --project .` prints JSON. `invocation.kind` says how the lens runs; `resolved.vendor`, `resolved.model` and `resolved.effort` say who runs it.
 2. **Start all of them before waiting for any.** Spawn every subagent lens in the same turn, and start the command lenses so that they run at the same time: in Claude Code, each in the shell tool's background mode; in Codex, one shell command that starts each run as a background job and waits for all of them, with a timeout longer than the slowest run (each `sw-factory role run` stops itself after an hour). Keep each command's exit code and error output.
-   - `subagent` (only in Claude Code): spawn `bsri-sw-factory:` plus the name `invocation.agent` prints, here `bsri-sw-factory:lens-reviewer` (`invocation.agent` prints the bare name, which can resolve to another plugin's or the user's own agent; spawn the bare name only when the factory's `agents/` files are installed directly, not through the plugin), with model `invocation.model_alias`, giving it the rendered prompt's text as its task. It only reads; its reply is the review. Save the reply, unchanged, as `<work>/reviews/<task>-r<N>-<lens>.md` with your file-writing tool, then append a blank line and `<!-- factory: role=lens-<lens> vendor=<resolved.vendor> model=<resolved.model> effort=<resolved.effort> sandbox=read-only at=<UTC time, such as 2026-10-20T15:42:07Z> -->`.
+   - `subagent` (only in Claude Code): spawn `bsri-sw-factory:` plus the name `invocation.agent` prints, here `bsri-sw-factory:lens-reviewer` (`invocation.agent` prints the bare name, which can resolve to another plugin's or the user's own agent; spawn the bare name only when the factory's `agents/` files are installed directly, not through the plugin), with model `invocation.model_alias`, giving it the whole rendered prompt file, verbatim, as its task: with a reference skill inlined it is around 20 KB, so read it all and pass it on unshortened. It only reads; its reply is the review. Save the reply, unchanged, as `<work>/reviews/<task>-r<N>-<lens>.md` with your file-writing tool, then append a blank line and `<!-- factory: role=lens-<lens> vendor=<resolved.vendor> model=<resolved.model> effort=<resolved.effort> sandbox=read-only reference=<marker> at=<UTC time, such as 2026-10-20T15:42:07Z> -->`, where `<marker>` is what the prompt's `<!-- reference: … -->` line says (`tdd sha256:…` or `none`, as `sw-factory prompt render` printed it). For security, whose prompt has no such line, leave out `reference=<marker>`. `sw-factory role run` stamps a command lens the same way by itself.
    - `command`: `sw-factory role run lens-<lens> --host <vendor> --author <author> --project . --prompt <staging>/<task>-r<N>-<lens>-prompt.md --out <work>/reviews/<task>-r<N>-<lens>.md`. Exit 0: it wrote and stamped the review file. Exit 1: the run failed and left no file; run the same command once more with `--fallback`, and note that for the round's log entry. Exit 2: a usage problem it names; fix it and run again.
    - `main`: a reviewer must never be the session that wrote the change. Stop and tell the owner.
 3. **While any lens runs**, change nothing in the working tree except the review files you save: the reviewers read it.

@@ -39,6 +39,7 @@ from swfactory.mergegate import run_gate, write_gate_report
 from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
 from swfactory.prompts import MissingValue, render, required_placeholders
 from swfactory.readiness import SKILL_FILE, SkillHost, check_readiness, find_installed_skills, skill_search_paths
+from swfactory.reference import NONE, ReferenceError, none_section, reference_markers, reference_section
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
 from swfactory.setup import SetupAnswers, SetupError, setup_project
@@ -398,8 +399,39 @@ def _template_path(raw: Path) -> Path:
     return factory_home() / raw
 
 
+_REFERENCE_PLACEHOLDER = "reference_skill"
+
+
+def _reference_value(args: argparse.Namespace) -> tuple[str | None, list[str]]:
+    """The text that fills ``{{reference_skill}}`` from ``--reference-skill``, or the problems that stop it.
+
+    The skill must be registered for the lens's role in ``config/skills.yaml``; its registry entry says which
+    extra files to inline and which fallback to use. Only the host app's user-level skill folders are searched."""
+    name = args.reference_skill
+    if name == NONE:
+        return none_section().text, []
+    if args.lens is None:
+        return None, ["--reference-skill needs --lens (and --from-review-md): the lens's role registers the skill"]
+    if args.host is None:
+        return None, ["--reference-skill needs --host claude or --host codex: the app whose skill folders to search"]
+    try:
+        registry = load_skills_registry(factory_home() / "config" / "skills.yaml")
+    except ConfigError as err:
+        return None, err.problems
+    role = f"lens-{args.lens}"
+    entry = next((skill for skill in registry.get(role, []) if skill.name == name), None)
+    if entry is None:
+        return None, [f"--reference-skill {name}: config/skills.yaml registers no skill '{name}' for {role}"]
+    home = args.home if args.home is not None else Path.home()
+    try:
+        return reference_section(entry, args.host, home).text, []
+    except ReferenceError as err:
+        return None, [f"--reference-skill {name}: {err}"]
+
+
 def _prompt_values(args: argparse.Namespace) -> tuple[dict[str, str], dict[str, str], list[str]]:
-    """The values from ``--set`` and ``--from-review-md``, where each came from, and every problem with them."""
+    """The values from ``--set``, ``--from-review-md`` and ``--reference-skill``, where each came from, and every
+    problem with them."""
     values: dict[str, str] = {}
     source: dict[str, str] = {}
     problems: list[str] = []
@@ -411,9 +443,18 @@ def _prompt_values(args: argparse.Namespace) -> tuple[dict[str, str], dict[str, 
         name, value = match.groups()
         if name in values:
             problems.append(f"--set {name} is given twice")
+        if name == _REFERENCE_PLACEHOLDER:
+            problems.append(f"--set {name}: the reference skill is filled by --reference-skill NAME (or none)")
         values[name], source[name] = value, f"--set {name}"
     if (args.from_review_md is None) != (args.lens is None):
         problems.append("--from-review-md and --lens go together: the lens names the checklist to fill")
+    if (args.host is not None or args.home is not None) and args.reference_skill is None:
+        problems.append("--host and --home go with --reference-skill: they say where to find the skill")
+    if args.reference_skill is not None and not problems:
+        text, reference_problems = _reference_value(args)
+        problems += reference_problems
+        if text is not None:
+            values[_REFERENCE_PLACEHOLDER], source[_REFERENCE_PLACEHOLDER] = text, "--reference-skill"
     if problems or args.from_review_md is None:
         return values, source, problems
     try:
@@ -442,15 +483,27 @@ def _cmd_prompt_render(args: argparse.Namespace) -> int:
             )
         text = render(template, values)
     except MissingValue as err:
-        return _print_problems([f"{err} (pass --set NAME=VALUE for each)"])
+        hint = "pass --set NAME=VALUE for each"
+        if _REFERENCE_PLACEHOLDER in err.names:
+            hint += ", and --reference-skill NAME (or none) for reference_skill"
+        return _print_problems([f"{err} ({hint})"])
     except (OSError, UnicodeDecodeError) as err:
         return _print_problems([f"cannot read the template {template}: {err}"])
+    markers = reference_markers(text)
+    expected = 0 if args.reference_skill is None else 1
+    if len(markers) != expected:  # a checklist or value with a marker of its own would fake the review's provenance
+        return _print_problems([
+            f"the rendered prompt has {len(markers)} '<!-- reference: ... -->' lines; it may have {expected}, "
+            "the one --reference-skill writes"
+        ])
     try:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(text, encoding="utf-8", newline="\n")
     except OSError as err:
         return _print_problems([f"cannot write {args.out}: {err}"])
     _print_text(f"wrote {args.out}\n")
+    if args.reference_skill is not None:
+        _print_text(f"reference: {markers[0] if markers else NONE}\n")
     return 0
 
 
@@ -747,6 +800,25 @@ def build_parser() -> argparse.ArgumentParser:
         "needs --lens",
     )
     render_cmd.add_argument("--lens", metavar="L", help="the lens whose checklist --from-review-md fills in")
+    render_cmd.add_argument(
+        "--reference-skill",
+        metavar="NAME",
+        help="fill {{reference_skill}} with the installed skill NAME, registered for the lens in config/skills.yaml: "
+        "its SKILL.md and listed files, or its fallback's SKILL.md, or a sentence that none was available ('none' "
+        "gives that sentence). Needs --lens and --host",
+    )
+    render_cmd.add_argument(
+        "--host",
+        choices=get_args(SkillHost),
+        help="the app (not the vendor) whose user-level skill folders --reference-skill searches; a project's own "
+        "skill folders are never searched",
+    )
+    render_cmd.add_argument(
+        "--home",
+        type=Path,
+        metavar="PATH",
+        help="the home folder that holds the host's skill folders (default: the user's home)",
+    )
     render_cmd.add_argument("--out", required=True, type=Path, metavar="FILE", help="where the prompt is written (UTF-8)")
     render_cmd.set_defaults(handler=_cmd_prompt_render)
     return parser

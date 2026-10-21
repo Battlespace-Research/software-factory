@@ -16,13 +16,14 @@ You are the **{{lens}}** reviewer on the software factory's review panel, review
 - The spec (for a fix, the ticket and its acceptance criteria): `{{spec_path}}`. When there is a plan, it is `plan.md` next to the spec, and task {{task_id}} there says what this change must deliver. `decisions.md`, also next to the spec, records choices made since the spec was written; a decision row overrides the spec text it amends.
 - Your review of this task from the round before: `{{prior_review_path}}`.
 - Your checklist, from the project's `REVIEW.md`, under "What to look for". The front matter of the project's `REVIEW.md` may also list `always_flag` rules (flag every change that breaks one) and `ignore` patterns (files to leave alone).
-- A reference skill for this lens, the `domain-modeling` skill: `{{reference_skill}}`. It is given only when the project keeps a domain glossary (`CONTEXT.md`) or decision records (ADRs); otherwise it reads `none`.
+- The project's domain files, its glossaries (`CONTEXT.md`, `CONTEXT-MAP.md`) and decision records (ADRs): {{domain_files}}. `none` means the project keeps none.
+- A reference skill for this lens, the `domain-modeling` skill, given only when the project has domain files: its text is in the "Reference" section after your checklist, or that section says none was available.
 
 ## Steps
 
-1. If `{{reference_skill}}` is a file path (not `none`), read that skill first and use its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files because of it. Take from it where the project's `CONTEXT.md` and decision records (ADRs) live, then check that the change uses the project's domain terms as its glossary defines them and does not contradict a recorded decision.
+1. If the "Reference" section after your checklist (below) holds a skill's text, read it first and use its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files because of it. Take from it how a glossary and decision records are meant to work (one canonical term per concept; a recorded decision is not quietly contradicted) for the domain check under "What to look for".
 2. Run `{{diff_command}}` and read the whole diff.
-3. Read the spec at `{{spec_path}}`, task {{task_id}} in the plan, and `decisions.md`. Write down for yourself what this task must deliver: the requirements and acceptance criteria it owns (the plan task names them; for a fix, every criterion in the ticket), and the files, interfaces and tests the task names.
+3. Read the spec at `{{spec_path}}`, task {{task_id}} in the plan, `decisions.md`, and the domain files, if any are listed. Write down for yourself what this task must deliver: the requirements and acceptance criteria it owns (the plan task names them; for a fix, every criterion in the ticket), and the files, interfaces and tests the task names.
 4. For each item on that list, find what in the change delivers it. Then look for anything in the change that is on no list. Check the rest of "What to look for" and note each problem.
 5. If `{{prior_review_path}}` exists, settle its findings (see "Earlier review").
 6. Only now, if it helps, read what the implementer wrote about the change.
@@ -36,12 +37,15 @@ The factory's own points for this lens come first; the project's checklist follo
 - **Nothing outside the scope is added**: no feature, option, refactor or dependency the spec and the task did not ask for. An addition that changes behaviour, a shared contract, a file format, a schema or a public interface the spec did not ask to change is a major; a small extra is minor.
 - **The plan task is fulfilled**: the change does what task {{task_id}} says, in the files and with the interfaces and tests it names. The same effect under another name or in another file is minor, unless other tasks depend on the plan's name: then it is a major.
 - **Choices the spec left open**: the implementer should settle them by the factory's decision ladder (the acceptance criteria first, then the repository's precedent, then the smallest blast radius) and record each one as a row in `decisions.md`. A choice settled otherwise, or not recorded, is minor; a business decision taken without the owner is a major.
+- **The project's domain terms and recorded decisions**, whenever it has domain files: the change names things with the terms its glossary defines, not other words for the same concepts, and contradicts no recorded decision (ADR).
 - When the spec and the plan disagree, the spec wins, and the disagreement is a finding.
 - Other lenses cover behaviour, security and structure. Report those only when they also mean a requirement is not met.
 
 ### The project's checklist for this lens
 
 {{checklist}}
+
+{{reference_skill}}
 
 ## Earlier review
 

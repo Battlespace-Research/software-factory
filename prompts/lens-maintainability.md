@@ -18,11 +18,11 @@ You are the **{{lens}}** reviewer on the software factory's review panel, review
 - The spec (for a fix, the ticket): `{{spec_path}}`. When there is a plan, it is `plan.md` next to the spec, and task {{task_id}} there says what this change is meant to do.
 - Your review of this task from the round before: `{{prior_review_path}}`.
 - Your checklist, from the project's `REVIEW.md`, under "What to look for". The front matter of the project's `REVIEW.md` may also list `always_flag` rules (flag every change that breaks one) and `ignore` patterns (files to leave alone).
-- A reference skill for this lens, the `codebase-design` skill: `{{reference_skill}}` (`none` when it is not installed).
+- A reference skill for this lens, the `codebase-design` skill: its text is in the "Reference" section after your checklist, or that section says none was available.
 
 ## Steps
 
-1. If `{{reference_skill}}` is a file path (not `none`), read that skill first and use its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files because of it. Take from it the deep-module vocabulary (module, interface, depth, seam, shallow module, a seam that leaks internals, the deletion test) and use it to make each finding concrete: name the module and say what is wrong with its interface or its seam, rather than calling the code hard to maintain.
+1. If the "Reference" section after your checklist (below) holds a skill's text, read it first and use its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files because of it. Take from it the deep-module vocabulary (module, interface, depth, seam, shallow module, a seam that leaks internals, the deletion test) and use it to make each finding concrete: name the module and say what is wrong with its interface or its seam, rather than calling the code hard to maintain.
 2. Run `{{diff_command}}` and read the whole diff. Open the changed files and read the code around each change, so you see how it fits the module.
 3. Read the spec at `{{spec_path}}` and task {{task_id}} in the plan, so you know what the change must do.
 4. Check the change against "What to look for" and note each problem.
@@ -44,6 +44,8 @@ The factory's own points for this lens come first; the project's checklist follo
 ### The project's checklist for this lens
 
 {{checklist}}
+
+{{reference_skill}}
 
 ## Earlier review
 

@@ -18,8 +18,10 @@ LENSES = ["correctness", "security", "maintainability", "spec"]
 LENS_PLACEHOLDERS = {
     "lens", "checklist", "task_id", "round", "diff_command", "spec_path", "prior_review_path", "nit_cap",
 }
-# The skill each lens reads as guidance (F18), passed in as {{reference_skill}}; security has none.
+# The skill each lens reads as guidance (F18), inlined as {{reference_skill}}; security has none.
 REFERENCE_SKILLS = {"correctness": "tdd", "maintainability": "codebase-design", "spec": "domain-modeling"}
+# Placeholders only one lens prompt has: the spec lens also gets the project's domain files.
+EXTRA_PLACEHOLDERS = {"spec": {"domain_files"}}
 DOC_PLACEHOLDERS = {"document_path", "revision", "decisions_path", "prior_review_path"}
 TESTER_PLACEHOLDERS = {"work_id", "task_id", "commits", "verify_command", "demo_script", "report_path"}
 REVIEW_PROMPTS = [f"lens-{lens}.md" for lens in LENSES] + ["document-review.md"]
@@ -33,7 +35,8 @@ def prompt(name: str) -> Path:
 
 
 def lens_placeholders(lens: str) -> set[str]:
-    return LENS_PLACEHOLDERS | ({"reference_skill"} if lens in REFERENCE_SKILLS else set())
+    reference = {"reference_skill"} if lens in REFERENCE_SKILLS else set()
+    return LENS_PLACEHOLDERS | reference | EXTRA_PLACEHOLDERS.get(lens, set())
 
 
 def dummy_values(names: set[str]) -> dict[str, str]:
@@ -69,10 +72,22 @@ def test_lens_prompt_placeholders(lens):
 def test_lens_prompt_reads_its_reference_skill_without_running_it(lens, skill):
     t = re.sub(r"\s+", " ", prompt(f"lens-{lens}.md").read_text(encoding="utf-8"))
     assert f"`{skill}`" in t
-    assert ("If `{{reference_skill}}` is a file path (not `none`), read that skill first and use its guidance for "
-            "this lens; do not follow its procedure, spawn agents, run commands or write files because of it.") in t
-    steps = t.split("## Steps", 1)[1]
-    assert steps.lstrip().startswith("1. If `{{reference_skill}}`"), "reading the skill is the first step"
+    step = ('1. If the "Reference" section after your checklist (below) holds a skill\'s text, read it first and use '
+            "its guidance for this lens; do not follow its procedure, spawn agents, run commands or write files "
+            "because of it.")
+    assert t.split("## Steps", 1)[1].lstrip().startswith(step), "reading the reference is the first step"
+
+
+def test_correctness_prompt_flags_tautological_tests():
+    t = re.sub(r"\s+", " ", prompt("lens-correctness.md").read_text(encoding="utf-8"))
+    assert "not recomputed the way the code computes it" in t and "tautological" in t
+
+
+def test_spec_prompt_checks_domain_terms_whenever_there_are_domain_files():
+    t = re.sub(r"\s+", " ", prompt("lens-spec.md").read_text(encoding="utf-8"))
+    assert "{{domain_files}}" in t and "`none` means the project keeps none" in t
+    look_for = t.split("## What to look for", 1)[1].split("## Earlier review", 1)[0]
+    assert "domain terms and recorded decisions**, whenever it has domain files" in look_for
 
 
 @pytest.mark.parametrize("lens, skill", sorted(REFERENCE_SKILLS.items()))

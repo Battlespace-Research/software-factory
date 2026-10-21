@@ -240,15 +240,29 @@ def load_role_table(path: Path, overrides: dict | None = None) -> RoleTable:
 
 @dataclass(frozen=True)
 class SkillReq:
-    """A third-party skill a role requires or can use."""
+    """A third-party skill a role requires or can use.
+
+    ``read`` names files of the installed skill, besides its SKILL.md, that are bundled with it when the skill is
+    inlined into a prompt as a lens's reference skill (``sw-factory prompt render --reference-skill``); each is a
+    plain file name or a relative path inside the skill's folder.
+    """
 
     name: str
     required: bool
     fallback: str | None
     interactive: bool
+    read: tuple[str, ...] = ()
 
 
-_SKILL_KEYS = ("name", "required", "fallback", "interactive")
+_SKILL_KEYS = ("name", "required", "fallback", "interactive", "read")
+
+
+def _is_skill_file(value: Any) -> bool:
+    """A relative path inside a skill's folder: no drive or root, no ``..``, forward slashes."""
+    if not _is_str(value) or "\\" in value or ":" in value:
+        return False
+    parts = value.split("/")
+    return not value.startswith("/") and all(part not in ("", ".", "..") for part in parts)
 
 
 def _build_skill(where: str, raw: Any, problems: list[str]) -> SkillReq | None:
@@ -267,6 +281,11 @@ def _build_skill(where: str, raw: Any, problems: list[str]) -> SkillReq | None:
     fallback = raw.get("fallback")
     if fallback is not None and not _is_str(fallback):
         problems.append(f"{where}: fallback must be a skill name or null")
+    read = raw.get("read", [])
+    if not isinstance(read, list) or not all(_is_skill_file(item) for item in read):
+        problems.append(f"{where}: read must be a list of files inside the skill's folder, such as [tests.md]")
+    elif any(item == "SKILL.md" for item in read) or len(set(read)) != len(read):
+        problems.append(f"{where}: read lists a file twice (SKILL.md is always read)")
     if len(problems) > before:
         return None
     return SkillReq(
@@ -274,6 +293,7 @@ def _build_skill(where: str, raw: Any, problems: list[str]) -> SkillReq | None:
         required=raw.get("required", False),
         fallback=fallback,
         interactive=raw.get("interactive", False),
+        read=tuple(read),
     )
 
 
@@ -281,7 +301,7 @@ def load_skills_registry(path: Path) -> dict[str, list[SkillReq]]:
     """Load ``skills.yaml``: the skills each role requires or can use.
 
     Keyed by role; the key ``"*"`` applies to every role. Per skill, ``required`` and
-    ``interactive`` default to false and ``fallback`` to null.
+    ``interactive`` default to false, ``fallback`` to null and ``read`` to no extra files.
     """
     path = Path(path)
     data = _read_yaml(path)
