@@ -1,3 +1,3 @@
 """swfactory: command-line tools for the BSRI software factory."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
