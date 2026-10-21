@@ -44,18 +44,23 @@ roles:
     - {name: verification-before-completion, required: true,  fallback: null,                    interactive: false}
     - {name: tdd,                            required: true,  fallback: test-driven-development, interactive: false}
 
+  # A lens's reference skill (tdd, codebase-design, domain-modeling) is read as guidance for the lens, never
+  # run; the review panel passes its SKILL.md path into the lens prompt (`sw-factory skills path`), or `none`.
   lens-correctness:
     - {name: code-review, required: true,  fallback: null, interactive: false}
+    - {name: tdd,         required: true,  fallback: null, interactive: false}
 
   lens-security:
     - {name: code-review,     required: true,  fallback: null, interactive: false}
     - {name: security-review, required: false, fallback: null, interactive: false}
 
   lens-maintainability:
-    - {name: code-review, required: true,  fallback: null, interactive: false}
+    - {name: code-review,     required: true,  fallback: null, interactive: false}
+    - {name: codebase-design, required: true,  fallback: null, interactive: false}
 
   lens-spec:
-    - {name: code-review, required: true,  fallback: null, interactive: false}
+    - {name: code-review,     required: true,  fallback: null, interactive: false}
+    - {name: domain-modeling, required: false, fallback: null, interactive: false}
 
   release-checker:
     - {name: deploy-checklist, required: false, fallback: null, interactive: false}

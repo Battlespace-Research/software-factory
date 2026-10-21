@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import re
 import signal
 import subprocess
@@ -37,7 +38,7 @@ from swfactory.gitutil import GitError
 from swfactory.mergegate import run_gate, write_gate_report
 from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
 from swfactory.prompts import MissingValue, render, required_placeholders
-from swfactory.readiness import SkillHost, check_readiness
+from swfactory.readiness import SKILL_FILE, SkillHost, check_readiness, find_installed_skills, skill_search_paths
 from swfactory.reviewmd import load_review_md
 from swfactory.roles import Vendor, resolve_role
 from swfactory.setup import SetupAnswers, SetupError, setup_project
@@ -361,6 +362,26 @@ def _cmd_skills_check(args: argparse.Namespace) -> int:
     return 0 if report.ok else 1
 
 
+def _cmd_skills_path(args: argparse.Namespace) -> int:
+    project: Path | None = args.project
+    if project is not None:
+        if not project.exists():
+            return _print_problems([f"--project {project}: not found"])
+        if project.is_file():
+            project = project.parent  # --project was the sw-factory.yaml; the skill folders sit next to it
+    home = args.home if args.home is not None else Path.home()
+    folder = find_installed_skills(skill_search_paths(args.host, home, project)).get(args.name)
+    if folder is None:
+        print("none")
+        return 1
+    path = os.path.abspath(folder / SKILL_FILE)
+    try:
+        print(path)
+    except UnicodeEncodeError:  # a path with a character replaced would name the wrong file
+        return _print_problems([f"the path of {args.name} cannot be shown in this console's encoding: {path!a}"])
+    return 0
+
+
 def _cmd_prompt_help(args: argparse.Namespace) -> int:
     args.prompt_parser.print_help()
     return EXIT_USAGE
@@ -649,7 +670,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     setup.set_defaults(handler=_cmd_setup)
 
-    skills = commands.add_parser("skills", help="check that the third-party skills the roles need are installed")
+    skills = commands.add_parser(
+        "skills", help="check that the third-party skills the roles need are installed, and find where one is"
+    )
     skills.set_defaults(handler=_cmd_skills_help, skills_parser=skills)
     skills_commands = skills.add_subparsers(dest="skills_command", metavar="<subcommand>")
     skills_check = skills_commands.add_parser(
@@ -671,6 +694,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="the home folder that holds the host's skill folders (default: the user's home)",
     )
     skills_check.set_defaults(handler=_cmd_skills_check)
+    skills_path = skills_commands.add_parser(
+        "path",
+        help="print the absolute path of an installed skill's SKILL.md, found where the host loads skills from "
+        "(exit 0 found; 1 not installed, printing 'none'; 2 could not run)",
+    )
+    skills_path.add_argument("name", metavar="NAME", help="the skill's name, such as codebase-design")
+    skills_path.add_argument(
+        "--host", required=True, choices=get_args(SkillHost), help="the app whose skill folders to search"
+    )
+    skills_path.add_argument(
+        "--project",
+        type=Path,
+        metavar="PATH",
+        help="a project folder or sw-factory.yaml: its own skill folders are searched too",
+    )
+    skills_path.add_argument(
+        "--home",
+        type=Path,
+        metavar="PATH",
+        help="the home folder that holds the host's skill folders (default: the user's home)",
+    )
+    skills_path.set_defaults(handler=_cmd_skills_path)
 
     prompt = commands.add_parser("prompt", help="fill in the prompt templates the factory's roles read")
     prompt.set_defaults(handler=_cmd_prompt_help, prompt_parser=prompt)

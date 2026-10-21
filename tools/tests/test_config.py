@@ -280,6 +280,14 @@ def test_skills_registry_assigns_skills_to_roles():
     for lens in ("lens-correctness", "lens-security", "lens-maintainability", "lens-spec"):
         assert "code-review" in names(lens)
     assert "security-review" in names("lens-security")
+    # Each lens's reference skill (F18): required for correctness and maintainability, optional for spec.
+    reference = {role: {s.name: s.required for s in reg[role] if s.name != "code-review"}
+                 for role in ("lens-correctness", "lens-maintainability", "lens-spec")}
+    assert reference == {
+        "lens-correctness": {"tdd": True},
+        "lens-maintainability": {"codebase-design": True},
+        "lens-spec": {"domain-modeling": False},
+    }
     assert "deploy-checklist" in names("release-checker")
     assert {"triage", "incident-response"} <= names("triage")
     assert "handoff" in names("*")

@@ -1,10 +1,12 @@
-"""Tests for swfactory.readiness (skill search paths, installed skills, the readiness report) and ``sw-factory skills check``.
+"""Tests for swfactory.readiness (skill search paths, installed skills, the readiness report), ``sw-factory skills
+check`` and ``sw-factory skills path``.
 
 Every test builds its own home folder under ``tmp_path`` and passes it explicitly; the autouse fixture also
 points the environment at empty folders, so nothing reads the real home or the real ``%APPDATA%``.
 """
 from __future__ import annotations
 
+import io
 import os
 import sys
 from pathlib import Path
@@ -492,6 +494,11 @@ def real_registry() -> dict[str, list[SkillReq]]:
     return load_skills_registry(factory_home() / "config" / "skills.yaml")
 
 
+def registered_fallback(name: str) -> str:
+    """The fallback the readiness report names for ``name``: the first one any role registers for it."""
+    return next(s.fallback for skills in real_registry().values() for s in skills if s.name == name and s.fallback)
+
+
 def install_every_required_skill(home: Path, *, leave_out: set[str] = frozenset()) -> None:
     for skills in real_registry().values():
         for skill in skills:
@@ -528,7 +535,7 @@ def test_cli_check_names_a_missing_skill_with_no_fallback_and_exits_1(home, caps
 
 
 def test_cli_check_missing_skill_with_installed_fallback_is_a_warning(home, capsys):
-    fallback_of_tdd = {s.name: s.fallback for skills in real_registry().values() for s in skills}["tdd"]
+    fallback_of_tdd = registered_fallback("tdd")
     install_every_required_skill(home, leave_out={"tdd"})
     make_skill(agents_skills(home), fallback_of_tdd)
     code, out, _ = run_check(capsys, home)
@@ -538,7 +545,7 @@ def test_cli_check_missing_skill_with_installed_fallback_is_a_warning(home, caps
 
 
 def test_cli_check_missing_skill_with_missing_fallback_exits_1(home, capsys):
-    fallback_of_tdd = {s.name: s.fallback for skills in real_registry().values() for s in skills}["tdd"]
+    fallback_of_tdd = registered_fallback("tdd")
     install_every_required_skill(home, leave_out={"tdd"})
     code, out, _ = run_check(capsys, home)
     assert code == 1
@@ -641,3 +648,99 @@ def test_cli_skills_requires_a_subcommand_and_a_host(home, capsys):
     with pytest.raises(SystemExit) as exit_info:
         cli.main(["skills", "check", "--host", "openai", "--home", str(home)])
     assert exit_info.value.code == 2
+
+
+# --------------------------------------------------------------------------- the skills path command
+
+
+def run_path(capsys, home: Path, name: str, *extra: str, host: str = "claude") -> tuple[int, str, str]:
+    code = cli.main(["skills", "path", name, "--host", host, "--home", str(home), *extra])
+    captured = capsys.readouterr()
+    return code, captured.out, captured.err
+
+
+@pytest.mark.parametrize("host", ["claude", "codex"])
+def test_cli_path_prints_the_skill_md_of_an_installed_skill(home, capsys, host):
+    folder = make_skill(agents_skills(home), "codebase-design")
+    code, out, err = run_path(capsys, home, "codebase-design", host=host)
+    assert code == 0 and err == ""
+    assert lines(out) == [str(folder / "SKILL.md")]
+    assert Path(lines(out)[0]).is_absolute() and Path(lines(out)[0]).is_file()
+
+
+def test_cli_path_finds_a_skill_by_its_front_matter_name(home, capsys):
+    folder = make_skill(agents_skills(home), "wp", name="writing-plans")
+    code, out, _ = run_path(capsys, home, "writing-plans")
+    assert code == 0 and lines(out) == [str(folder / "SKILL.md")]
+
+
+def test_cli_path_of_a_skill_that_is_not_installed_prints_none_and_exits_1(home, capsys):
+    make_skill(agents_skills(home), "tdd")
+    code, out, err = run_path(capsys, home, "domain-modeling")
+    assert code == 1 and out == "none\n" and err == ""
+
+
+def test_cli_path_finds_a_plugin_cache_install_on_its_own_host_only(home, capsys):
+    folder = make_skill(home / ".claude/plugins/cache/mp/superpowers/7.0.0/skills", "tdd")
+    code, out, _ = run_path(capsys, home, "tdd", host="claude")
+    assert code == 0 and lines(out) == [str(folder / "SKILL.md")]
+    code, out, _ = run_path(capsys, home, "tdd", host="codex")
+    assert code == 1 and lines(out) == ["none"]
+
+
+def test_cli_path_takes_the_skill_from_the_hosts_first_folder(home, capsys):
+    shared = make_skill(agents_skills(home), "tdd")
+    claude_own = make_skill(home / ".claude" / "skills", "tdd")  # first for Claude Code
+    make_skill(home / ".codex" / "skills", "tdd")  # after ~/.agents/skills for Codex
+    assert lines(run_path(capsys, home, "tdd", host="claude")[1]) == [str(claude_own / "SKILL.md")]
+    assert lines(run_path(capsys, home, "tdd", host="codex")[1]) == [str(shared / "SKILL.md")]
+
+
+def test_cli_path_searches_a_projects_skill_folders(home, tmp_path, capsys):
+    project = tmp_path / "project"
+    folder = make_skill(project / ".agents" / "skills", "project-skill")
+    (project / "sw-factory.yaml").write_text("project: demo\n", encoding="utf-8")
+    for given in (project, project / "sw-factory.yaml"):
+        code, out, _ = run_path(capsys, home, "project-skill", "--project", str(given), host="codex")
+        assert code == 0 and lines(out) == [str(folder / "SKILL.md")]
+    assert run_path(capsys, home, "project-skill", host="codex")[:2] == (1, "none\n")
+
+
+def test_cli_path_a_missing_project_exits_2(home, tmp_path, capsys):
+    code, out, err = run_path(capsys, home, "tdd", "--project", str(tmp_path / "no-such-project"))
+    assert code == 2 and out == ""
+    assert "no-such-project" in err and "not found" in err
+
+
+def test_cli_path_with_a_relative_home_prints_an_absolute_path(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    folder = make_skill(tmp_path / "relative-home" / ".agents" / "skills", "tdd")
+    assert cli.main(["skills", "path", "tdd", "--host", "codex", "--home", "relative-home"]) == 0
+    assert capsys.readouterr().out.splitlines() == [str(folder / "SKILL.md")]
+
+
+def test_cli_path_defaults_the_home_to_the_users_home(capsys):
+    folder = make_skill(agents_skills(Path.home()), "tdd")  # the autouse fixture's empty home
+    assert cli.main(["skills", "path", "tdd", "--host", "claude"]) == 0
+    assert capsys.readouterr().out.splitlines() == [str(folder / "SKILL.md")]
+
+
+def test_cli_path_refuses_a_path_the_console_cannot_show(home, capsys, monkeypatch):
+    make_skill(agents_skills(home), "tdd-é", name="tdd")
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(io.BytesIO(), encoding="ascii"))
+    code = cli.main(["skills", "path", "tdd", "--host", "codex", "--home", str(home)])
+    assert code == 2  # a path with the character replaced would name another file
+    assert "encoding" in capsys.readouterr().err
+
+
+def test_cli_skills_path_needs_a_name_and_a_host(home, capsys):
+    assert cli.main(["skills"]) == 2
+    assert "path" in capsys.readouterr().out
+    for argv in (
+        ["skills", "path", "--host", "claude"],
+        ["skills", "path", "tdd"],
+        ["skills", "path", "tdd", "--host", "openai"],
+    ):
+        with pytest.raises(SystemExit) as exit_info:
+            cli.main([*argv, "--home", str(home)])
+        assert exit_info.value.code == 2
