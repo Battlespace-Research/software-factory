@@ -185,10 +185,12 @@ Keep the command and the plugin on the same version: `sw-factory --version` and 
 
 ## Upgrading from 0.2.0
 
-Version 0.3.0 renamed the largest track from Program to Epic (decision F17 in `docs/decisions.md`): the track is `epic`, its work ids are `EPIC-<n>` and its templates are in `templates/work/epic/`. The command, the plugin and the skills keep their names, so update them as [Updating](#updating) says; `sw-factory --version` then prints `0.3.0`. In each project set up with 0.2.0:
+Version 0.3.0 renamed the largest track from Program to Epic (decision F17 in `docs/decisions.md`): the track is `epic`, its work ids are `EPIC-<n>` and its templates are in `templates/work/epic/`. The command, the plugin and the skills keep their names, and Fix and Feature work items carry on as they are. If you installed 0.2.0:
 
-1. **`REVIEW.md`.** Under `tracks:`, rename the `program:` key to `epic:` and keep its lenses. Until you do, `sw-factory config check --project .` reports `unknown track 'program'`.
-2. **Open `PRG-<n>` work items.** 0.3.0 does not read them: finish them with 0.2.0 first, or open each again as an Epic (`sw-factory work new --track epic …`) and carry its files over by hand. Fix and Feature items carry on as they are.
+1. **Before you update, finish any open `PRG-<n>` items with 0.2.0.** 0.3.0 does not read them, and once you run `git pull` in the clone the editable install is already 0.3.0 (there is no 0.2.0 tag to go back to). An item you cannot finish first has to be opened again as an Epic after the update (`sw-factory work new --track epic …`), with its files carried over by hand.
+2. **Update** the command and the plugin as [Updating](#updating) says; `sw-factory --version` then prints `0.3.0`.
+3. **`REVIEW.md`**, in each project set up with 0.2.0: under `tracks:`, rename the `program:` key to `epic:` and keep its lenses. Until you do, `sw-factory config check --project .` reports `unknown track 'program'`, and every review panel fails, on every track, because the panel cannot load `REVIEW.md`.
+4. **`CLAUDE.md` and `AGENTS.md`**, in each such project: in the factory's section, between `<!-- sw-factory:begin -->` and `<!-- sw-factory:end -->`, change `PRG-<n>-<slug>` to `EPIC-<n>-<slug>`. Setup cannot refresh the section: it runs once per project and stops when `sw-factory.yaml` exists.
 
 ## Upgrading from 0.1.0
 
