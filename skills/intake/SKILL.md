@@ -1,6 +1,6 @@
 ---
 name: intake
-description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner asks to triage work for the factory, brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Picks the Fix, Feature or Epic track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
+description: "BSRI software factory: Size a new piece of work for the software factory and open its work item. Use when the owner asks to triage work for the factory, brings a bug, a change or an idea to a project set up for the factory (it has a sw-factory.yaml), asks to queue work, or when a Fix or Feature has to step up to a bigger track. Takes a small adjustment the owner calls a tweak straight through (change, check, owner review, commit) with no work item; otherwise picks the Fix, Feature or Epic track by the factory's thresholds, creates the branch and work folder, writes and confirms a Fix ticket, then hands over to orchestrate."
 ---
 
 # Intake
@@ -25,13 +25,27 @@ Put the work in the **smallest track that fits** (design section 8.3):
 
 | Track | Fits when the work is |
 |---|---|
+| **Tweak** | a small adjustment the owner wants made, not scrutinised: a setting, a config value, a wording or diagram change, a small script edit (section 2a) |
 | **Fix** | one session, one task, and touches no shared contract, schema or file format |
 | **Feature** | up to about five tasks, with no milestones, in one repository |
 | **Epic** | anything bigger: needs milestones, more than about five tasks, or more than one repository |
 
 A Fix that needs more than one session, more than one task, or a change to a shared contract, schema or file format is a Feature. A Feature that needs milestones, crosses repositories or outgrows about five tasks is an Epic. Touching a git submodule does not by itself make work an Epic.
 
-Tell the owner the track and the reason in a sentence or two. The owner may choose another track; their choice, and why, becomes the recorded reason.
+Tell the owner the track and the reason in a sentence or two. The owner may choose another track; their choice, and why, becomes the recorded reason. When the work looks like a tweak but the owner has not said so, ask "tweak or work item?" rather than opening an item by default.
+
+## 2a. A tweak
+
+A tweak gets no id, branch, folder, ticket, review panel, tester, retro or merge gate. The owner's request is the go-ahead to make the change; their review is the one approval, and it comes before anything is committed.
+
+1. **Scope it to the minimum.** Say in a line or two the smallest change that does what the owner asked. Anything more (docs, cleanups, extra checks) is offered separately, never folded in.
+2. **Make the change** on the branch the owner is working on.
+3. **Run the check that proves it:** the narrowest test, script or command that shows the change works (the quick verify command when the change touches product code). Keep its real output.
+4. **Show the owner what changed:** the diff or a summary of it, and the check's output. Commit nothing yet.
+5. **Wait for the owner's approval** in chat. If they ask for changes, make them and show again.
+6. **Commit and push** once approved: commit only the tweak's files (`git commit -- <paths>`), with a plain subject and the `Factory-Role: implementer` trailer, and push that branch if a remote exists and the project's rules and `hard_stops` allow it; never push the base branch unless the owner says to. The owner's request and approval stay in chat; no approval record is written.
+
+A tweak that turns out bigger (it needs design, more than one sitting, or touches a shared contract, schema or file format) stops before step 6: tell the owner and ask whether to open a work item for it.
 
 ## 3. Name it
 

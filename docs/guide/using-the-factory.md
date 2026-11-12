@@ -56,6 +56,7 @@ The intake skill asks questions one at a time until it knows what is wrong or wa
 
 | Track | Fits when the work is |
 |---|---|
+| **Tweak** | a small adjustment you want made, not scrutinised (a setting, a config value, a wording change); no work item |
 | **Fix** | one session and one task, touching no shared contract, schema or file format |
 | **Feature** | up to about five tasks, without milestones, in one repository |
 | **Epic** | anything bigger: milestones, more than about five tasks, or more than one repository |
@@ -63,6 +64,8 @@ The intake skill asks questions one at a time until it knows what is wrong or wa
 You can choose another track; your choice and reason are recorded. The factory then opens the work item with `sw-factory work new`: it takes the next free id, creates the branch and the folder, and commits. If the project has a remote and its rules allow pushing, it pushes the new branch, which claims the id for the team.
 
 If you want the work queued rather than started, say so: the work item's branch is its place in the queue.
+
+**A tweak** skips the work item. Say "do this as a tweak" (or answer "tweak" when the factory asks "tweak or work item?"). The factory makes the smallest change that does what you asked, runs the check that proves it, shows you the diff and the check's output, and commits and pushes only after you approve. If it turns out bigger than a tweak, it stops and asks whether to open a work item.
 
 ## 3. A Fix, end to end
 
