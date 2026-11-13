@@ -36,7 +36,7 @@ from swfactory.config import (
 )
 from swfactory.gitutil import GitError
 from swfactory.mergegate import run_gate, write_gate_report
-from swfactory.panel import combine, latest_passing_commit, render_panel_summary, write_panel_summary
+from swfactory.panel import combine, latest_passing_commit, lenses_to_run, render_panel_summary, write_panel_summary
 from swfactory.prompts import MissingValue, render, required_placeholders
 from swfactory.readiness import SKILL_FILE, SkillHost, check_readiness, find_installed_skills, skill_search_paths
 from swfactory.reference import NONE, ReferenceError, none_section, reference_markers, reference_section
@@ -177,6 +177,27 @@ def _print_text(text: str) -> None:
     sys.stdout.write(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
 
 
+def _cmd_panel_lenses(args: argparse.Namespace) -> int:
+    """Print the lenses to run in this round, one per line, then a ``# carried`` comment line per carried lens."""
+    work_dir: Path = args.work_dir
+    if not work_dir.is_dir():
+        return _print_problems([f"{work_dir} is not a folder"])
+    try:
+        track = track_for_id(work_dir.resolve().name)
+        root = find_project_root(work_dir)
+        cfg = load_review_md(root / "REVIEW.md")
+        lenses = cfg.tracks.get(track)
+        if lenses is None:
+            raise ConfigError([f"{root / 'REVIEW.md'} lists no lenses for the '{track}' track (add it under tracks)"])
+        run, carried = lenses_to_run(work_dir, args.task, args.round, lenses, args.fresh, cfg.nit_cap)
+    except ConfigError as err:
+        return _print_problems(err.problems)
+    except (ValueError, OSError) as err:
+        return _print_problems([str(err)])
+    _print_text("".join(f"{lens}\n" for lens in run) + "".join(f"# carried: {lens} (passed in round {r})\n" for lens, r in carried.items()))
+    return 0
+
+
 def _cmd_panel_combine(args: argparse.Namespace) -> int:
     work_dir: Path = args.work_dir
     if not work_dir.is_dir():
@@ -189,7 +210,7 @@ def _cmd_panel_combine(args: argparse.Namespace) -> int:
         if lenses is None:
             raise ConfigError([f"{root / 'REVIEW.md'} lists no lenses for the '{track}' track (add it under tracks)"])
         commit = args.commit if args.commit is not None else _head_commit(root)
-        result = combine(work_dir, args.task, args.round, lenses, commit, cfg.nit_cap)
+        result = combine(work_dir, args.task, args.round, lenses, commit, cfg.nit_cap, fresh=args.fresh)
         path = write_panel_summary(work_dir, args.task, args.round, result)
     except ConfigError as err:
         return _print_problems(err.problems)
@@ -579,7 +600,20 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="SHA",
         help="the commit that was reviewed (default: HEAD of the project, as a full SHA)",
     )
+    combine_cmd.add_argument(
+        "--fresh", action="store_true", help="every lens must report (a merge-gate re-review); no earlier pass carries"
+    )
     combine_cmd.set_defaults(handler=_cmd_panel_combine)
+    lenses_cmd = panel_commands.add_parser(
+        "lenses",
+        help="print the lenses that review this round, one per line (from round 2 a lens whose earlier review passed "
+        "is carried, not run)",
+    )
+    lenses_cmd.add_argument("work_dir", type=Path, metavar="WORK_DIR", help="the work item's folder, as for combine")
+    lenses_cmd.add_argument("--task", required=True, metavar="T", help="the task id")
+    lenses_cmd.add_argument("--round", required=True, type=int, metavar="N", help="the review round, 1 or more")
+    lenses_cmd.add_argument("--fresh", action="store_true", help="every lens (a merge-gate re-review)")
+    lenses_cmd.set_defaults(handler=_cmd_panel_lenses)
 
     work = commands.add_parser("work", help="open work items and read or update their Status line")
     work.set_defaults(handler=_cmd_work_help, work_parser=work)

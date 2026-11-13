@@ -76,6 +76,7 @@ Never start a round numbered above `review.max_rounds`. If one is needed for ano
    - A maintainability finding you fix now is `accepted`, and its entry in `<work>/follow-ups.md` gets the status `fixed in <task>`. One you leave is `declined`, with the reason "left as a follow-up".
    - A minor finding of another lens that you decline because it lies outside the task goes into `<work>/follow-ups.md`, in the format the review-panel skill gives.
 3. Fix the `accepted` and `modified` findings test-first (section 2): a finding about behaviour gets a test that fails before the fix.
+   Before the next round, read each fixed finding again, its Finding and Fix cells in full, and check the fix against every input, path and file it names, not only the one your test covers. An incomplete fix comes back as "Repeats R<n>, not fixed" and costs a whole round (F23: 18 of 51 later-round blockers were such repeats).
 4. Run section 3 for round `<N+1>` (it commits the disposition with the fixes), then section 4 for that round. Each lens gets its own round-`<N>` review as its earlier review, and `<start>` stays the same.
 
 ## 6. The independent tester (PASS; Feature and Epic)

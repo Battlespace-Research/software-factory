@@ -15,6 +15,7 @@ from swfactory.panel import (
     PanelResult,
     combine,
     latest_passing_commit,
+    lenses_to_run,
     render_panel_summary,
     review_path,
     write_panel_summary,
@@ -573,3 +574,73 @@ def test_cli_panel_prints_even_when_the_console_cannot_show_a_character(tmp_path
 def test_cli_panel_without_a_subcommand_prints_help(capsys):
     assert cli.main(["panel"]) == 2
     assert "combine" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- carried lenses (F22)
+
+def test_round_one_runs_every_lens(tmp_path):
+    assert lenses_to_run(tmp_path, "T1", 1, FEATURE_LENSES) == (FEATURE_LENSES, {})
+
+
+def test_a_later_round_runs_only_the_lenses_that_blocked(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", changes(row("R1", "major")))
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    write_review(tmp_path, "T1", 1, "maintainability", passing(row("R1", "minor")))
+    assert lenses_to_run(tmp_path, "T1", 2, FEATURE_LENSES) == (["correctness"], {"security": 1, "maintainability": 1})
+
+
+def test_a_pass_with_a_major_finding_is_not_carried(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", PASS)
+    write_review(tmp_path, "T1", 1, "security", passing(row("R1", "major")))
+    assert lenses_to_run(tmp_path, "T1", 2, FIX_LENSES) == (["security"], {"correctness": 1})
+
+
+def test_an_unreadable_or_missing_earlier_review_runs_again(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", "not a review\n")
+    assert lenses_to_run(tmp_path, "T1", 2, FIX_LENSES) == (FIX_LENSES, {})
+
+
+def test_a_pass_carries_through_rounds_it_did_not_run(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", changes(row("R1", "major")))
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    write_review(tmp_path, "T1", 2, "correctness", changes(row("R2", "major")))
+    assert lenses_to_run(tmp_path, "T1", 3, FIX_LENSES) == (["correctness"], {"security": 1})
+
+
+def test_fresh_runs_every_lens(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", PASS)
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    assert lenses_to_run(tmp_path, "T1", 2, FIX_LENSES, fresh=True) == (FIX_LENSES, {})
+
+
+def test_combine_counts_a_carried_pass_and_says_so(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", changes(row("R1", "major")))
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    write_review(tmp_path, "T1", 2, "correctness", PASS)
+    result = combine(tmp_path, "T1", 2, FIX_LENSES, "abc")
+    assert result.verdict == "PASS" and result.missing == [] and result.carried == {"security": 1}
+    assert "## Carried\n- security: passed in round 1, not run again\n" in render_panel_summary(result)
+
+
+def test_combine_fresh_needs_every_lens(tmp_path):
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    write_review(tmp_path, "T1", 2, "correctness", PASS)
+    result = combine(tmp_path, "T1", 2, FIX_LENSES, "abc", fresh=True)
+    assert result.verdict == "INCOMPLETE" and result.missing == ["security"]
+
+
+def test_a_lens_that_ran_anyway_counts_with_its_new_review(tmp_path):
+    write_review(tmp_path, "T1", 1, "correctness", PASS)
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    write_review(tmp_path, "T1", 2, "security", changes(row("R2", "major")))
+    write_review(tmp_path, "T1", 2, "correctness", PASS)
+    result = combine(tmp_path, "T1", 2, FIX_LENSES, "abc")
+    assert result.verdict == "CHANGES" and result.carried == {}
+
+
+def test_a_round_after_a_passing_panel_runs_every_lens(tmp_path):
+    # Every lens passed round 1; round 2 reviews a later fix (say after a failed tester try), so nobody may be skipped.
+    write_review(tmp_path, "T1", 1, "correctness", PASS)
+    write_review(tmp_path, "T1", 1, "security", PASS)
+    assert lenses_to_run(tmp_path, "T1", 2, FIX_LENSES) == (FIX_LENSES, {})
+    assert combine(tmp_path, "T1", 2, FIX_LENSES, "abc").verdict == "INCOMPLETE"

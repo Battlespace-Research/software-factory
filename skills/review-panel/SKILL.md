@@ -30,6 +30,8 @@ Run every command from the repository root.
 
 1. `git status --porcelain --untracked-files=no` prints nothing and `git rev-parse HEAD` prints `<head>`. Otherwise go back to the caller: the panel reviews committed work only.
 2. **The lenses.** The track comes from the id's prefix (`FIX-` fix, `FEA-` feature, `EPIC-` epic); its lenses are the list under `tracks:` for that track in the front matter of `REVIEW.md`. If the list names any lens other than `correctness`, `security`, `maintainability` and `spec`, stop and tell the owner: this version of the factory has review prompts for those four only, and project lenses come in a later version. The owner removes the lens from the track or waits. Never run part of a panel.
+
+   **Which of them run this round** (F22): `sw-factory panel lenses <work> --task <task> --round <N>` prints one lens per line, then a `# carried` line for each lens that does not run. In round 1 every lens runs. From round 2 a lens whose latest earlier review passed (readable, `VERDICT: PASS`, no blocker or major; maintainability when readable) is carried: its pass stands and it does not run again; when that would leave no lens to run (a round after a passing panel, such as a fix after a failed tester try), every lens runs. A **merge-gate re-review** adds `--fresh` here and to `panel combine` (section 4), so every lens reviews the whole change on the updated base. Run exactly the lenses it prints; running fewer is running part of a panel.
 3. **The spec path** is `<work>/ticket.md` for a Fix and `<work>/spec.md` otherwise.
 4. **Resuming:** a lens whose review file for this round, `<work>/reviews/<task>-r<N>-<lens>.md`, already exists (a session stopped in the middle of the round) is not run again; the combine step says whether that file is valid.
 
@@ -73,7 +75,7 @@ Then for each lens:
 
 ## 4. Combine
 
-1. When every lens has finished, run `sw-factory panel combine <work> --task <task> --round <N> --commit <head>`. It prints the summary, writes `<work>/reviews/<task>-r<N>-panel.md`, and exits with the verdict: **0 PASS**, **1 CHANGES**, **2 INCOMPLETE**. An exit 2 that printed no summary, only a reason on stderr, means it could not run: fix that and run it again.
+1. When every lens has finished, run `sw-factory panel combine <work> --task <task> --round <N> --commit <head>` (with `--fresh` in a merge-gate re-review). A carried lens is listed under `## Carried`, not `## Missing`. It prints the summary, writes `<work>/reviews/<task>-r<N>-panel.md`, and exits with the verdict: **0 PASS**, **1 CHANGES**, **2 INCOMPLETE**. An exit 2 that printed no summary, only a reason on stderr, means it could not run: fix that and run it again.
 2. **INCOMPLETE:** the summary's `## Missing` and `## Invalid` sections name the lenses without a readable review. Run only those lenses again, once, the same way as their last attempt (a command lens that needed `--fallback` uses it again; for a subagent lens, replace the invalid file with the new reply), then combine again. Still INCOMPLETE: record the round (section 6) with the state `blocked` and the next step `owner decides: lens <lens> gave no readable review in round <N>`, then stop and show the owner the summary.
 3. **Warnings** (`## Warnings`: a CHANGES verdict with no blocking finding, more nits than the cap) do not change the verdict. Pass them on with it.
 4. Maintainability findings never block: the panel lists them under `## Follow-ups`. Blocker and major findings of every other lens are under `## Blocking`.

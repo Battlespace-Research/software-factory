@@ -5,6 +5,10 @@ unparseable one makes the panel INCOMPLETE. Every maintainability finding is a f
 blocker and major findings from any other lens block. The panel says CHANGES when something blocks or a lens
 other than maintainability says CHANGES, and PASS otherwise. Nothing here can turn missing or garbled reviewer
 output into a PASS.
+
+From round 2 a lens whose latest earlier review passed (it was readable, its verdict PASS and it held no blocker or
+major; for maintainability, readable) is **carried**: it does not run again and its pass stands (F22). Measured on 150
+rounds, a lens that passed blocked again once in 51 later blockers. ``fresh`` (a merge-gate re-review) runs every lens.
 """
 from __future__ import annotations
 
@@ -32,6 +36,7 @@ __all__ = [
     "MAINTAINABILITY",
     "PanelResult",
     "combine",
+    "lenses_to_run",
     "latest_passing_commit",
     "render_panel_summary",
     "review_path",
@@ -48,18 +53,70 @@ class PanelResult:
     invalid: dict[str, str]  # lens -> why its review file could not be read
     commit: str  # the commit that was reviewed
     warnings: list[str] = field(default_factory=list)  # "<lens>: ..." things a person should look at
+    carried: dict[str, int] = field(default_factory=dict)  # lens -> the round whose pass it carries (F22)
+
+
+def _carried_from(work_dir: Path, task: str, rnd: int, lens: str, nit_cap: int) -> int | None:
+    """The earlier round whose pass ``lens`` carries into round ``rnd``, or None when it must run again: its latest
+    review before ``rnd`` must be readable, say PASS and hold no blocker or major (for maintainability, whose
+    findings never block, readable is enough)."""
+    for earlier in range(rnd - 1, 0, -1):
+        path = review_path(work_dir, task, earlier, lens)
+        if not path.exists():
+            continue
+        try:
+            review = read_review_file(path, lens, nit_cap)
+        except (ReviewFormatError, OSError):
+            return None
+        if lens == MAINTAINABILITY:
+            return earlier
+        blocks = review.verdict == "CHANGES" or any(f.severity in BLOCKING_SEVERITIES for f in review.findings)
+        return None if blocks else earlier
+    return None
+
+
+def lenses_to_run(
+    work_dir: Path, task: str, rnd: int, lenses: list[str], fresh: bool = False, nit_cap: int = DEFAULT_NIT_CAP
+) -> tuple[list[str], dict[str, int]]:
+    """The lenses that review ``task`` in round ``rnd``, and those whose earlier pass carries (lens -> round).
+    Round 1 and a ``fresh`` round run every lens, and so does a round in which none would run: every lens passed
+    the round before, so this round reviews a change made after a passing panel (a fix after a failed tester try)."""
+    lenses = list(dict.fromkeys(lenses))
+    if rnd <= 1 or fresh:
+        return lenses, {}
+    run, carried = [], {}
+    for lens in lenses:
+        if review_path(work_dir, task, rnd, lens).exists():
+            run.append(lens)  # it ran this round anyway: its review counts
+            continue
+        earlier = _carried_from(work_dir, task, rnd, lens, nit_cap)
+        if earlier is None:
+            run.append(lens)
+        else:
+            carried[lens] = earlier
+    if not run:
+        return lenses, {}
+    return run, carried
 
 
 def combine(
-    work_dir: Path, task: str, rnd: int, lenses: list[str], commit: str, nit_cap: int = DEFAULT_NIT_CAP
+    work_dir: Path,
+    task: str,
+    rnd: int,
+    lenses: list[str],
+    commit: str,
+    nit_cap: int = DEFAULT_NIT_CAP,
+    fresh: bool = False,
 ) -> PanelResult:
     """Read each lens's review of ``task`` round ``rnd`` under ``work_dir`` and combine them.
 
-    ``nit_cap`` is the project's cap on nits per review (a longer list only produces a warning).
+    ``nit_cap`` is the project's cap on nits per review (a longer list only produces a warning). From round 2 a lens
+    whose earlier pass carries (``lenses_to_run``) needs no review this round; ``fresh`` makes every lens report.
     """
     lenses = list(dict.fromkeys(lenses))
     if not lenses:
         raise ValueError("the panel needs at least one lens; a panel of none would pass everything")
+    lenses, carried = lenses_to_run(work_dir, task, rnd, lenses, fresh, nit_cap)
 
     reviews: dict[str, Review] = {}
     missing: list[str] = []
@@ -98,7 +155,7 @@ def combine(
         verdict = "CHANGES"
     else:
         verdict = "PASS"
-    return PanelResult(verdict, blocking, follow_ups, missing, invalid, commit, warnings)
+    return PanelResult(verdict, blocking, follow_ups, missing, invalid, commit, warnings, carried)
 
 
 # --------------------------------------------------------------------------- the summary file
@@ -126,6 +183,8 @@ def render_panel_summary(result: PanelResult) -> str:
     lines = [f"VERDICT: {result.verdict}", f"Commit: {result.commit}", ""]
     lines += ["## Blocking", *_finding_table(result.blocking), ""]
     lines += ["## Follow-ups", *_finding_table(result.follow_ups), ""]
+    if result.carried:  # only in a later round that ran fewer lenses (F22)
+        lines += ["## Carried", *[f"- {lens}: passed in round {rnd}, not run again" for lens, rnd in result.carried.items()], ""]
     lines += ["## Missing", *[f"- {lens}" for lens in result.missing], *([] if result.missing else ["None."]), ""]
     lines += ["## Invalid", *[f"- {lens}: {_line(why)}" for lens, why in result.invalid.items()],
               *([] if result.invalid else ["None."]), ""]
