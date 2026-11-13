@@ -4,7 +4,8 @@
 
 1. ``base-merged``: the base branch is already merged into the branch being merged.
 2. ``reviewed-commit``: HEAD is the commit the review panel passed (or later commits changed nothing but
-   factory bookkeeping under ``sw-factory/work/``), and no tracked file has uncommitted changes.
+   factory bookkeeping under ``sw-factory/work/``, or only took the base's files that the work does not change:
+   a merge of the base after the review), and no tracked file has uncommitted changes.
 3. ``size-cap``: the change is under the project's line cap. Generated files, binaries and everything under
    ``sw-factory/work/`` (the factory's own specs, plans and notes, not product code) do not count.
 4. ``id-unused-on-base``: no work folder on the base uses this work id (two branches took the same id). The
@@ -134,13 +135,31 @@ def _paths_changed_since(repo: Path, reviewed: str) -> list[str]:
     return [path for path in listing.split("\0") if path]
 
 
-def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None, str | None]:
+def _changed_files(repo: Path, start: str, end: str) -> set[str]:
+    listing = run_git(repo, "diff", "--no-renames", "--name-only", "-z", start, end)
+    return {path for path in listing.split("\0") if path}
+
+
+def _only_the_base(repo: Path, reviewed: str, base: _BaseRef, outside: list[str]) -> bool:
+    """Whether the product files changed since the review (``outside``) only took the base's: each is now exactly
+    as on the base (HEAD and the base do not differ there) and none is a file the work itself changes (between
+    the reviewed commit and its merge-base with the base). Then the work's own change is the one the panel passed,
+    byte for byte, and what the base brought in is the base's own reviewed code; how the two fit together is the
+    full verify's to show, which the gate runs."""
+    differs_from_base = _changed_files(repo, base.full, "HEAD")
+    fork = run_git(repo, "merge-base", base.full, reviewed)
+    own = _changed_files(repo, fork, reviewed)
+    return not any(path in differs_from_base or path in own for path in outside)
+
+
+def _since_the_review(repo: Path, head: str, reviewed: str, base: _BaseRef | None = None) -> tuple[str | None, str | None]:
     """How HEAD relates to the reviewed commit: ``(problem, None)`` or ``(None, what to say when it is fine)``.
 
     Fine when they are the same commit, or when the reviewed commit is an ancestor of HEAD and the commits
     since changed only paths under ``sw-factory/work/``: the factory commits its bookkeeping (panel summaries, the
     tester report, progress notes, approvals, this gate's report) after a review has passed, and none of that
-    is product code the panel would have to look at again.
+    is product code the panel would have to look at again. Also fine when the product files they changed only
+    took the base's (``_only_the_base``): a merge of the base after the review, which needs no new review round.
     """
     if head == reviewed:
         return None, f"HEAD {head[:12]} is the commit the panel passed"
@@ -152,6 +171,12 @@ def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None,
         )
     later = int(run_git(repo, "rev-list", "--count", f"{reviewed}..HEAD"))
     outside = [path for path in _paths_changed_since(repo, reviewed) if not path.startswith(WORK_ROOT_GIT)]
+    if outside and base is not None and _only_the_base(repo, reviewed, base, outside):
+        return None, (
+            f"HEAD is {later} commit(s) after the reviewed commit; the {len(outside)} product file(s) they changed are "
+            f"{base.label}'s, none of them changed by this work, so its own change is the one reviewed "
+            f"(reviewed {reviewed[:12]}, HEAD {head[:12]})"
+        )
     if outside:
         return (
             f"HEAD is {head[:12]}, {later} commit(s) after the reviewed commit {reviewed[:12]}, and they changed "
@@ -164,7 +189,7 @@ def _since_the_review(repo: Path, head: str, reviewed: str) -> tuple[str | None,
     )
 
 
-def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
+def _reviewed_commit(repo: Path, reviewed_commit: str, refs: list[_BaseRef] | None = None) -> tuple[bool, str]:
     """HEAD is the commit the panel passed (see ``_since_the_review``), and no tracked file differs from HEAD:
     the full verify runs on the working tree, so an uncommitted change would let it pass on something that is
     not in the merged commit. Both kinds of failure are reported together."""
@@ -180,7 +205,7 @@ def _reviewed_commit(repo: Path, reviewed_commit: str) -> tuple[bool, str]:
         except GitError:
             problems.append(f"the reviewed commit {wanted} is not a commit in this repository")
         else:
-            problem, fine = _since_the_review(repo, head, reviewed)
+            problem, fine = _since_the_review(repo, head, reviewed, refs[0] if refs else None)
             if problem:
                 problems.append(problem)
     modified = _modified_tracked_files(repo)
@@ -322,7 +347,7 @@ def run_gate(
     refs = _base_refs(repo, cfg.base_branch)
     checks = [
         _run_check("base-merged", lambda: _base_merged(repo, cfg.base_branch, refs)),
-        _run_check("reviewed-commit", lambda: _reviewed_commit(repo, reviewed_commit)),
+        _run_check("reviewed-commit", lambda: _reviewed_commit(repo, reviewed_commit, refs)),
         _run_check("size-cap", lambda: _size_cap(repo, cfg, refs)),
         _run_check("id-unused-on-base", lambda: _id_unused(repo, cfg, item, refs)),
         _run_check("verify-full", lambda: _verify_full(repo, cfg, run_verify, builds_approved)),

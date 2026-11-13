@@ -340,6 +340,47 @@ def test_product_changes_since_the_review_list_at_most_five_paths_but_count_them
     assert sum(f"src/late{n}.py" in result.detail for n in range(8)) == 5 and "and 3 more" in result.detail
 
 
+# A merge of the base after the review (F21): the work's own change is still the one reviewed when every product
+# file the later commits changed is the base's own and none is a file the work changes.
+
+def merge_base_in(repo: Path) -> None:
+    run_git(repo, "merge", "-q", "--no-edit", "origin/main")
+
+
+def test_a_base_merge_touching_only_other_files_keeps_reviewed_commit_ok(work, gate_cfg):
+    advance_base(work.repo, "src/other.py", "the base's change\n")
+    merge_base_in(work.repo)
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert result.ok and "1 product file(s) they changed are origin/main's" in result.detail
+    assert check(gate(work, gate_cfg), "base-merged").ok
+
+
+def test_a_base_merge_touching_a_file_the_work_changes_fails(work, gate_cfg):
+    advance_base(work.repo, "src/app.py", numbered(10) + "the base also edits the app\n")
+    # The merge takes the base's copy of a file the work changes: HEAD's copy is the base's, but the work's change is gone.
+    run_git(work.repo, "merge", "-q", "--no-edit", "-X", "theirs", "origin/main")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/app.py" in result.detail and "run the panel again" in result.detail
+
+
+def test_a_product_edit_riding_on_a_base_merge_fails(work, gate_cfg):
+    advance_base(work.repo, "src/other.py", "the base's change\n")
+    run_git(work.repo, "merge", "-q", "--no-commit", "origin/main")
+    (work.repo / "src" / "other.py").write_text("edited during the merge\n", encoding="utf-8", newline="\n")
+    run_git(work.repo, "add", "-A")
+    run_git(work.repo, "commit", "-q", "-m", "merge with an edit")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/other.py" in result.detail
+
+
+def test_a_late_product_commit_beside_a_base_merge_fails(work, gate_cfg):
+    advance_base(work.repo, "src/other.py", "the base's change\n")
+    merge_base_in(work.repo)
+    commit_file(work.repo, "src/late.py", message="a change after the review")
+    result = check(gate(work, gate_cfg), "reviewed-commit")
+    assert not result.ok and "src/late.py" in result.detail
+
+
 def test_a_reviewed_commit_that_is_not_an_ancestor_fails(work, gate_cfg):
     run_git(work.repo, "switch", "-q", "-c", "elsewhere", "main")
     commit_file(work.repo, "other.txt", message="a commit on another branch")
